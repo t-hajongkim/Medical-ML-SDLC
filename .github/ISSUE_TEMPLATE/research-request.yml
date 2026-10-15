@@ -22,7 +22,7 @@ body:
         **데이터 주의사항:** 분할 간 환자 중복이 있고 validation은 모델 개발에 사용됐습니다.
         인종 결측 대치 여부도 구분해야 하며, 독립적인 환자 단위 성능 검증 데이터로 보지 않습니다.
 
-        **현재는 입력 폼 초안입니다. 제출 후 자동 EDA·PR 1 생성은 아직 연결되지 않았습니다.**
+        **현재는 입력 폼 초안입니다. 제출 후 자동 점검과 결과 검토 기능은 아직 연결되지 않았습니다.**
         환자명·연락처·실제 진료정보·개인 파일을 입력하거나 첨부하지 마세요.
   - type: textarea
     id: research_goal
@@ -45,7 +45,6 @@ body:
         - train/validation/test 사이의 환자 중복은 어느 정도인가?
         - 연령·성별·인종별 표본 수와 재입원 정답 분포는 어떻게 다른가?
         - 원본 결측과 전처리 대치값을 구분해 해석할 수 있는가?
-        - 확인된 데이터·분할 한계를 평가 계획과 PR 1에 어떻게 명시해야 하는가?
     validations:
       required: true
   - type: textarea
@@ -59,25 +58,13 @@ body:
         추가 포함·제외 조건은 없습니다.
     validations:
       required: false
-  - type: dropdown
-    id: demographic_focus
-    attributes:
-      label: 집중해서 확인할 인구집단
-      description: 기본 점검은 연령·성별·인종 전체입니다. 특히 집중할 항목이 있을 때만 선택해 주세요.
-      multiple: true
-      options:
-        - 연령 (age)
-        - 성별 (gender)
-        - 인종 (race)
-    validations:
-      required: false
   - type: textarea
     id: additional_requests
     attributes:
       label: 추가 점검과 지표 요청
       description: 추가로 확인할 내용이나 관심 지표가 있을 때만 작성해 주세요. 지표를 미리 정할 필요는 없습니다.
       value: |
-        EDA 결과와 데이터 제약을 근거로 평가 지표 추천 초안을 PR 1에 제시해 주세요.
+        EDA 결과와 데이터 제약을 근거로 평가 지표 추천 초안을 제시해 주세요.
         이 Issue 단계에서는 모델 학습·추론·최종 성능 평가를 실행하지 않습니다.
     validations:
       required: false
