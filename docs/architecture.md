@@ -41,7 +41,7 @@ GHCR은 실행 DB가 아니라 재현할 이미지와 파일의 저장소다.
 | `tests/test_prepared_source.py` | 새 자산 계약·모의 다운로드/runner·무학습/무추론 검증 |
 | `.github/workflows/ci.yml` | 전체 합성 회귀 검증. ML 의존성은 이전 fixture 테스트 때문에만 사용 |
 | `.github/ISSUE_TEMPLATE/research-request.yml` | 연구 요청 폼. 자동 EDA·PR1 미연결 |
-| `config/assets.json` | data/model digest 둘 다 현재 null. 게시 후 사람이 입력 |
+| `config/assets.json` | 실제 게시된 data/model 두 digest 고정 참조. 두 패키지 Public·익명 조회 확인 |
 
 `app/prepared.py`는 ML 모듈을 import하지 않는다. 모델 pickle을 역직렬화하지 않으며 bytes·hash·명세만 검사한다.
 기존 `app/assets.py`의 전처리·새 모델 학습, `app/bootstrap.py`의 pair 검증/개인 패키지,
@@ -80,7 +80,13 @@ GHCR은 실행 DB가 아니라 재현할 이미지와 파일의 저장소다.
 
 원본 CSV는 runner source 폴더에서 검사한 뒤 제거한다. 데이터/모델 CSV·바이너리는 Git·Artifacts·Releases에 넣지 않는다.
 로컬 검증에서는 기존 획득 자산을 읽기 전용으로 사용할 수 있으며 빌드 context는 Git 바깥에 둔다.
-실제 Docker/게시/Action dispatch는 사용자 검토 뒤 수행한다.
+실제 Docker는 사용자 승인에 따라 GitHub-hosted runner에서만 실행했다. 로컬 Docker는 실행하지 않았다.
+
+2026-10-15 [run 38722808263](https://github.com/t-hajongkim/Medical-ML-SDLC/actions/runs/38722808263)이 성공했다.
+실제 DB의 metadata/feature 각 101,766행과 asset_info 전체가 일치하고 모델 filesystem 무결성 검사도 통과했다.
+두 패키지 visibility를 workflow token의 read API로 Public 확인하고 외부에서 익명 OCI manifest 조회도 확인했다.
+실제 이미지 source/revision은 `t-hajongkim/Medical-ML-SDLC` / `5c0fc144687766c0306e8b7150f3228579ac7a0f`이다.
+후속 digest 참조 기록 커밋을 빌드 소스인 것처럼 바꾸지 않는다. 고정 참조는 `config/assets.json`을 읽는다.
 
 ## 해석 및 후속 경계
 

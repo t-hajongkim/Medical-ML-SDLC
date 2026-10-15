@@ -1,5 +1,26 @@
 # 현재 결정 기록
 
+## 2026-10-15: 사용자 승인에 따른 실제 GHCR 등록
+
+- 승인: 사용자의 "오케이 등록해주고" 요청으로 코드 반영·수동 Action·실제 자산 등록 범위를 진행했다.
+- 원격: `t-hajongkim/Medical-ML-SDLC`의 최신 main을 별도 클론하고 35개 셋업 파일만 허용 목록으로 반영했다.
+  원본 작업 폴더의 HEAD/index/origin은 변경하지 않았고 기존 Issue Form blob
+  `1da6ca210c6b5d9e5d5e0fd0beabd52399c5f63b`를 그대로 보존했다.
+  `.gitattributes`에 해당 폼의 text 변환 예외를 두어 원격 CRLF 바이트를 정규화하지 않는다.
+- 빌드 소스: `5c0fc144687766c0306e8b7150f3228579ac7a0f`.
+  기존 버전 덮어쓰기를 피하기 위해 태그 `diabetes-prepared-v1-20261015-5c0fc14`를 사용했다.
+- 실행: [run 38722808263](https://github.com/t-hajongkim/Medical-ML-SDLC/actions/runs/38722808263) 성공.
+  DB metadata/feature 각 101,766행 및 asset_info 전체 대조, 모델 파일 무결성 검사, 두 GHCR push가 성공했다.
+- 공개: workflow token의 package read API에서 두 visibility를 Public 확인했고 익명 OCI manifest 조회도 성공했다.
+  모델의 실제 registry layer를 메모리에서만 읽어 checkpoint/source README/manifest/NOTICE 해시를 검증했다.
+  모델을 역직렬화하거나 predict하지 않았다. 별도 Public 변경이나 권한 확대는 하지 않았다.
+- 참조: 실제 data/model digest를 `config/assets.json`에 사후 기록한다.
+  이미지 source/revision은 빌드 커밋을 유지하고 사후 참조 커밋으로 위조하지 않는다.
+- 회귀: 미게시 설정 거부 테스트는 저장소의 실제 등록 상태 대신 별도 null fixture를 검사하도록 분리했다.
+  null/mutable 참조 거부와 유효한 pinned 참조 수용을 모두 검증하며 기존 검사 단언을 제거하지 않는다.
+- 남은 범위: 참가자 초기화는 계속 차단된 초안이다. 다음은 Issue 접수→EDA 점검→검토용 결과 PR 연결이며
+  이번 등록 작업에 새 자동화·PR2·Pages를 구현하지 않았다.
+
 ## 2026-10-15: 고정 준비 데이터 + 별도 조건부 모델 artifact 게시
 
 - 최신 승인: GHCR 기초 셋업을 구현하고 검증된 모델도 YML에 적재하되 학습·추론을 게시 작업에 넣지 않는다.
@@ -23,7 +44,7 @@
   Initialize Workshop은 현재 artifact 계약과 호환되지 않아 첫 step에서 명시적으로 중단하고 쓰기 권한을 제거했다.
   참가자 초기화/모델 실행 연결/Issue→EDA→PR1/PR2/평가/Pages는 후속 결정이다.
 - Issue Form은 부모 작업으로 작성·별도 게시됐다. 자산 명세를 폼에서 직접 입력받거나 자유 입력을 코드로 실행하지 않는다.
-- 상태: 실제 로컬 자산 수입/포장·source-only 검증과 YAML/셸/경로 점검까지만 완료한다.
+- 당시 로컬 구현 단계의 상태: 실제 로컬 자산 수입/포장·source-only 검증과 YAML/셸/경로 점검까지만 완료했다.
   실제 Docker/GHCR 게시/Action dispatch/이 GHCR 코드의 commit·push는 미실행이다.
 
 ## 아래 이전 정리·CKD 결정은 최신 항목으로 대체된 이력

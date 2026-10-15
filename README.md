@@ -8,7 +8,7 @@ GHCR은 이미지 레지스트리이지 실행 중인 DB가 아닙니다.
 
 | 파일 / Actions 표시 이름 | 역할 | 현재 상태 |
 |---|---|---|
-| [publish-db-image.yml](.github/workflows/publish-db-image.yml) / **Establish Database Image** | 고정 공개 자산 검증 → DB 이미지 빌드·스모크 → 모델 파일 이미지 빌드·무결성 검사 → 두 공통 GHCR 게시 | 로컬 구현·소스 검증 완료. 실제 GitHub runner 빌드·스모크·게시 미실행 |
+| [publish-db-image.yml](.github/workflows/publish-db-image.yml) / **Establish Database Image** | 고정 공개 자산 검증 → DB 이미지 빌드·스모크 → 모델 파일 이미지 빌드·무결성 검사 → 두 공통 GHCR 게시 | [2026-10-15 실제 게시 성공](https://github.com/t-hajongkim/Medical-ML-SDLC/actions/runs/38722808263). 두 패키지 Public·익명 조회 확인 |
 | [initialize-workshop.yml](.github/workflows/initialize-workshop.yml) / **Initialize Workshop** | 이전 데이터/모델 pair 기반 참가자 초기화 초안 | 현재 계약과 호환되지 않아 첫 step에서 명시적으로 중단. 쓰기 권한 제거. 실행하지 않습니다 |
 | [ci.yml](.github/workflows/ci.yml) / **Check workshop setup** | 현재 자산 계약과 이전 코드의 합성 fixture 회귀 검사 | 외부 자산 다운로드·Docker·GHCR 게시 없음 |
 
@@ -69,9 +69,20 @@ GHCR은 이미지 레지스트리이지 실행 중인 DB가 아닙니다.
   원본 입력의 113-feature 전처리 파이프라인 재현은 미해결입니다.
 
 데이터와 모델은 별도 이미지로 저장되므로 참가자 DATA 복사에 모델이 딸려가지 않습니다.
-두 digest는 게시 후 Summary에 표시하며, 운영자가 검토한 실제 참조만 `config/assets.json`에 입력합니다.
-현재 두 참조는 `null`입니다. 자동 원격 커밋이나 가짜 digest 기록은 없습니다.
-두 패키지의 최초 Public 전환은 운영자 작업입니다. 두 번의 push는 원자적이지 않으므로 두 게시가 모두 성공했는지 확인해야 합니다.
+두 digest는 게시 후 Summary에 표시하며 검증된 실제 참조를 `config/assets.json`에 고정 등록했습니다.
+2026-10-15 [게시 run 38722808263](https://github.com/t-hajongkim/Medical-ML-SDLC/actions/runs/38722808263)에서
+metadata·feature 각 101,766행 및 asset_info 전체 대조, 모델 이미지 파일 해시 검사가 통과했습니다.
+두 패키지는 Public이며 익명 OCI manifest 조회와 모델 파일 해시도 확인했습니다.
+이미지의 실제 빌드 소스는 `5c0fc144687766c0306e8b7150f3228579ac7a0f`입니다. 이후 참조 기록 커밋과 구분합니다.
+게시 YML이 설정 파일을 자동 커밋하지는 않습니다. 최초 Public 전환이 필요한 경우 운영자가 처리합니다.
+두 번의 push는 원자적이지 않으므로 향후 게시에서도 두 게시가 모두 성공했는지 확인해야 합니다.
+
+| 등록된 공통 이미지 | 고정 참조 |
+|---|---|
+| 데이터 | `ghcr.io/t-hajongkim/medical-ml-sdlc-db@sha256:a81f2187eaac6b465b3443df423ee369ab7e7cd216e71ab9c0a4aeb8a88ab947` |
+| 모델 파일 | `ghcr.io/t-hajongkim/medical-ml-sdlc-model@sha256:1617d5200111f0529d29d4a59517177dc6eb6cc5bf4a5ba88408c1cd83f8ee38` |
+
+**자산 등록 완료와 참가자 초기화·자동 점검 연결 완료는 다릅니다.**
 
 ## 보존해야 할 한계
 
@@ -98,7 +109,7 @@ GHCR은 이미지 레지스트리이지 실행 중인 DB가 아닙니다.
 | `.dockerignore`, `.gitignore`, `.gitattributes` | 컨텍스트 허용 목록·CSV/바이너리/캐시 커밋 방지·줄바꿈 |
 | `app/asset_contract.py`, `app/dataset.py`, `app/ghcr.py` | 재사용한 hash/원본 검증/이미지 이름·태그·digest 도우미 |
 | `tests/test_prepared_source.py` | 신규 현재 자산 계약·불일치 fail-fast·무학습/무추론·runner 모의 검사 |
-| `config/assets.json` | 아직 미게시인 공통 data/model 참조. 실제 게시 후 사람이 등록 |
+| `config/assets.json` | 실제 게시·Public 확인한 공통 data/model의 고정 digest 참조 |
 | `docs/prd/001-ghcr-db-setup.md`, `docs/architecture.md`, `docs/adr.md` | 현재 요구·구조·결정과 과거 범위의 구분 |
 
 컨텍스트는 runner 임시 경로의 `data/`와 `model/`에 생성합니다.

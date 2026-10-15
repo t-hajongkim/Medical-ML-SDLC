@@ -4,7 +4,9 @@
 
 사용자 요청: GHCR 기초 셋업을 구현하고 알려주며, 문제 없는 검증 모델도 YML에 적재한다.
 여기서 적재는 **고정 파일 포장·공통 레지스트리 게시 준비**다. 새 학습·전처리 fit·모델 로딩·predict를 뜻하지 않는다.
-로컬 구현·검증만 수행하고 실제 Docker, GHCR 게시, Action dispatch, 원격 commit/push는 사용자 검토 뒤 진행한다.
+최초 단계는 로컬 구현·검증만 수행했다. 이후 2026-10-15 사용자의 "오케이 등록해주고" 승인으로
+셋업 commit/push, GitHub-hosted Action dispatch, 실제 DB/모델 파일 검증과 GHCR 등록을 수행했다.
+로컬 Docker·새 모델 학습·모델 재실행은 여전히 금지한다.
 Issue Form 한 파일의 별도 승인 게시와 GHCR 구현/게시 승인은 구분한다.
 
 ### 현재 요구
@@ -47,7 +49,11 @@ Issue Form 한 파일의 별도 승인 게시와 GHCR 구현/게시 승인은 �
 - 고정 실제 로컬 자산의 SHA/bytes/rows/schema/원본키 연결·known overlap/원본 결측 검증과 자산 포장이 통과한다.
 - 합성 테스트에서 손상·행/열/target/키 불일치가 명시적으로 실패하며, 새 publisher가 fit/load/predict를 부르지 않는다.
 - YML/내장 셸/COPY 경로와 필수 문서가 일치한다.
-- 실제 runner DB·model filesystem 검증과 GHCR push는 **미실행**으로 보고한다. source-only 성공과 혼동하지 않는다.
+- source-only 성공과 실제 runner 검증·게시를 구분해 보고한다.
+  [실제 run 38722808263](https://github.com/t-hajongkim/Medical-ML-SDLC/actions/runs/38722808263)에서
+  DB 전체 대조·모델 filesystem 검사·두 push가 성공했고 Public 및 익명 조회를 확인했다.
+  실제 digest는 `config/assets.json`에 등록하며 이미지 빌드 source commit
+  `5c0fc144687766c0306e8b7150f3228579ac7a0f`를 후속 참조 기록 커밋과 구분한다.
 - 참가자 초기화/개인 DATA 패키지, 실제 모델 추론 연결, Issue→EDA→PR1, PR2, 최종 모델 평가, Pages는 제외한다.
 
 ## 아래는 이전 CKD 요구 기록 (현재 입력·실행 계약 아님)

@@ -178,8 +178,19 @@ class PreparedAssetTests(unittest.TestCase):
         for reference in (None, "ghcr.io/example/data:latest", "ghcr.io/example/data\nx=y"):
             with self.assertRaises(ValueError):
                 validate_image_reference(reference)
-        with self.assertRaises(ValueError):
-            load_references(ROOT / "config" / "assets.json")
+        with tempfile.TemporaryDirectory() as directory:
+            config = Path(directory) / "assets.json"
+            config.write_text(json.dumps({
+                "schema_version": 1, "data_image": None, "model_image": None,
+            }), encoding="utf-8")
+            with self.assertRaises(ValueError):
+                load_references(config)
+            references = ("ghcr.io/example/data@sha256:" + "a" * 64,
+                          "ghcr.io/example/model@sha256:" + "b" * 64)
+            config.write_text(json.dumps({
+                "schema_version": 1, "data_image": references[0], "model_image": references[1],
+            }), encoding="utf-8")
+            self.assertEqual(load_references(config), references)
 
     def test_participant_context_and_record_use_verified_pair(self):
         data_ref = "ghcr.io/example/data@sha256:" + "a" * 64

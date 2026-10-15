@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "data_image": null,
-  "model_image": null,
-  "note": "운영자 게시 후 Summary의 data_image/model_image 두 @sha256 참조를 검토·입력합니다. 아직 미게시입니다. 모델은 조건부 등록한 파일 보관 이미지이며 추론 런타임이 아닙니다. 참가자 초기화는 후속 초안입니다."
+  "data_image": "ghcr.io/t-hajongkim/medical-ml-sdlc-db@sha256:a81f2187eaac6b465b3443df423ee369ab7e7cd216e71ab9c0a4aeb8a88ab947",
+  "model_image": "ghcr.io/t-hajongkim/medical-ml-sdlc-model@sha256:1617d5200111f0529d29d4a59517177dc6eb6cc5bf4a5ba88408c1cd83f8ee38",
+  "note": "2026-10-15 실제 게시·DB 전체 대조·모델 파일 검사 완료. 두 패키지 Public 및 익명 조회 확인. 빌드 소스는 5c0fc144687766c0306e8b7150f3228579ac7a0f, Actions run 38722808263입니다. 모델은 조건부 파일 보관 이미지이며 추론 런타임이 아닙니다. 참가자 초기화는 후속 초안입니다."
 }
