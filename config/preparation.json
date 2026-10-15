@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "study": "퇴원 시점의 30일 이내 재입원 분류 교육용 기준선",
+  "row_key": "encounter_id",
+  "patient_key": "patient_nbr",
+  "target": "readmitted",
+  "target_mapping": {"<30": 1, ">30": 0, "NO": 0},
+  "numeric_features": [
+    "time_in_hospital",
+    "num_lab_procedures",
+    "num_procedures",
+    "num_medications",
+    "number_outpatient",
+    "number_emergency",
+    "number_inpatient",
+    "number_diagnoses"
+  ],
+  "categorical_features": ["age"],
+  "demographics": {"race": "race", "gender": "gender", "age_group": "age"},
+  "missing_tokens": ["", "?", "NaN"],
+  "split": {"seed": 42, "train": 0.6, "valid": 0.2, "test": 0.2},
+  "model": {"algorithm": "logistic_regression", "max_iter": 1000, "C": 1.0},
+  "participant_training": false
+}

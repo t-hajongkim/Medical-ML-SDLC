@@ -1,0 +1,170 @@
+name: Establish Database Image
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Frozen prepared data and model artifact version (no training)"
+        required: true
+        type: string
+        default: diabetes-prepared-v1
+
+permissions:
+  contents: read
+
+env:
+  PYTHONDONTWRITEBYTECODE: "1"
+
+concurrency:
+  group: establish-data-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  establish-data:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: "3.12"
+
+      - name: Check data-only contracts using synthetic fixtures
+        run: python -B -m unittest discover -s tests -p test_prepared_source.py -v
+
+      - name: Resolve operator database image
+        id: data_image
+        env:
+          IMAGE_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          python -B -m app.ghcr name --repository "$GITHUB_REPOSITORY" \
+            --kind db --tag "$IMAGE_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve the shared model artifact image
+        id: model_image
+        env:
+          IMAGE_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          python -B -m app.ghcr name --repository "$GITHUB_REPOSITORY" \
+            --kind model --tag "$IMAGE_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Import frozen splits, audit metadata and conditional checkpoint
+        id: assets
+        run: |
+          set -euo pipefail
+          output="$RUNNER_TEMP/workshop-data-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          python -B -m app.prepared prepare --output "$output" --source-commit "$GITHUB_SHA"
+          printf 'directory=%s\n' "$output" >> "$GITHUB_OUTPUT"
+          printf 'data_context=%s/data\n' "$output" >> "$GITHUB_OUTPUT"
+          printf 'model_context=%s/model\n' "$output" >> "$GITHUB_OUTPUT"
+
+      - name: Build the data-only PostgreSQL image
+        env:
+          DATA_IMAGE: ${{ steps.data_image.outputs.reference }}
+          DATA_CONTEXT: ${{ steps.assets.outputs.data_context }}
+        run: |
+          set -euo pipefail
+          docker build --pull --tag "$DATA_IMAGE" \
+            --label "org.opencontainers.image.source=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" \
+            --label "org.opencontainers.image.revision=$GITHUB_SHA" "$DATA_CONTEXT"
+
+      - name: Verify the actual database before publishing
+        env:
+          DATA_IMAGE: ${{ steps.data_image.outputs.reference }}
+          ASSET_DIRECTORY: ${{ steps.assets.outputs.directory }}
+        run: |
+          set -euo pipefail
+          python -B -m app.prepared smoke --image "$DATA_IMAGE" \
+            --prepared-directory "$ASSET_DIRECTORY"
+
+      - name: Build and verify model artifact files without execution
+        env:
+          MODEL_IMAGE: ${{ steps.model_image.outputs.reference }}
+          MODEL_CONTEXT: ${{ steps.assets.outputs.model_context }}
+          ASSET_DIRECTORY: ${{ steps.assets.outputs.directory }}
+        run: |
+          set -euo pipefail
+          docker build --tag "$MODEL_IMAGE" \
+            --label "org.opencontainers.image.source=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" \
+            --label "org.opencontainers.image.revision=$GITHUB_SHA" "$MODEL_CONTEXT"
+          python -B -m app.prepared verify-model-image --image "$MODEL_IMAGE" \
+            --prepared-directory "$ASSET_DIRECTORY"
+
+      - name: Authenticate to GHCR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GH_TOKEN" |
+            docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+
+      - name: Publish the verified data and separate model artifact
+        id: publish
+        env:
+          DATA_IMAGE: ${{ steps.data_image.outputs.reference }}
+          MODEL_IMAGE: ${{ steps.model_image.outputs.reference }}
+        run: |
+          set -euo pipefail
+          docker push "$DATA_IMAGE" | tee "$RUNNER_TEMP/data-push.log"
+          digest="$(python -B -m app.ghcr digest "$RUNNER_TEMP/data-push.log")"
+          printf 'data_digest=%s\n' "$digest" >> "$GITHUB_OUTPUT"
+          docker push "$MODEL_IMAGE" | tee "$RUNNER_TEMP/model-push.log"
+          model_digest="$(python -B -m app.ghcr digest "$RUNNER_TEMP/model-push.log")"
+          printf 'model_digest=%s\n' "$model_digest" >> "$GITHUB_OUTPUT"
+
+      - name: Read published package visibility without changing access
+        id: packages
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OWNER: ${{ github.repository_owner }}
+          OWNER_TYPE: ${{ github.event.repository.owner.type }}
+          DATA_IMAGE: ${{ steps.data_image.outputs.image }}
+          MODEL_IMAGE: ${{ steps.model_image.outputs.image }}
+        run: |
+          set -euo pipefail
+          owner_path=users
+          if [ "$OWNER_TYPE" = Organization ]; then
+            owner_path=orgs
+          fi
+          for kind in data model; do
+            if [ "$kind" = data ]; then image="$DATA_IMAGE"; else image="$MODEL_IMAGE"; fi
+            package="${image##*/}"
+            if visibility="$(gh api "$owner_path/$OWNER/packages/container/$package" --jq '.visibility')"; then
+              printf '%s_visibility=%s\n' "$kind" "$visibility" >> "$GITHUB_OUTPUT"
+            else
+              echo "::warning::Package visibility could not be read; do not assume public access."
+              printf '%s_visibility=unknown\n' "$kind" >> "$GITHUB_OUTPUT"
+            fi
+          done
+
+      - name: Show the immutable reference and known limitations
+        env:
+          DATA_IMAGE: ${{ steps.data_image.outputs.image }}
+          DATA_DIGEST: ${{ steps.publish.outputs.data_digest }}
+          MODEL_IMAGE: ${{ steps.model_image.outputs.image }}
+          MODEL_DIGEST: ${{ steps.publish.outputs.model_digest }}
+          DATA_VISIBILITY: ${{ steps.packages.outputs.data_visibility }}
+          MODEL_VISIBILITY: ${{ steps.packages.outputs.model_visibility }}
+          ASSET_DIRECTORY: ${{ steps.assets.outputs.directory }}
+        run: |
+          set -euo pipefail
+          {
+            echo "## 준비 데이터·모델 파일 GHCR 게시 완료"
+            printf '\nData: `%s@%s`\n' "$DATA_IMAGE" "$DATA_DIGEST"
+            printf '\nModel artifact: `%s@%s`\n' "$MODEL_IMAGE" "$MODEL_DIGEST"
+            printf '\nPackage visibility: data=%s, model=%s\n' "$DATA_VISIBILITY" "$MODEL_VISIBILITY"
+            echo
+            echo "운영자가 두 패키지를 Public으로 바꾸고 data_image/model_image 참조를 config/assets.json에 검토·입력하세요."
+            echo "GHCR은 이미지 저장소이며 실행 중인 DB가 아닙니다. 모델 이미지는 실행 런타임이 아닌 파일 보관용입니다."
+            echo
+            python -B -c 'import json,os,pathlib; p=json.loads((pathlib.Path(os.environ["ASSET_DIRECTORY"])/"preparation-summary.json").read_text(encoding="utf-8")); print("Data ID: `"+p["data_id"]+"`"); print("Rows: "+json.dumps(p["split_rows"])); print("Known patient overlap: "+json.dumps(p["patient_overlap"])); print("Original missing race: "+json.dumps(p["race_missing"]))'
+            echo
+            echo "공개 validation은 개발에 사용됐고 환자 중복·target encoding 이력 한계가 있으므로 누수 없는 독립 holdout으로 해석하지 않습니다."
+            echo "체크포인트는 이미 표준화된 113-feature CSV 실습용으로 조건부 등록했습니다. sklearn 1.2.2→1.6.1 경고와 원본 입력 파이프라인 미재현 한계가 있습니다."
+            echo "120-feature scaler·새 학습·모델 로딩·추론은 이 게시 작업에 포함하지 않았습니다. 참가자 초기화·추론 실행 연결은 후속 단계입니다."
+          } >> "$GITHUB_STEP_SUMMARY"

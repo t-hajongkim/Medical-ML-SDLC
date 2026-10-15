@@ -1,0 +1,6 @@
+{
+  "schema_version": 1,
+  "data_image": null,
+  "model_image": null,
+  "note": "운영자 게시 후 Summary의 data_image/model_image 두 @sha256 참조를 검토·입력합니다. 아직 미게시입니다. 모델은 조건부 등록한 파일 보관 이미지이며 추론 런타임이 아닙니다. 참가자 초기화는 후속 초안입니다."
+}

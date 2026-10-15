@@ -1,0 +1,9 @@
+**
+!Dockerfile
+!assets/
+!assets/*.csv
+!assets/data_manifest.json
+!assets/NOTICE.txt
+!db/
+!db/init.sql
+!db/healthcheck.sh

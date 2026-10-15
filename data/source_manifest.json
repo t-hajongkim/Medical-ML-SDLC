@@ -1,0 +1,29 @@
+{
+  "dataset": "Diabetes 130-US Hospitals for Years 1999-2008",
+  "version": "uci-diabetes-130-v1",
+  "source_url": "https://archive.ics.uci.edu/static/public/296/data.csv",
+  "documentation_url": "https://archive.ics.uci.edu/dataset/296/diabetes+130-us+hospitals+for+years+1999-2008",
+  "doi": "10.24432/C5230J",
+  "missing_tokens": ["", "?", "NaN"],
+  "license": "CC-BY-4.0",
+  "bytes": 19545081,
+  "sha256": "f792c388d9b470aac4fbf21c39b176534d55a116e7626881c30bbe7ab0341422",
+  "rows": 101766,
+  "target": "readmitted",
+  "id_columns": ["encounter_id", "patient_nbr"],
+  "columns": [
+    "encounter_id", "patient_nbr", "race", "gender", "age", "weight",
+    "admission_type_id", "discharge_disposition_id", "admission_source_id",
+    "time_in_hospital", "payer_code", "medical_specialty",
+    "num_lab_procedures", "num_procedures", "num_medications",
+    "number_outpatient", "number_emergency", "number_inpatient",
+    "diag_1", "diag_2", "diag_3", "number_diagnoses", "max_glu_serum", "A1Cresult",
+    "metformin", "repaglinide", "nateglinide", "chlorpropamide", "glimepiride",
+    "acetohexamide", "glipizide", "glyburide", "tolbutamide", "pioglitazone",
+    "rosiglitazone", "acarbose", "miglitol", "troglitazone", "tolazamide",
+    "examide", "citoglipton", "insulin", "glyburide-metformin",
+    "glipizide-metformin", "glimepiride-pioglitazone",
+    "metformin-rosiglitazone", "metformin-pioglitazone", "change", "diabetesMed",
+    "readmitted"
+  ]
+}

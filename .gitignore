@@ -1,0 +1,15 @@
+__pycache__/
+.pytest_cache/
+.venv/
+.env
+*.pyc
+*.pkl
+*.joblib
+*.onnx
+checkpoints/
+data/ckd_raw.csv
+data/source.csv
+data/diabetes_raw.csv
+*.csv
+workshop-data*/
+config/workshop.json.local

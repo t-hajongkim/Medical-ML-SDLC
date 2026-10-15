@@ -1,0 +1,36 @@
+Dataset: Diabetes 130-US Hospitals for Years 1999-2008
+Creators: John Clore, Krzysztof Cios, Jon DeShazo, Beata Strack
+Source: UCI Machine Learning Repository
+DOI: https://doi.org/10.24432/C5230J
+Dataset page: https://archive.ics.uci.edu/dataset/296/diabetes+130-us+hospitals+for+years+1999-2008
+License: Creative Commons Attribution 4.0 International (CC BY 4.0)
+License terms: https://creativecommons.org/licenses/by/4.0/
+
+The operator downloads and validates the fixed source outside Git.
+The original source CSV is not committed or included in the prepared images.
+Current published assets:
+- Frozen public prepared splits from auphong2707/hospital-readmission-risk-data,
+  revision 4a61a3591f079628c72f5edbc7494ca7dda8741d; no refitting or repartitioning.
+- Target 1: readmitted <30; target 0: >30 or NO, according to the source labels.
+- Already standardized 113-feature inputs. The incompatible 120-feature scaler is excluded.
+- Restored original patient linkage for aggregate overlap checks; original missing
+  race remains flagged separately from the public sidecar's Caucasian imputation.
+- Shared model artifact from auphong2707/hospital-readmission-phase2-lr,
+  revision e1f7fcc0f4f8e273fc56eb35018ec70bbccbee61, with its MIT source README.
+  The checkpoint is conditionally registered for prepared-input educational use.
+  Its image stores files only, not an executable inference runtime.
+The prepared-data and model-artifact manifests record feature order, source
+checksums, original-source hash, versions and known limitations. No new model
+training, preprocessing fit or model prediction is performed by publication.
+
+Known limitations: cross-split patient overlap (train/test 5086,
+train/validation 5055, validation/test 1760), validation reused in model
+development, test original race missing in 341 records, unresolved historical
+113-feature preprocessing and source target-encoding provenance. These assets
+do not establish a leakage-free independent holdout.
+
+This is not a clinical system or evidence of clinical performance.
+Source NO means no recorded readmission, not proof of unlimited follow-up.
+The source does not provide per-feature timestamps; temporal leakage cannot
+be certified from these assets alone. The dataset creators and UCI do not
+endorse this workshop.

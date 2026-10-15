@@ -1,0 +1,124 @@
+name: Initialize Workshop
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PYTHONDONTWRITEBYTECODE: "1"
+
+concurrency:
+  group: initialize-workshop-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  initialize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Stop - participant initialization is a future draft
+        run: |
+          echo "::error::Participant initialization is not implemented for the current data/model artifact contract."
+          exit 1
+
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: "3.12"
+
+      - name: Require the repository default branch
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          if [ "$GITHUB_REF_NAME" != "$DEFAULT_BRANCH" ]; then
+            echo "::error::Run initialization on the default branch."
+            exit 1
+          fi
+
+      - name: Read operator-provided immutable references
+        id: common
+        run: |
+          set -euo pipefail
+          python -m app.bootstrap refs --config config/assets.json >> "$GITHUB_OUTPUT"
+
+      - name: Verify public data and model belong to the same prepared pair
+        env:
+          DATA_IMAGE: ${{ steps.common.outputs.data_image }}
+          MODEL_IMAGE: ${{ steps.common.outputs.model_image }}
+        run: |
+          set -euo pipefail
+          python -m app.bootstrap verify --data-image "$DATA_IMAGE" \
+            --model-image "$MODEL_IMAGE" --output "$RUNNER_TEMP/verified-assets"
+
+      - name: Resolve participant package name
+        id: participant
+        run: |
+          set -euo pipefail
+          python -m app.ghcr name --repository "$GITHUB_REPOSITORY" \
+            --kind data --tag "initial-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare participant data image without changing or fitting data
+        env:
+          DATA_IMAGE: ${{ steps.common.outputs.data_image }}
+          PARTICIPANT_IMAGE: ${{ steps.participant.outputs.reference }}
+        run: |
+          set -euo pipefail
+          python -m app.bootstrap context --data-image "$DATA_IMAGE" \
+            --repository "$GITHUB_REPOSITORY" --output "$RUNNER_TEMP/participant-context"
+          docker build --tag "$PARTICIPANT_IMAGE" "$RUNNER_TEMP/participant-context"
+
+      - name: Authenticate and create the participant GHCR package
+        id: publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PARTICIPANT_IMAGE: ${{ steps.participant.outputs.reference }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GH_TOKEN" |
+            docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          docker push "$PARTICIPANT_IMAGE" | tee "$RUNNER_TEMP/participant-push.log"
+          digest="$(python -m app.ghcr digest "$RUNNER_TEMP/participant-push.log")"
+          printf 'digest=%s\n' "$digest" >> "$GITHUB_OUTPUT"
+
+      - name: Record initialization metadata in this repository
+        env:
+          PARTICIPANT_IMAGE: ${{ steps.participant.outputs.image }}
+          PARTICIPANT_DIGEST: ${{ steps.publish.outputs.digest }}
+          MODEL_IMAGE: ${{ steps.common.outputs.model_image }}
+        run: |
+          set -euo pipefail
+          python -m app.bootstrap record \
+            --inspection "$RUNNER_TEMP/verified-assets/inspection.json" \
+            --data-image "$PARTICIPANT_IMAGE@$PARTICIPANT_DIGEST" \
+            --model-image "$MODEL_IMAGE" --run-id "$GITHUB_RUN_ID" \
+            --output config/workshop.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- config/workshop.json
+          if git diff --cached --quiet; then
+            echo "Initialization metadata is already current."
+          else
+            git commit -m "Initialize prepared workshop asset references"
+            git push origin "HEAD:$GITHUB_REF_NAME"
+          fi
+
+      - name: Show participant initialization result
+        env:
+          PARTICIPANT_IMAGE: ${{ steps.participant.outputs.image }}
+          PARTICIPANT_DIGEST: ${{ steps.publish.outputs.digest }}
+          MODEL_IMAGE: ${{ steps.common.outputs.model_image }}
+        run: |
+          set -euo pipefail
+          {
+            echo "## 참가자 초기화 완료"
+            printf '\nParticipant data: `%s@%s`\n' "$PARTICIPANT_IMAGE" "$PARTICIPANT_DIGEST"
+            printf '\nShared inference model: `%s`\n' "$MODEL_IMAGE"
+            echo
+            echo "config/workshop.json에 자산 참조·짝 정보만 기록했습니다. 데이터·모델 파일은 커밋하지 않습니다."
+            echo "참가자 학습은 없으며, 새 개인 데이터 패키지를 Public으로 바꾸면 됩니다."
+          } >> "$GITHUB_STEP_SUMMARY"
