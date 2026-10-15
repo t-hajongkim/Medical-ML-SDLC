@@ -55,12 +55,25 @@ def verify_asset_directories(data_directory: Path, model_directory: Path) -> dic
             rows = list(reader)
         if len(rows) != data["split_rows"][split] or {row["row_key"] for row in rows} != expected:
             raise ValueError("Prepared split membership differs from its metadata.")
+    def audit_features():
+        positions = {}
+        with (data_directory / "db_features.csv").open(encoding="utf-8", newline="") as source:
+            reader = csv.DictReader(source)
+            if reader.fieldnames != ["row_key", "split", "feature_values"]:
+                raise ValueError("Legacy database feature schema mismatch.")
+            for row in reader:
+                split = row["split"]
+                positions[split] = positions.get(split, 0) + 1
+                yield {**row, "row_position": positions[split]}
+
     checks = run_checks(["patient_overlap", "demographics", "schema"], {
         "metadata": records,
         "feature_columns": data["feature_columns"],
         "expected_feature_columns": model["feature_columns"],
+        "feature_rows": audit_features,
     })
-    if checks[0]["status"] != "passed" or checks[2]["status"] != "passed":
+    # Keep unverifiable clinical/demographic findings visible in the returned checks.
+    if checks[0]["status"] != "passed" or checks[2]["details"].get("numeric_contract") != "passed":
         raise ValueError("Initialization checks failed.")
     return {"pair_id": pair_id, "rows": len(records), "feature_count": len(data["feature_columns"]), "split_rows": data["split_rows"], "checks": checks}
 

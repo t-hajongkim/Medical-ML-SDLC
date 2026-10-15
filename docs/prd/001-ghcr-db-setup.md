@@ -1,5 +1,65 @@
 # 준비 데이터·모델 자산 GHCR 게시 준비
 
+## 최신 후속 승인: 조합형 평가 계획·댓글·PR1 승인과 템플릿 반영 (2026-10-16)
+
+최신 범위는 기본 + 실제 Copilot 추천 + 사용자 추가/제외의 조합형 복구와 3단계 사람 승인까지다.
+아래 2026-10-15 항목은 각 단계 당시의 승인 기록이며 최신 범위는 이 절을 우선한다.
+
+1. EDA 점검과 결과 지표를 각각 카탈로그/독립 계산 블록으로 분리한다. 전자는 데이터, 후자는 예측 결과 입력이다.
+2. 기본/필수 정책·사람 선택·실제 AI 파일 소유를 구분한다. 필수 EDA 보호, alias 정규화, 선택·주지표·매개변수 보존.
+3. gh-aw Copilot native 인증을 사용해 공개 집계/등록 ID/근거만 처리한다. 별도 AI Secret·가짜 기본 AI 추천은 없다.
+4. PR 명령 댓글의 실제 사람 write/maintain/admin 권한을 검증한다.
+   등록 ID·매개변수만 변경하고 일반 문장/인용/코드블록은 실행하지 않는다. 중복·연속·실패 재시도를 보존한다.
+5. 추천 조합 완료와 승인 준비를 구분한다. AI provided·명시적 주지표·blocked 없음 확인 후 사람이 Merge한다.
+6. 병합 SHA의 입력/계획/이미지/해시/선택/제한을 불변 교육용 승인 기록으로 추가한다.
+   자동 승인·병합·모델/지표 실행은 없고 실패·미확정 병합은 승인 기록을 만들지 않는다.
+7. 로컬 회귀/컴파일/정적 검사 후 Medical-ML-SDLC 템플릿에만 코드와 PR 생성 허용 설정을 반영한다.
+   사용자가 복사본의 설정·실제 파이프라인 확인을 직접 하고 그 뒤 코드 리뷰한다.
+   템플릿에서 실제 Issue/Copilot/승인 시연이나 수동 workflow dispatch를 하지 않는다.
+
+제외: 복사본 자동 동기화·설정 변경, 개인 DATA 초기화, 새 학습, 최종 모델 추론·평가·Pages.
+
+## 이전 후속 승인: Issue→EDA→연구검토 draft PR 준비 (2026-10-15)
+
+사용자 요청: 연결 YML까지 같이 구현하고 완료·검증 후 사용자 코드 리뷰를 요청한다.
+범위는 **로컬 통합 구현·검증**이며 원본/독립 복사본의 원격 반영·dispatch·실제 PR 생성 승인이 아니다.
+
+요구/완료 기준:
+1. 현재 5필드 폼의 Issue opened와 유지관리자 수동 issue_number 입력을 처리한다.
+   목표/질문·section signature·동의는 검사하고 선택 값은 비어도 된다. 다른 Issue·외부 작성자는 이유 있는 제외/수동 보류로 처리한다.
+2. default branch 코드와 config의 고정 data_image만 사용한다. Issue 자유문구/사용자 ref/URL을 코드로 실행하지 않는다.
+3. Public 이미지 준비파일을 create/cp로 추출해 기존 manifest 검증→7 EDA 블록을 호출한다.
+   모델/추론·새 분할/전처리·DB 기동은 없다. 생성 컨테이너·소유 runtime 폴더만 정리한다.
+4. 입력 손상/명령 오류는 실패하되 유효 데이터의 failed/unverifiable 판정은 draft 검토 PR을 막지 않는다.
+5. Issue 번호 기반 reports 경로에 요청 설정·집계·Markdown 표·평가 계획 추천만 생성한다.
+   provenance와 각 상태/한계, 실제 분모/사건 수를 보존하고 개별 키·원자료·예측 행을 PR/Artifacts에 넣지 않는다.
+6. ROC-AUC/AP/Brier/보정곡선/임계값 지표는 이유와 필수입력만 제안한다.
+   주지표/threshold 미확정, DCA 요건 부족 보류, 비교모델 없는 NRI 적용 불가. 지표 계산/threshold 최적화는 하지 않는다.
+7. 같은 Issue의 고정 branch/열린 PR을 갱신하며 댓글/사용자 변경은 보존한다.
+   closed/merged PR 보류, 무변경 commit 없음, force push/amend/자동 merge 없음.
+8. GITHUB_TOKEN 최소 권한과 수동 권한 확인을 사용하고 새 자격증명/전역 설정 변경을 추가하지 않는다.
+   Actions PR 생성 허용 설정·token-created PR의 다른 CI trigger 제약을 전제로 알린다.
+9. 합성/mock 회귀·기존 회귀·실제 EDA를 재사용한 로컬 payload·YAML/actionlint/Bash 구문을 검증한다.
+   실제 GitHub 이벤트/이미지 추출/push/PR 검증 미실행을 구분한 뒤 사용자 리뷰로 넘긴다.
+
+## 후속 승인: 2단계 EDA 블록 준비 (2026-10-15)
+
+사용자의 "1단계 완료되었으면 2단계 블록들 준비 시작해줘" 승인을 따른 로컬 구현·검증 범위다.
+기존 3개 overlap/demographics/schema를 현재 validation 분할·원본 인종 결측·타깃·숫자 품질에 맞춰 보강하고,
+cohort/prediction_timing/label_observability/preprocessing_lineage 4개를 독립 파일과 기존 catalog에 추가한다.
+
+완료 기준:
+- 검증된 prepared/assets를 입력받아 7개 블록을 호출하고 집계 JSON을 생성한다. stage1 검증을 재사용하며 모델 실행은 없다.
+- strict target/bool, validation/명시적 valid alias, unknown split/없는 키/순서·길이 불일치/0행을 합성 회귀로 검사한다.
+- 101,766행의 known overlap 5,055/5,086/1,760와 원본 race 결측 1,596/336/341를 보존한다.
+- 입원/환자·원본/대치 race·선정 설명/행별 근거·label 인코딩/추적·hash/fit 이력을 각각 분리한다.
+- 예측시점/변수 가용성·추적 종료/외부병원 포착·113-feature 역사적 fit 범위가 없으면 unverifiable로 남긴다.
+- 보고서 생성 성공은 연구 적합성 passed가 아니다. 개별 키/행 출력·자유문구 실행·임의 집단/제외 수/통계 기준 생성은 금지한다.
+
+제외: 지표 빌딩 블록·모델 load/fit/predict·추가 scaler·재분할·변수/환자 삭제·이미지 재게시·Docker·Action dispatch·commit/push.
+당시 Issue/PR 자동 호출은 미연결이었다. 최신 후속 승인으로 로컬 연결을 추가하되 원격 활성은 리뷰 후다.
+기존 1단계 workflow/Issue Form/config/source hash/Dockerfile은 수정하지 않는다.
+
 ## 현재 승인된 범위 (2026-10-15)
 
 사용자 요청: GHCR 기초 셋업을 구현하고 알려주며, 문제 없는 검증 모델도 YML에 적재한다.

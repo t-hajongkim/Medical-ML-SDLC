@@ -1,21 +1,32 @@
+from app.blocks.checks._shared import metadata, result, split_name
+from app.prepared import SPLITS
+
+
 def run(context: dict) -> dict:
-    records = context.get("metadata", [])
-    if not records or any(not row.get("patient_key") or not row.get("split") for row in records):
-        return {"block": "patient_overlap", "status": "unverifiable", "details": {"reason": "Patient keys and split metadata are required."}}
-    groups = {split: set() for split in ("train", "valid", "test")}
+    records, error = metadata(context, "patient_overlap", ("patient_key", "split"))
+    if error:
+        return error
+    groups = {split: set() for split in SPLITS}
+    admissions = dict.fromkeys(SPLITS, 0)
     for row in records:
-        if row["split"] not in groups:
-            return {"block": "patient_overlap", "status": "failed", "details": {"reason": "Unknown split name."}}
-        groups[row["split"]].add(row["patient_key"])
-    if any(not group for group in groups.values()):
-        return {"block": "patient_overlap", "status": "unverifiable", "details": {"reason": "All three splits are required."}}
+        split = split_name(row["split"])
+        groups[split].add(row["patient_key"])
+        admissions[split] += 1
     overlaps = {
-        "train_valid": len(groups["train"] & groups["valid"]),
-        "train_test": len(groups["train"] & groups["test"]),
-        "valid_test": len(groups["valid"] & groups["test"]),
+        left + "_" + right: len(groups[left] & groups[right])
+        for left, right in (("train", "validation"), ("train", "test"), ("validation", "test"))
     }
-    return {
-        "block": "patient_overlap",
-        "status": "passed" if not any(overlaps.values()) else "failed",
-        "details": {"overlaps": overlaps, "patients": {key: len(value) for key, value in groups.items()}},
-    }
+    details = {"overlaps": overlaps, "patients": {key: len(value) for key, value in groups.items()},
+               "admissions": admissions, "unit": "unique patients, not duplicate admission rows"}
+    if any(row["split"] == "valid" for row in records):
+        # Preserve the old consumer lookup only for explicitly aliased input.
+        overlaps["train_valid"] = overlaps["train_validation"]
+        overlaps["valid_test"] = overlaps["validation_test"]
+        details["deprecated_overlap_aliases"] = {
+            "train_valid": "train_validation", "valid_test": "validation_test",
+        }
+    status = "failed" if any(overlaps.values()) else (
+        "passed" if all(groups.values()) else "unverifiable")
+    if not all(groups.values()):
+        details["reason"] = "All three splits are required for a complete overlap assessment."
+    return result("patient_overlap", status, details, context)

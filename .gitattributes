@@ -2,6 +2,8 @@
 *.sh text eol=lf
 *.sql text eol=lf
 *.yml text eol=lf
-# Preserve the independently approved remote form byte-for-byte.
+# Keep the Issue Form independent of automatic line-ending conversion.
 .github/ISSUE_TEMPLATE/research-request.yml -text
 Dockerfile text eol=lf
+
+.github/workflows/*.lock.yml linguist-generated=true

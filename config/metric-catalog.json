@@ -1,0 +1,156 @@
+{
+  "schema_version": 1,
+  "stage": "evaluation",
+  "metrics": [
+    {
+      "id": "roc_auc",
+      "name": "ROC AUC",
+      "description": "Binary ranking AUC with half-credit for tied scores; both classes required.",
+      "module": "app.blocks.metrics.roc_auc",
+      "aliases": ["auroc"],
+      "requires": ["y_true", "y_probability"],
+      "requires_parameters": [],
+      "requires_context": []
+    },
+    {
+      "id": "average_precision",
+      "name": "Average precision (AP)",
+      "description": "AP is recall-increment-weighted precision, not trapezoidal PR area; positives required.",
+      "module": "app.blocks.metrics.average_precision",
+      "aliases": ["ap"],
+      "requires": ["y_true", "y_probability"],
+      "requires_parameters": [],
+      "requires_context": []
+    },
+    {
+      "id": "brier_score",
+      "name": "Brier score",
+      "description": "Mean squared error of binary event probabilities.",
+      "module": "app.blocks.metrics.brier_score",
+      "aliases": ["brier"],
+      "requires": ["y_true", "y_probability"],
+      "requires_parameters": [],
+      "requires_context": []
+    },
+    {
+      "id": "calibration_curve",
+      "name": "Calibration groups",
+      "description": "Uniform bins report predicted mean, observed event rate, and count. Optional n_bins defaults to 10; empty-bin means are null.",
+      "module": "app.blocks.metrics.calibration_curve",
+      "aliases": [],
+      "requires": ["y_true", "y_probability"],
+      "requires_parameters": [],
+      "requires_context": []
+    },
+    {
+      "id": "confusion_matrix",
+      "name": "Confusion matrix",
+      "description": "Binary counts at an explicitly approved threshold; score >= threshold is positive.",
+      "module": "app.blocks.metrics.confusion_matrix",
+      "aliases": [],
+      "requires": ["y_true", "y_probability"],
+      "requires_parameters": ["threshold"],
+      "requires_context": []
+    },
+    {
+      "id": "accuracy",
+      "name": "Accuracy",
+      "description": "Correct binary predictions divided by evaluated rows at an explicit threshold.",
+      "module": "app.blocks.metrics.accuracy",
+      "aliases": [],
+      "requires": ["y_true", "y_probability"],
+      "requires_parameters": ["threshold"],
+      "requires_context": []
+    },
+    {
+      "id": "recall",
+      "name": "Recall (sensitivity)",
+      "description": "TP / (TP + FN) at an explicit threshold; undefined without positives.",
+      "module": "app.blocks.metrics.recall",
+      "aliases": ["sensitivity"],
+      "requires": ["y_true", "y_probability"],
+      "requires_parameters": ["threshold"],
+      "requires_context": []
+    },
+    {
+      "id": "specificity",
+      "name": "Specificity",
+      "description": "TN / (TN + FP) at an explicit threshold; undefined without negatives.",
+      "module": "app.blocks.metrics.specificity",
+      "aliases": [],
+      "requires": ["y_true", "y_probability"],
+      "requires_parameters": ["threshold"],
+      "requires_context": []
+    },
+    {
+      "id": "precision",
+      "name": "Precision (positive predictive value)",
+      "description": "PPV = TP / (TP + FP) at an explicit threshold; undefined without positive predictions.",
+      "module": "app.blocks.metrics.precision",
+      "aliases": ["ppv"],
+      "requires": ["y_true", "y_probability"],
+      "requires_parameters": ["threshold"],
+      "requires_context": []
+    },
+    {
+      "id": "negative_predictive_value",
+      "name": "Negative predictive value",
+      "description": "NPV = TN / (TN + FN) at an explicit threshold; undefined without negative predictions.",
+      "module": "app.blocks.metrics.negative_predictive_value",
+      "aliases": ["npv"],
+      "requires": ["y_true", "y_probability"],
+      "requires_parameters": ["threshold"],
+      "requires_context": []
+    },
+    {
+      "id": "f1",
+      "name": "F1 score",
+      "description": "2TP / (2TP + FP + FN) at an explicit threshold; a zero denominator remains undefined.",
+      "module": "app.blocks.metrics.f1",
+      "aliases": [],
+      "requires": ["y_true", "y_probability"],
+      "requires_parameters": ["threshold"],
+      "requires_context": []
+    },
+    {
+      "id": "decision_curve",
+      "name": "Decision curve analysis (DCA)",
+      "description": "Model, treat-all and treat-none net benefit at explicit strictly increasing thresholds in (0,1), conditional on a described clinical action.",
+      "module": "app.blocks.metrics.decision_curve",
+      "aliases": ["dca"],
+      "requires": ["y_true", "y_probability"],
+      "requires_parameters": ["thresholds"],
+      "requires_context": ["clinical_action"]
+    },
+    {
+      "id": "categorical_nri",
+      "name": "Categorical net reclassification improvement",
+      "description": "New y_probability versus reference_probabilities using identically ordered unique sample IDs, both classes and pre-specified strictly increasing risk cutoffs in (0,1). Cutoff equality enters the higher category. Not proof of incremental clinical benefit.",
+      "module": "app.blocks.metrics.categorical_nri",
+      "aliases": ["nri"],
+      "requires": ["y_true", "y_probability", "reference_probabilities", "sample_ids", "reference_sample_ids"],
+      "requires_parameters": ["risk_thresholds"],
+      "requires_context": ["comparison_model"]
+    },
+    {
+      "id": "recall_at_k",
+      "name": "Recall at top fraction",
+      "description": "Captured positives / all positives for ceil(N * top_fraction) alerts; fraction must be in (0,1]. Ties preserve input order and never expand the alert budget.",
+      "module": "app.blocks.metrics.recall_at_k",
+      "aliases": [],
+      "requires": ["y_true", "y_probability"],
+      "requires_parameters": ["top_fraction"],
+      "requires_context": []
+    },
+    {
+      "id": "precision_at_k",
+      "name": "Precision at top fraction",
+      "description": "Captured positives / ceil(N * top_fraction) alerts; fraction must be in (0,1]. Stable input-order ties, explicit alert and captured-positive counts.",
+      "module": "app.blocks.metrics.precision_at_k",
+      "aliases": [],
+      "requires": ["y_true", "y_probability"],
+      "requires_parameters": ["top_fraction"],
+      "requires_context": []
+    }
+  ]
+}

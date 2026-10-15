@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "eda": {
+    "required": ["schema", "patient_overlap"],
+    "defaults": ["schema", "patient_overlap", "demographics", "cohort"],
+    "objectives": ["data_quality", "population_description", "prediction_readiness"],
+    "allowed_objectives": ["data_quality", "population_description", "prediction_readiness", "cohort_definition", "outcome_observability", "preprocessing_provenance"]
+  },
+  "evaluation": {
+    "required": [],
+    "defaults": ["roc_auc", "average_precision", "brier_score", "calibration_curve"],
+    "objectives": ["discrimination", "probability_quality"],
+    "allowed_objectives": ["discrimination", "probability_quality", "threshold_performance", "clinical_utility", "model_comparison", "capacity_constrained_screening"]
+  }
+}

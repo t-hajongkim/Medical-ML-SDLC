@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "stage": "eda",
+  "checks": [
+    {
+      "id": "patient_overlap",
+      "name": "Patient overlap",
+      "description": "Measure unique-patient overlap across prepared splits without exposing patient identifiers.",
+      "module": "app.blocks.checks.patient_overlap",
+      "aliases": ["patient-overlap"],
+      "requires": ["metadata"],
+      "requires_parameters": [],
+      "requires_context": []
+    },
+    {
+      "id": "demographics",
+      "name": "Population description",
+      "description": "Describe aggregate population distributions and preserve original missing-demographic indicators.",
+      "module": "app.blocks.checks.demographics",
+      "aliases": ["population_description"],
+      "requires": ["metadata"],
+      "requires_parameters": [],
+      "requires_context": []
+    },
+    {
+      "id": "schema",
+      "name": "Numeric input contract",
+      "description": "Diagnose ordered feature schema, finite numeric values, missingness and row alignment; not clinical semantics.",
+      "module": "app.blocks.checks.schema",
+      "aliases": ["numeric_contract"],
+      "requires": ["metadata", "feature_columns", "expected_feature_columns", "feature_rows"],
+      "requires_parameters": [],
+      "requires_context": []
+    },
+    {
+      "id": "cohort",
+      "name": "Cohort and outcome description",
+      "description": "Describe encounter and patient counts, class balance and available source-selection evidence.",
+      "module": "app.blocks.checks.cohort",
+      "aliases": ["cohort_description"],
+      "requires": ["metadata"],
+      "requires_parameters": [],
+      "requires_context": []
+    },
+    {
+      "id": "prediction_timing",
+      "name": "Prediction-time availability",
+      "description": "Diagnose whether prediction time and feature availability are supported; missing evidence is unverifiable.",
+      "module": "app.blocks.checks.prediction_timing",
+      "aliases": ["timing"],
+      "requires": ["feature_columns"],
+      "requires_parameters": [],
+      "requires_context": []
+    },
+    {
+      "id": "label_observability",
+      "name": "Outcome observability",
+      "description": "Diagnose target encoding, source-label alignment and the limits of follow-up observation.",
+      "module": "app.blocks.checks.label_observability",
+      "aliases": ["label-observability"],
+      "requires": ["metadata", "target_mapping"],
+      "requires_parameters": [],
+      "requires_context": []
+    },
+    {
+      "id": "preprocessing_lineage",
+      "name": "Preprocessing provenance",
+      "description": "Diagnose prepared-input provenance and unsupported preprocessing or leakage-free claims.",
+      "module": "app.blocks.checks.preprocessing_lineage",
+      "aliases": ["lineage"],
+      "requires": ["data_manifest"],
+      "requires_parameters": [],
+      "requires_context": []
+    }
+  ]
+}

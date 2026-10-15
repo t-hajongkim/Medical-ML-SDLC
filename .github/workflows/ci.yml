@@ -21,8 +21,10 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-          cache-dependency-path: requirements-ml.txt
+          cache-dependency-path: |
+            requirements-ml.txt
+            requirements-workflow.txt
       - name: Install pinned test dependencies
-        run: python -m pip install --disable-pip-version-check -r requirements-ml.txt
+        run: python -m pip install --disable-pip-version-check -r requirements-ml.txt -r requirements-workflow.txt
       - name: Check data-only publication and legacy drafts with synthetic fixtures
         run: python -B -m unittest discover -s tests -p "test_*.py" -v
