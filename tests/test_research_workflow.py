@@ -324,6 +324,27 @@ class AssetAndReportTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "invalid JSON"):
                 research.gh_json("synthetic")
 
+    def test_pr_creation_failure_names_copy_setting_without_sensitive_output(self):
+        result = subprocess.CompletedProcess(["gh"], 1, stdout="private-body", stderr="secret-token")
+        with patch("subprocess.run", return_value=result):
+            with self.assertRaises(RuntimeError) as failure:
+                research.command(["gh", "pr", "create", "--title", "private-title"])
+        message = str(failure.exception)
+        self.assertIn("draft PR 생성 실패", message)
+        self.assertIn("Allow GitHub Actions to create and approve pull requests", message)
+        self.assertIn("상속되지", message)
+        for private in ("private-body", "secret-token", "private-title"):
+            self.assertNotIn(private, message)
+
+    def test_recommendation_dispatch_failure_is_distinct_from_pr_creation(self):
+        result = subprocess.CompletedProcess(["gh"], 1, stdout="", stderr="secret-token")
+        with patch("subprocess.run", return_value=result):
+            with self.assertRaises(RuntimeError) as failure:
+                research.command(["gh", "workflow", "run", "recommend-blocks.lock.yml"])
+        self.assertIn("Copilot 추천 워크플로 요청 실패", str(failure.exception))
+        self.assertIn("actions: write", str(failure.exception))
+        self.assertNotIn("secret-token", str(failure.exception))
+
 
 class PayloadAndPublicationTests(unittest.TestCase):
     def setUp(self):

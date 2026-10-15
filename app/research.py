@@ -165,6 +165,22 @@ def command(arguments, cwd=None, allowed=(0,), *, input_text=None):
     except (OSError, subprocess.TimeoutExpired):
         raise RuntimeError("External command could not complete; inputs and credentials are not logged.") from None
     if result.returncode not in allowed:
+        if arguments[:3] == ["gh", "pr", "create"]:
+            raise RuntimeError(
+                "검토용 draft PR 생성 실패. 해당 저장소의 Settings → Actions → General → "
+                "Workflow permissions → Allow GitHub Actions to create and approve pull requests와 "
+                "워크플로의 pull-requests: write 권한을 확인하세요. "
+                "템플릿 설정은 복사본에 상속되지 않습니다. 생성된 결과 브랜치는 보존되며 "
+                "설정 수정 후 실패한 실행을 재실행할 수 있습니다. "
+                f"(exit {result.returncode}; 입력·인증정보·응답 원문은 출력하지 않습니다.)"
+            )
+        if arguments[:3] == ["gh", "workflow", "run"]:
+            raise RuntimeError(
+                "Copilot 추천 워크플로 요청 실패. 기본 브랜치의 recommend-blocks.lock.yml과 "
+                "workflow_dispatch 입력, 요청 워크플로의 actions: write 권한을 확인하세요. "
+                "이미 생성된 검토 PR과 사용자 선택은 보존됩니다. "
+                f"(exit {result.returncode}; 입력·인증정보·응답 원문은 출력하지 않습니다.)"
+            )
         raise RuntimeError(
             f"{arguments[0]} command failed (exit {result.returncode}); inputs and credentials are not logged."
         )
