@@ -1,0 +1,90 @@
+name: Diabetes 연구 요청
+description: 준비된 Diabetes 데이터의 분할·품질·인구집단을 점검하고 평가 계획을 준비합니다.
+title: "[Diabetes] 30일 이내 재입원 데이터 점검"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 기본 데이터 설정
+        | 항목 | 기본값 |
+        | --- | --- |
+        | 데이터 | Diabetes 130-US Hospitals 공개 전처리본 |
+        | 연구 주제 | 당뇨병 입원 환자의 30일 이내 재입원 평가 준비 |
+        | 분할 | train 71,236행 / validation 15,265행 / test 15,265행 |
+        | 모델 입력 | 전처리·표준화된 113개 특성 |
+        | 정답 | target: 30일 이내 재입원 1, 그 외 0 |
+        | 기본 점검 집단 | 연령·성별·인종 |
+
+        데이터셋·스키마·정답 정의·이미지 버전은 이 폼에 직접 입력하지 않습니다.
+        후속 자동 연결에서 저장소 설정과 자산 명세를 사용합니다.
+        이 단계에서는 모델을 학습하거나 추론하지 않습니다.
+
+        **데이터 주의사항:** 분할 간 환자 중복이 있고 validation은 모델 개발에 사용됐습니다.
+        인종 결측 대치 여부도 구분해야 하며, 독립적인 환자 단위 성능 검증 데이터로 보지 않습니다.
+
+        **현재는 입력 폼 초안입니다. 제출 후 자동 EDA·PR 1 생성은 아직 연결되지 않았습니다.**
+        환자명·연락처·실제 진료정보·개인 파일을 입력하거나 첨부하지 마세요.
+  - type: textarea
+    id: research_goal
+    attributes:
+      label: 연구 목표
+      description: 이번 연구에서 무엇을 확인하고, 결과를 어디에 활용하려는지 작성해 주세요.
+      value: |
+        당뇨병 입원 환자의 30일 이내 재입원 평가를 준비합니다.
+        제공된 데이터의 분할·품질과 연령·성별·인종별 분포를 점검하고,
+        EDA 결과를 근거로 평가 지표와 해석 시 주의사항을 검토합니다.
+    validations:
+      required: true
+  - type: textarea
+    id: research_question
+    attributes:
+      label: 연구 질문과 상세 설명
+      description: EDA에서 확인할 구체적인 질문과 배경을 작성해 주세요.
+      value: |
+        - 스키마·특성 순서·결측·비정상 수치가 준비 데이터 명세와 일치하는가?
+        - train/validation/test 사이의 환자 중복은 어느 정도인가?
+        - 연령·성별·인종별 표본 수와 재입원 정답 분포는 어떻게 다른가?
+        - 원본 결측과 전처리 대치값을 구분해 해석할 수 있는가?
+        - 확인된 데이터·분할 한계를 평가 계획과 PR 1에 어떻게 명시해야 하는가?
+    validations:
+      required: true
+  - type: textarea
+    id: cohort_requirements
+    attributes:
+      label: 분석 대상과 제외 조건
+      description: 필요할 때만 수정해 주세요. 조건은 검토할 요청사항이며 자동으로 실행되는 코드가 아닙니다.
+      value: |
+        제공된 train 71,236행, validation 15,265행, test 15,265행 전체를 점검합니다.
+        기존 분할을 변경하거나 새로 나누지 않습니다.
+        추가 포함·제외 조건은 없습니다.
+    validations:
+      required: false
+  - type: dropdown
+    id: demographic_focus
+    attributes:
+      label: 집중해서 확인할 인구집단
+      description: 기본 점검은 연령·성별·인종 전체입니다. 특히 집중할 항목이 있을 때만 선택해 주세요.
+      multiple: true
+      options:
+        - 연령 (age)
+        - 성별 (gender)
+        - 인종 (race)
+    validations:
+      required: false
+  - type: textarea
+    id: additional_requests
+    attributes:
+      label: 추가 점검과 지표 요청
+      description: 추가로 확인할 내용이나 관심 지표가 있을 때만 작성해 주세요. 지표를 미리 정할 필요는 없습니다.
+      value: |
+        EDA 결과와 데이터 제약을 근거로 평가 지표 추천 초안을 PR 1에 제시해 주세요.
+        이 Issue 단계에서는 모델 학습·추론·최종 성능 평가를 실행하지 않습니다.
+    validations:
+      required: false
+  - type: checkboxes
+    id: public_data_confirmation
+    attributes:
+      label: 공개 데이터 사용 확인
+      options:
+        - label: 제공된 공개 데이터만 사용하며, 이 Issue에 개인정보·실제 환자정보·민감한 파일을 포함하지 않았습니다.
+          required: true
