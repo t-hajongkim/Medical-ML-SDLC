@@ -1,0 +1,148 @@
+{
+  "schema_version": 1,
+  "stage": "input_mapping",
+  "profile_id": "diabetes_prepared",
+  "data_id": "c34ec224503e2038c79fd11c47e0f603c7e392ba46f4e8c14e1661bfaf5303fd",
+  "columns": [
+    {
+      "name": "row_key",
+      "description": "UCI encounter_id에 대응하는 입원 단위 고유 키입니다.",
+      "semantic_roles": [
+        "row_key"
+      ],
+      "data_type": "string",
+      "missing_count": 0
+    },
+    {
+      "name": "patient_key",
+      "description": "UCI encounter_id 조인으로 복원한 patient_nbr입니다. 동일 환자의 여러 입원을 연결하며 입원 ID가 아닙니다.",
+      "semantic_roles": [
+        "patient_key"
+      ],
+      "data_type": "string",
+      "missing_count": 0
+    },
+    {
+      "name": "split",
+      "description": "공개 준비 데이터의 고정 train/validation/test 분할입니다.",
+      "semantic_roles": [
+        "split"
+      ],
+      "data_type": "string",
+      "missing_count": 0
+    },
+    {
+      "name": "target",
+      "description": "이미 이진 인코딩된 30일 이내 재입원 정답입니다.",
+      "semantic_roles": [
+        "target"
+      ],
+      "data_type": "integer",
+      "missing_count": 0
+    },
+    {
+      "name": "race",
+      "description": "공개 준비 데이터의 인종 값이며 결측치 대체가 포함됩니다.",
+      "semantic_roles": [
+        "race"
+      ],
+      "data_type": "string",
+      "missing_count": 0
+    },
+    {
+      "name": "gender",
+      "description": "준비 데이터의 성별 값입니다.",
+      "semantic_roles": [
+        "gender"
+      ],
+      "data_type": "string",
+      "missing_count": 0
+    },
+    {
+      "name": "age_group",
+      "description": "준비 데이터의 연령 구간입니다.",
+      "semantic_roles": [
+        "age_group"
+      ],
+      "data_type": "string",
+      "missing_count": 0
+    },
+    {
+      "name": "race_original",
+      "description": "원본 인종 값으로, 원본 결측은 빈 값으로 보존됩니다.",
+      "semantic_roles": [
+        "race_original"
+      ],
+      "data_type": "string",
+      "missing_count": 2273
+    },
+    {
+      "name": "race_was_missing",
+      "description": "원본 인종 결측 여부를 나타내는 명시적 true/false 플래그입니다.",
+      "semantic_roles": [
+        "race_was_missing"
+      ],
+      "data_type": "boolean",
+      "missing_count": 0
+    }
+  ],
+  "required_roles": [
+    "row_key",
+    "patient_key",
+    "split",
+    "target"
+  ],
+  "candidate_bindings": {
+    "row_key": [
+      "row_key"
+    ],
+    "patient_key": [
+      "patient_key"
+    ],
+    "split": [
+      "split"
+    ],
+    "target": [
+      "target"
+    ],
+    "race": [
+      "race"
+    ],
+    "gender": [
+      "gender"
+    ],
+    "age_group": [
+      "age_group"
+    ],
+    "race_original": [
+      "race_original"
+    ],
+    "race_was_missing": [
+      "race_was_missing"
+    ]
+  },
+  "target_definition": "UCI readmitted의 <30은 1, >30과 NO는 0으로 제공된 정답입니다. 0이 완전한 30일 무사건 추적을 입증하지는 않습니다.",
+  "split_values": {
+    "train": "train",
+    "validation": "validation",
+    "test": "test"
+  },
+  "target_values": {
+    "0": 0,
+    "1": 1
+  },
+  "allowed_evidence_ids": [
+    "column:0:row_key",
+    "column:1:patient_key",
+    "column:2:split",
+    "column:3:target",
+    "column:4:race",
+    "column:5:gender",
+    "column:6:age_group",
+    "column:7:race_original",
+    "column:8:race_was_missing"
+  ],
+  "known_mapping": true,
+  "profile_hash": "04e10da631e8ef907708794f4ceaab7a0ebe23abb4fd4f19fd8e470895e6fee7",
+  "context_hash": "1da8ddee19360eb49545815e2a9a8cd62f3110592fcacf8500940b260ca38aa7"
+}

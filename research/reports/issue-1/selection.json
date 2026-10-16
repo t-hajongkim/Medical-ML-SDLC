@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "eda": {
+    "objectives": [
+      "data_quality",
+      "population_description",
+      "prediction_readiness"
+    ],
+    "add": [],
+    "exclude": []
+  },
+  "evaluation": {
+    "objectives": [
+      "discrimination",
+      "probability_quality"
+    ],
+    "add": [],
+    "exclude": [],
+    "primary_metric": null,
+    "threshold": null,
+    "parameters": {},
+    "clinical_action": null,
+    "comparison_model": null
+  }
+}

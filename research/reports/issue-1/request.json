@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "repository": "t-hajongkim/Medical-ML-SDLC",
+  "issue_number": 1,
+  "issue_url": "https://github.com/t-hajongkim/Medical-ML-SDLC/issues/1",
+  "title": "[Diabetes] 30일 이내 재입원 데이터 점검",
+  "research_goal": "당뇨병 입원 환자의 30일 이내 재입원 평가를 준비합니다.\n제공된 데이터의 분할·품질과 연령·성별·인종별 분포를 점검하고,\nEDA 결과를 근거로 평가 지표와 해석 시 주의사항을 검토합니다.",
+  "research_question": "- 스키마·특성 순서·결측·비정상 수치가 준비 데이터 명세와 일치하는가?\n- train/validation/test 사이의 환자 중복은 어느 정도인가?\n- 연령·성별·인종별 표본 수와 재입원 정답 분포는 어떻게 다른가?\n- 원본 결측과 전처리 대치값을 구분해 해석할 수 있는가?",
+  "cohort_requirements": "제공된 train 71,236행, validation 15,265행, test 15,265행 전체를 점검합니다.\n기존 분할을 변경하거나 새로 나누지 않습니다.\n추가 포함·제외 조건은 없습니다.",
+  "additional_requests": "EDA 결과와 데이터 제약을 근거로 평가 지표 추천 초안을 제시해 주세요.\n이 Issue 단계에서는 모델 학습·추론·최종 성능 평가를 실행하지 않습니다.",
+  "public_data_confirmation": true,
+  "selection_execution": false,
+  "prediction_time": null
+}
