@@ -196,8 +196,6 @@ mcp-scripts:
       work = Path("/tmp/gh-aw/research-recommendation")
       root = Path(os.environ["GITHUB_WORKSPACE"]).resolve()
       ready = work / "publication.json"
-      if ready.exists():
-          raise SystemExit("Recommendations were already applied; do not apply twice.")
       pr = os.environ["REQUESTED_PR"]
       if not re.fullmatch(r"[1-9][0-9]*", pr):
           raise SystemExit("Invalid PR number.")
@@ -227,6 +225,51 @@ mcp-scripts:
               or recommendation["status"] != "provided"
               or recommendation["context_hash"] != request["context_hash"]):
           raise SystemExit("Recommendation envelope does not match the validated request.")
+      recommendation_hash = hashlib.sha256(json.dumps(
+          recommendation, ensure_ascii=False, sort_keys=True,
+          separators=(",", ":")).encode("utf-8")).hexdigest()
+      def git(*args):
+          return subprocess.run(["git", *args], cwd=root, check=True,
+                                capture_output=True, text=True, encoding="utf-8").stdout.strip()
+      if ready.exists():
+          meta = json.loads(ready.read_text(encoding="utf-8"))
+          commit = meta.get("publication_commit")
+          refresh_body = meta.get("body_refresh_required")
+          if (meta.get("schema_version") != 1 or meta.get("repository") != session["repository"]
+                  or meta.get("pull_request") != int(pr) or meta.get("head_branch") != session["head_branch"]
+                  or meta.get("previous_head_sha") != session["head_sha"]
+                  or meta.get("recommendations_sha256") != recommendation_hash
+                  or type(refresh_body) is not bool
+                  or (commit is not None and not re.fullmatch(r"[0-9a-f]{40}", commit))
+                  or git("rev-parse", "HEAD") != (commit or session["head_sha"])
+                  or git("rev-parse", "HEAD^{tree}") != meta.get("expected_tree_sha")
+                  or hashlib.sha256((work / "pr-body.md").read_bytes()).hexdigest() != meta.get("body_sha256")):
+              raise SystemExit("Stored publication does not match this request; start a fresh run.")
+          if commit is not None:
+              changed = set(git("diff", "--name-only", session["head_sha"], commit, "--").splitlines())
+              if (git("rev-parse", commit + "^") != session["head_sha"]
+                      or git("symbolic-ref", "--short", "HEAD") != session["head_branch"]
+                      or not changed or not changed.issubset(session["allowed_outputs"])):
+                  raise SystemExit("Stored publication commit is not the validated PR update.")
+          current = json.loads(subprocess.run(
+              ["gh", "api", f"repos/{session['repository']}/pulls/{pr}"],
+              check=True, capture_output=True, text=True, encoding="utf-8").stdout)
+          if (current.get("state") != "open" or current.get("head", {}).get("sha") != session["head_sha"]
+                  or current["head"].get("ref") != session["head_branch"]
+                  or current["head"].get("repo", {}).get("full_name") != session["repository"]
+                  or hashlib.sha256((current.get("body") or "").encode("utf-8")).hexdigest()
+                  != meta.get("previous_body_sha256")):
+              raise SystemExit("PR changed after application; preserve human changes and start a fresh run.")
+          status = "validated_copilot_recommendations" if commit else ("body_refresh" if refresh_body else "unchanged")
+          print(json.dumps({"status": status, "pull_request": int(pr),
+                            "publication_ready": commit is not None or refresh_body,
+                            "push_required": commit is not None, "body_refresh_required": refresh_body}))
+          raise SystemExit(0)
+      lock = work / "application.lock"
+      try:
+          lock.mkdir()
+      except FileExistsError:
+          raise SystemExit("Application is already running or needs recovery. Retry the same request; do not apply concurrently.")
       destination = root / directory / "ai-recommendations.json"
       if destination.is_symlink() or destination.parent.is_symlink() or not destination.resolve().is_relative_to(root):
           raise SystemExit("Unsafe recommendation output path.")
@@ -239,6 +282,8 @@ mcp-scripts:
           ["python", "-B", "-m", "app.research", "apply-ai", "--pull-request", pr, "--work", str(work)],
           cwd=root, capture_output=True, text=True, encoding="utf-8")
       if completed.returncode:
+          if git("rev-parse", "HEAD") == session["code_commit"]:
+              lock.rmdir()
           raise SystemExit("Trusted recommendation validation/application failed; nothing was published.")
       result = json.loads(completed.stdout)
       status = result["status"]
@@ -248,9 +293,6 @@ mcp-scripts:
               or (commit is not None and status != "validated_copilot_recommendations")
               or (commit is None and status not in {"body_refresh", "unchanged"})):
           raise SystemExit("Unexpected trusted application result.")
-      def git(*args):
-          return subprocess.run(["git", *args], cwd=root, check=True,
-                                capture_output=True, text=True, encoding="utf-8").stdout.strip()
       if commit is not None:
           changed = set(git("diff", "--name-only", session["head_sha"], commit, "--").splitlines())
           if (git("rev-parse", "HEAD") != commit or git("rev-parse", commit + "^") != session["head_sha"]
@@ -266,7 +308,8 @@ mcp-scripts:
           git("update-ref", "refs/heads/" + session["head_branch"], commit)
           git("update-ref", "refs/remotes/origin/" + session["head_branch"], session["head_sha"])
           git("symbolic-ref", "HEAD", "refs/heads/" + session["head_branch"])
-      ready.write_text(json.dumps({
+      receipt = work / "publication.pending.json"
+      receipt.write_text(json.dumps({
           "schema_version": 1, "repository": session["repository"], "pull_request": int(pr),
           "head_branch": session["head_branch"],
           "publication_commit": commit, "body_refresh_required": refresh_body,
@@ -274,7 +317,9 @@ mcp-scripts:
           "expected_tree_sha": expected_tree,
           "previous_body_sha256": hashlib.sha256(previous_body.encode("utf-8")).hexdigest(),
           "body_sha256": hashlib.sha256(body).hexdigest(),
+          "recommendations_sha256": recommendation_hash,
       }), encoding="utf-8")
+      receipt.replace(ready)
       print(json.dumps({"status": status, "pull_request": int(pr),
                         "publication_ready": commit is not None or refresh_body,
                         "push_required": commit is not None, "body_refresh_required": refresh_body}))
@@ -290,6 +335,30 @@ post-steps:
         /tmp/gh-aw/research-recommendation/publication.json
       if-no-files-found: error
       retention-days: 1
+  - name: Fail when prepared publication was not requested
+    if: success()
+    run: |
+      python -B - <<'PY'
+      import json
+      import os
+      from pathlib import Path
+      meta = json.loads(Path("/tmp/gh-aw/research-recommendation/publication.json").read_text(encoding="utf-8"))
+      output = json.loads(Path(os.environ["GH_AW_AGENT_OUTPUT"]).read_text(encoding="utf-8"))
+      items = output["items"]
+      if any(item.get("type") in ("report_incomplete", "missing_tool", "missing_data") for item in items):
+          raise SystemExit("Copilot reported an incomplete result; the review PR was not completed.")
+      pushes = [item for item in items if item.get("type") == "push_to_pull_request_branch"]
+      refreshes = [item for item in items if item.get("type") == "refresh_review_body"]
+      requires_push = meta["publication_commit"] is not None
+      if (len(pushes) != int(requires_push)
+              or len(refreshes) != int(meta["body_refresh_required"])
+              or any(item.get("branch") != meta["head_branch"]
+                     or item.get("pull_request_number", meta["pull_request"]) != meta["pull_request"]
+                     or item.get("repo", meta["repository"]) != meta["repository"] for item in pushes)
+              or any(item.get("confirmed") is not True or not isinstance(item.get("message"), str)
+                     or not item["message"].strip() for item in refreshes)):
+          raise SystemExit("Validated publication is missing its required push/body declarations; it was not completed.")
+      PY
 safe-outputs:
   needs: [resolve_review]
   github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -453,6 +522,10 @@ Python이 추천·맥락을 검증하고 조율 단계의 `selection.json`과 �
 학습, 모델 로딩, 결과 지표 계산, 원격 push, GitHub 수정은 하지 않습니다.
 직접 파일을 수정하거나 git을 실행하지 마세요.
 검증 실패를 성공한 AI 추천처럼 표시하거나 일부 결과를 게시하지 마세요.
+적용 도구의 응답만 시간 초과되면 같은 추천 JSON으로 재호출하세요.
+이미 적용된 동일 요청은 계산을 다시 하지 않고 검증된 게시 플래그를 반환합니다.
+아직 적용 중이라는 오류가 나오면 같은 요청의 완료를 확인하되 병렬 적용이나 새 워크플로를 시작하지 마세요.
+다른 JSON·변경된 PR·저장 결과 불일치는 새 검토가 필요하므로 report_incomplete로 중단합니다.
 
 반환 플래그를 정확히 따르세요. `push_required: true`일 때만 dispatch로 받은 PR에
 `push_to_pull_request_branch`를 요청하세요. `body_refresh_required: true`일 때만

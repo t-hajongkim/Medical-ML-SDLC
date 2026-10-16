@@ -1,5 +1,7 @@
 import json
 import hashlib
+import contextlib
+import io
 import os
 from pathlib import Path
 import shutil
@@ -15,6 +17,111 @@ from app import research
 
 
 class CloudContractTests(unittest.TestCase):
+    def workflow_config(self):
+        import yaml
+        root = Path(__file__).resolve().parents[1]
+        text = (root / ".github" / "workflows" / "recommend-blocks.md").read_text(encoding="utf-8")
+        return yaml.load(text.split("---", 2)[1], Loader=yaml.BaseLoader)
+
+    def test_publication_retry_returns_verified_flags_without_running_application(self):
+        from app.asset_contract import write_json
+        config = self.workflow_config()
+        script = config["mcp-scripts"]["apply-recommendations"]["run"].split("<<'PY'\n", 1)[1].rsplit("\nPY", 1)[0]
+        with tempfile.TemporaryDirectory(prefix="publication-retry-") as temporary:
+            folder = Path(temporary)
+            work, root = folder / "work", folder / "checkout"
+            work.mkdir()
+            root.mkdir()
+            branch = "research/review-issue-2"
+            head, commit, tree = "b" * 40, "a" * 40, "c" * 40
+            repo, directory = "fixture-owner/workshop", "research/reports/issue-2"
+            payload = {
+                "schema_version": 1, "provider": "github-copilot-cloud-agent",
+                "status": "provided", "context_hash": "d" * 64, "eda": [], "evaluation": []}
+            session = {
+                "repository": repo, "pull_request": 7, "issue_number": 2,
+                "report_dir": directory, "head_branch": branch, "head_sha": head,
+                "code_commit": "e" * 40, "allowed_outputs": [directory + "/report.md"]}
+            write_json(work / "session.json", session)
+            write_json(work / "AI_REQUEST.json", {"context_hash": payload["context_hash"]})
+            body = b"Synthetic generated review"
+            (work / "pr-body.md").write_bytes(body)
+            meta = {
+                "schema_version": 1, "repository": repo, "pull_request": 7, "head_branch": branch,
+                "previous_head_sha": head, "publication_commit": commit,
+                "expected_tree_sha": tree, "body_refresh_required": True,
+                "body_sha256": hashlib.sha256(body).hexdigest(),
+                "previous_body_sha256": hashlib.sha256(b"Human note").hexdigest(),
+                "recommendations_sha256": hashlib.sha256(json.dumps(
+                    payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()).hexdigest()}
+            write_json(work / "publication.json", meta)
+            current = {"state": "open", "body": "Human note",
+                       "head": {"sha": head, "ref": branch, "repo": {"full_name": repo}}}
+            git_results = {
+                ("rev-parse", "HEAD"): commit, ("rev-parse", "HEAD^{tree}"): tree,
+                ("rev-parse", commit + "^"): head,
+                ("symbolic-ref", "--short", "HEAD"): branch,
+                ("diff", "--name-only", head, commit, "--"): directory + "/report.md"}
+            def cli(arguments, **kwargs):
+                if arguments[0] == "git":
+                    return SimpleNamespace(stdout=git_results[tuple(arguments[1:])])
+                if arguments[:2] == ["gh", "api"]:
+                    return SimpleNamespace(stdout=json.dumps(current))
+                raise AssertionError("A retry must not execute application code or EDA")
+            program = script.replace(
+                'Path("/tmp/gh-aw/research-recommendation")', f"Path({str(work)!r})")
+            def execute(value):
+                output = io.StringIO()
+                with patch.dict(os.environ, {
+                    "GITHUB_WORKSPACE": str(root), "GITHUB_REPOSITORY": repo,
+                    "REQUESTED_PR": "7", "INPUT_RECOMMENDATIONS": json.dumps(value, indent=2)}), \
+                        patch("subprocess.run", side_effect=cli), contextlib.redirect_stdout(output):
+                    with self.assertRaises(SystemExit) as stopped:
+                        exec(compile(program, "<trusted-mcp-retry>", "exec"), {})
+                return stopped.exception.code, output.getvalue()
+            code, output = execute(payload)
+            self.assertEqual(code, 0)
+            self.assertEqual(json.loads(output), {
+                "status": "validated_copilot_recommendations", "pull_request": 7,
+                "publication_ready": True, "push_required": True, "body_refresh_required": True})
+            self.assertNotEqual(execute({**payload, "eda": [{"id": "schema"}]})[0], 0)
+            for change in ({"repository": "other/repo"}, {"expected_tree_sha": "f" * 40},
+                           {"body_sha256": "f" * 64}):
+                with self.subTest(change=change):
+                    write_json(work / "publication.json", {**meta, **change})
+                    self.assertNotEqual(execute(payload)[0], 0)
+            write_json(work / "publication.json", meta)
+            current["head"]["sha"] = "f" * 40
+            self.assertNotEqual(execute(payload)[0], 0)
+            (work / "publication.json").unlink()
+            (work / "application.lock").mkdir()
+            self.assertIn("already running", execute(payload)[0])
+
+    def test_incomplete_or_unrequested_publication_fails_post_step(self):
+        from app.asset_contract import write_json
+        config = self.workflow_config()
+        script = config["post-steps"][-1]["run"].split("<<'PY'\n", 1)[1].rsplit("\nPY", 1)[0]
+        with tempfile.TemporaryDirectory(prefix="publication-audit-") as temporary:
+            folder = Path(temporary)
+            meta_path, output_path = folder / "publication.json", folder / "agent.json"
+            write_json(meta_path, {
+                "publication_commit": "a" * 40, "body_refresh_required": True,
+                "pull_request": 7, "repository": "fixture-owner/workshop",
+                "head_branch": "research/review-issue-2"})
+            program = script.replace(
+                'Path("/tmp/gh-aw/research-recommendation/publication.json")', f"Path({str(meta_path)!r})")
+            push = {"type": "push_to_pull_request_branch", "branch": "research/review-issue-2"}
+            refresh = {"type": "refresh_review_body", "confirmed": True, "message": "합성 변경 안내"}
+            with patch.dict(os.environ, {"GH_AW_AGENT_OUTPUT": str(output_path)}):
+                for items in ([{"type": "report_incomplete"}], [], [push], [refresh],
+                              [{**push, "branch": "other"}, refresh]):
+                    with self.subTest(items=items):
+                        write_json(output_path, {"items": items})
+                        with self.assertRaises(SystemExit):
+                            exec(compile(program, "<publication-audit>", "exec"), {})
+                write_json(output_path, {"items": [push, refresh]})
+                exec(compile(program, "<publication-audit>", "exec"), {})
+
     def test_completed_workflow_triggers_keep_default_human_roles(self):
         import yaml
         root = Path(__file__).resolve().parents[1]
@@ -317,6 +424,7 @@ class PublicationGitFixtureTests(unittest.TestCase):
                 patch.object(cloud, "_runtime", return_value=(research, repository)), \
                 patch.object(research, "gh_json", side_effect=api), \
                 patch.object(research, "image_assets", side_effect=image_assets), \
+                patch.object(cloud, "report", wraps=cloud.report) as measured_report, \
                 patch.object(cloud, "load_context", return_value=context), \
                 patch.dict(os.environ, {"GITHUB_RUN_ID": "38722808263"}):
             prepared = cloud.prepare_ai(7, work)
@@ -348,7 +456,15 @@ class PublicationGitFixtureTests(unittest.TestCase):
                                 "evidence": [evidence]}],
             }
             write_json(self.report / "ai-recommendations.json", recommendation)
+            original_request = read_json(work / "AI_REQUEST.json")
+            changed_request = {**original_request, "eda_results": {
+                **original_request["eda_results"], "assessment_status": "passed"}}
+            write_json(work / "AI_REQUEST.json", changed_request)
+            with self.assertRaisesRegex(ValueError, "EDA 집계"):
+                cloud.apply_ai(7, work)
+            write_json(work / "AI_REQUEST.json", original_request)
             outcome = cloud.apply_ai(7, work)
+            self.assertEqual(measured_report.call_count, 1, "Validated EDA must not be rescanned during application")
         self.assertEqual(outcome["status"], "validated_copilot_recommendations")
         self.assertFalse(outcome["remote_publication_performed"])
         self.assertEqual(self.git("rev-parse", outcome["publication_commit"] + "^"), head)

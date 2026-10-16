@@ -311,7 +311,8 @@ def run_data_checks(pull_request, work):
     session.update(
         phase="recommendation", selection_hash=canonical_hash(updated),
         selection_changed=canonical_hash(updated) != session["initial_selection_hash"],
-        initial_eda_ids=result["eda_ids"], coordination=wrapper)
+        initial_eda_ids=result["eda_ids"], coordination=wrapper,
+        baseline_hash=canonical_hash(baseline))
     request = _prepare_block_request(flow, folder, work, session, context, updated, baseline)
     session["context_hash"] = request["context_hash"]
     session["allowed_outputs"] = _outputs(session)
@@ -398,7 +399,14 @@ def apply_ai(pull_request, work):
         context = load_context(work / "assets")
     if session.get("has_coordination"):
         context["_pr1_coordination"] = session["coordination"]
-    baseline = report(context, session["policy"]["eda"]["required"])
+        baseline = read_json(work / "AI_REQUEST.json")["eda_results"]
+        if (canonical_hash(baseline) != session["baseline_hash"]
+                or baseline["data_id"] != context["data_manifest"]["data_id"]):
+            raise ValueError("검증한 EDA 집계가 변경되었습니다. 다시 시작하세요.")
+        flow.validate_aggregate(
+            baseline, context["data_manifest"]["prepared_source"], session["initial_eda_ids"])
+    else:
+        baseline = report(context, session["policy"]["eda"]["required"])
     plans = planning.build_plans(
         baseline, context["data_manifest"], selection, ai,
         catalogs=session["catalogs"], policy=session["policy"],
@@ -419,7 +427,7 @@ def apply_ai(pull_request, work):
                             + flow.run_identifier(os.environ.get("GITHUB_RUN_ID")),
         "data_access": "Validated prepared files extracted from the fixed data image; no database queries.",
     }
-    eda = report(context, plans["eda"]["selected_ids"])
+    eda = flow.selected_report(baseline, plans["eda"]["selected_ids"], context)
     flow.write_payload(
         ROOT, request, eda, provenance, context=context,
         catalogs=session["catalogs"], policy=session["policy"],
