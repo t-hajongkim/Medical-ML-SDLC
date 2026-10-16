@@ -171,7 +171,7 @@ metadata·feature 각 101,766행 및 asset_info 전체 대조, 모델 이미지 
 | `app/asset_contract.py`, `app/dataset.py`, `app/ghcr.py` | 재사용한 hash/원본 검증/이미지 이름·태그·digest 도우미 |
 | `tests/test_prepared_source.py` | 신규 현재 자산 계약·불일치 fail-fast·무학습/무추론·runner 모의 검사 |
 | `config/assets.json` | 실제 게시·Public 확인한 공통 data/model의 고정 digest 참조 |
-| `docs/prd/001-ghcr-db-setup.md`, `docs/architecture.md`, `docs/adr.md` | 현재 요구·구조·결정과 과거 범위의 구분 |
+| `README.md`, `docs/architecture.md`, `docs/adr.md` | 현재 사용법·범위, 구조, 결정 이유를 분리해 관리 |
 
 컨텍스트는 runner 임시 경로의 `data/`와 `model/`에 생성합니다.
 `db/Dockerfile`과 `app/Dockerfile`의 COPY는 **각 생성 컨텍스트 기준**입니다.
