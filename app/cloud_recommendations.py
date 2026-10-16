@@ -1,6 +1,7 @@
 """Trusted preparation and application for Copilot's constrained recommendations."""
 
 import json
+import hashlib
 import os
 from pathlib import Path
 import re
@@ -18,16 +19,22 @@ INPUT_FILES = (
     "eda-plan.json", "recommendation-request.json", "selection.json",
     "ai-recommendations.json",
     "input-schema.json", "input-mapping.json",
+    "feedback-requests.json", "feedback-applied.json", "coordination-plan.json",
 )
 OUTPUT_FILES = (
     "ai-recommendations.json", "eda-plan.json", "evaluation-plan.json",
     "eda.json", "report.md", "recommendation-request.json",
 )
 MAPPING_OUTPUTS = ("input-schema.json", "input-mapping.json")
+COORDINATION_OUTPUTS = ("coordination-plan.json", "feedback-applied.json")
 
 
 def _outputs(session):
     names = (*OUTPUT_FILES, *MAPPING_OUTPUTS) if session.get("has_input_mapping") else OUTPUT_FILES
+    if session.get("has_coordination"):
+        names = (*names, *COORDINATION_OUTPUTS)
+    if session.get("selection_changed"):
+        names = (*names, "selection.json")
     return [session["report_dir"] + "/" + name for name in names]
 
 
@@ -74,6 +81,49 @@ def _read_branch_file(flow, commit, relative, optional=False):
     return content
 
 
+def _pending_feedback(flow, repository, number, folder, *, applied_ids=None):
+    path, applied_path = folder / "feedback-requests.json", folder / "feedback-applied.json"
+    from app.pr1_intent import validate_feedback_state
+    references, applied = validate_feedback_state(
+        read_json(path) if path.is_file() else None,
+        read_json(applied_path) if applied_path.is_file() else None,
+        repository, number, int(folder.name.removeprefix("issue-")))
+    if applied_ids is not None:
+        applied = applied_ids
+    pending, permissions = [], {}
+    for reference in references:
+        identifier = flow.issue_number(reference.get("comment_id"))
+        if identifier in applied:
+            continue
+        comment = flow.gh_json(f"repos/{repository}/issues/comments/{identifier}")
+        author = comment.get("user", {})
+        actor = author.get("login", "")
+        if (comment.get("id") != identifier or author.get("type") != "User"
+                or not re.fullmatch(r"[A-Za-z0-9-]+", actor)
+                or actor != reference.get("actor")
+                or comment.get("issue_url") != f"https://api.github.com/repos/{repository}/issues/{number}"
+                or not isinstance(comment.get("body"), str)
+                or hashlib.sha256(comment["body"].encode("utf-8")).hexdigest()
+                != reference.get("body_sha256")):
+            raise ValueError("피드백 작성자·본문·대상 PR이 변경되었습니다. 검토 실행을 다시 시작하세요.")
+        if actor not in permissions:
+            permissions[actor] = flow.gh_json(f"repos/{repository}/collaborators/{actor}/permission").get("permission")
+        if permissions[actor] not in ("admin", "maintain", "write"):
+            raise ValueError("현재 write 이상 권한이 있는 사람의 피드백만 AI에 전달합니다.")
+        pending.append({"comment_id": identifier, "actor": actor, "body": comment["body"],
+                        "body_sha256": reference["body_sha256"]})
+    return pending, applied
+
+
+def _verify_research_inputs(flow, repository, number, folder, work, session):
+    if canonical_hash(read_json(folder / "request.json")) != session["request_hash"]:
+        raise ValueError("연구 요청이 조율 준비 이후 변경되었습니다. 다시 시작하세요.")
+    pending, _ = _pending_feedback(
+        flow, repository, number, folder, applied_ids=session["applied_feedback_ids"])
+    if pending != read_json(work / "RESEARCH_CONTEXT.json")["feedback"]:
+        raise ValueError("조율 준비 이후 피드백이 변경되었습니다. 다시 시작하세요.")
+
+
 def prepare_ai(pull_request, work):
     flow, repository = _runtime()
     number = flow.issue_number(pull_request)
@@ -105,17 +155,20 @@ def prepare_ai(pull_request, work):
     try:
         destination = flow.report_directory(ROOT, issue)
         destination.mkdir(parents=True, exist_ok=True)
-        for name, value in content.items():
+        for name in INPUT_FILES:
             path = destination / name
             if path.is_symlink():
                 raise ValueError("Research review files must not be symlinks.")
-            path.write_text(value, encoding="utf-8")
+            if name in content:
+                path.write_text(content[name], encoding="utf-8")
+            elif path.exists():
+                path.unlink()
         selection = read_json(destination / "selection.json")
         flow.image_assets(reference, work / "assets")
         from app.input_contracts import load_profile
         profile = load_profile()
         binding = read_json(destination / "input-mapping.json") if "input-mapping.json" in content else None
-        phase, context, schema_request = "recommendation", None, None
+        phase, context, schema_request = "coordination", None, None
         try:
             context = load_context(work / "assets", input_profile=profile, input_mapping=binding)
         except InputMappingRequired as pending:
@@ -127,36 +180,53 @@ def prepare_ai(pull_request, work):
             "data_image": reference, "code_commit": code_commit,
             "catalogs": catalogs, "policy": policy, "phase": phase, "input_profile": profile,
             "selection_hash": canonical_hash(selection), "request_hash": canonical_hash(request),
+            "initial_selection_hash": canonical_hash(selection), "has_coordination": True,
+            "selection_changed": False,
             "has_input_mapping": phase == "input_mapping" or context.get("input_contract") is not None,
         }
         session["allowed_outputs"] = _outputs(session)
         if context is not None:
-            ai_request = _prepare_block_request(flow, destination, work, session, context, selection)
             schema_request = context.get("_input_schema_request")
-            session["context_hash"] = ai_request["context_hash"]
-        else:
-            session["context_hash"] = schema_request["context_hash"]
+        if not isinstance(schema_request, dict):
+            raise ValueError("연구 목적 조율에 검증된 입력 스키마가 필요합니다.")
+        manifest = read_json(work / "assets" / "data_manifest.json")
+        coordination_schema = {**schema_request,
+                               "feature_columns": manifest["feature_columns"],
+                               "model_ref": read_json(ROOT / "config" / "assets.json").get("model_image"),
+                               "current_bindings": context["input_contract"]["bindings"]
+                               if context is not None and context.get("input_contract") else None}
+        feedback, applied_ids = _pending_feedback(flow, repository, number, destination)
+        from app.pr1_intent import build_context
+        research_context = build_context(
+            request, coordination_schema, selection, feedback, catalogs=catalogs, policy=policy)
+        session.update(context_hash=research_context["context_hash"],
+                       coordination_schema=coordination_schema,
+                       applied_feedback_ids=applied_ids)
+        write_json(work / "RESEARCH_CONTEXT.json", research_context)
         write_json(work / "INPUT_SCHEMA_REQUEST.json", {"status": phase, "request": schema_request})
         write_json(work / "session.json", session)
-        return {"status": "ready_for_input_mapping" if phase == "input_mapping" else "ready_for_copilot",
+        return {"status": "ready_for_input_mapping" if phase == "input_mapping" else "ready_for_coordination",
                 "phase": phase, "pull_request": number, "context_hash": session["context_hash"],
-                "request_path": str(work / ("INPUT_SCHEMA_REQUEST.json" if phase == "input_mapping"
-                                           else "AI_REQUEST.json"))}
+                "request_path": str(work / "RESEARCH_CONTEXT.json")}
     except Exception:
         shutil.rmtree(work)
         raise
 
 
-def _prepare_block_request(flow, folder, work, session, context, selection):
-    baseline = report(context, session["policy"]["eda"]["required"])
+def _prepare_block_request(flow, folder, work, session, context, selection, baseline=None):
+    baseline = report(context, session["policy"]["eda"]["required"]) if baseline is None else baseline
     flow.validate_aggregate(baseline, context["data_manifest"]["prepared_source"],
-                            session["policy"]["eda"]["required"])
+                            [item["block"] for item in baseline["results"]])
     plans = planning.build_plans(
         baseline, context["data_manifest"], selection, None,
         catalogs=session["catalogs"], policy=session["policy"])
     request = plans["recommendation_request"]
     write_json(folder / "recommendation-request.json", request)
-    write_json(work / "AI_REQUEST.json", request)
+    transient = dict(request)
+    research_context = read_json(work / "RESEARCH_CONTEXT.json")
+    transient["research_context"] = research_context
+    transient["eda_results"] = baseline
+    write_json(work / "AI_REQUEST.json", transient)
     if context.get("input_contract") is not None:
         write_json(folder / "input-mapping.json", context["input_contract"])
         write_json(folder / "input-schema.json", context["_input_schema_request"])
@@ -182,15 +252,73 @@ def apply_input_mapping(pull_request, work):
     bundle = apply_mapping(work / "assets", proposal, profile=session["input_profile"])
     context = bundle["context"]
     context["_input_schema_request"] = bundle["schema_request"]
-    request = _prepare_block_request(flow, folder, work, session, context, selection)
-    session.update(phase="recommendation", has_input_mapping=True,
-                   context_hash=request["context_hash"])
+    write_json(folder / "input-mapping.json", bundle["binding"])
+    write_json(folder / "input-schema.json", bundle["schema_request"])
+    session.update(phase="coordination", has_input_mapping=True)
     session["allowed_outputs"] = _outputs(session)
     write_json(work / "session.json", session)
     write_json(work / "INPUT_SCHEMA_REQUEST.json",
-               {"status": "recommendation", "request": bundle["schema_request"]})
-    return {"status": "input_mapping_validated", "next_tool": "read-recommendation-context",
-            "context_hash": request["context_hash"], "model_execution_performed": False}
+               {"status": "coordination", "request": bundle["schema_request"]})
+    return {"status": "input_mapping_validated", "next_tool": "run-data-checks",
+            "model_execution_performed": False}
+
+
+def run_data_checks(pull_request, work):
+    flow, repository = _runtime()
+    number, work = flow.issue_number(pull_request), Path(work)
+    session = read_json(work / "session.json")
+    if (session.get("repository") != repository or session.get("pull_request") != number
+            or session.get("phase") != "coordination"):
+        raise ValueError("입력 매핑을 검증하고 연구 목적 조율 단계에서만 EDA를 실행합니다.")
+    pull, _, _, _ = _pull(flow, repository, number)
+    if pull["head"]["sha"] != session["head_sha"]:
+        raise ValueError("점검 계획 중 PR이 변경되었습니다. 최신 상태로 다시 시작하세요.")
+    folder = flow.report_directory(ROOT, session["issue_number"])
+    selection = read_json(folder / "selection.json")
+    if canonical_hash(selection) != session["selection_hash"]:
+        raise ValueError("사람 선택이 변경되어 조율을 중단했습니다.")
+    _verify_research_inputs(flow, repository, number, folder, work, session)
+    from app.input_contracts import _read_json
+    from app.pr1_intent import apply_proposal
+    result = apply_proposal(
+        selection, _read_json(work / "coordination-proposal.json"),
+        read_json(work / "RESEARCH_CONTEXT.json"),
+        catalogs=session["catalogs"], policy=session["policy"])
+    updated, record = result["selection"], result["record"]
+    mapping_path = folder / "input-mapping.json"
+    context = load_context(
+        work / "assets", input_profile=session["input_profile"],
+        input_mapping=read_json(mapping_path) if mapping_path.is_file() else None)
+    baseline = report(context, result["eda_ids"])
+    flow.validate_aggregate(baseline, context["data_manifest"]["prepared_source"], result["eda_ids"])
+    wrapper = {"record": record, "code_commit": session["code_commit"],
+               "schema": session["coordination_schema"],
+               "eda_evidence": {item["block"]: {"status": item["status"], "details": item["details"]}
+                                for item in baseline["results"]}}
+    wrapper["coordination_hash"] = canonical_hash(wrapper)
+    context["_pr1_coordination"] = wrapper
+    baseline.update(coordination_hash=wrapper["coordination_hash"],
+                    research_request_hash=record["request_hash"],
+                    coordination_evidence=wrapper["eda_evidence"])
+    write_json(folder / "selection.json", updated)
+    write_json(folder / "coordination-plan.json", wrapper)
+    feedback_ids = record["feedback_ids"]
+    write_json(folder / "feedback-applied.json", {
+        "schema_version": 1, "repository": repository, "pull_request": number,
+        "comment_ids": sorted(set(session["applied_feedback_ids"]) | set(feedback_ids)),
+        "coordination_hash": wrapper["coordination_hash"],
+    })
+    session.update(
+        phase="recommendation", selection_hash=canonical_hash(updated),
+        selection_changed=canonical_hash(updated) != session["initial_selection_hash"],
+        initial_eda_ids=result["eda_ids"], coordination=wrapper)
+    request = _prepare_block_request(flow, folder, work, session, context, updated, baseline)
+    session["context_hash"] = request["context_hash"]
+    session["allowed_outputs"] = _outputs(session)
+    write_json(work / "session.json", session)
+    return {"status": "data_checks_completed", "next_tool": "read-recommendation-context",
+            "context_hash": request["context_hash"], "selected_eda_ids": result["eda_ids"],
+            "feedback_applied": len(feedback_ids), "model_execution_performed": False}
 
 
 def _git_tree_commit(flow, root, work, session):
@@ -255,7 +383,9 @@ def apply_ai(pull_request, work):
     folder = flow.report_directory(ROOT, issue)
     selection = read_json(folder / "selection.json")
     if canonical_hash(selection) != session["selection_hash"]:
-        raise ValueError("Copilot must not modify the user's selections.")
+        raise ValueError("선택이 검증된 AI 조율 결과와 다릅니다. 최신 상태로 다시 시작하세요.")
+    if session.get("has_coordination"):
+        _verify_research_inputs(flow, repository, number, folder, work, session)
     ai = read_json(folder / "ai-recommendations.json")
     if ai.get("context_hash") != session["context_hash"]:
         raise ValueError("Copilot recommendations belong to a different context.")
@@ -266,6 +396,8 @@ def apply_ai(pull_request, work):
             input_mapping=read_json(binding_path) if binding_path.is_file() else None)
     else:
         context = load_context(work / "assets")
+    if session.get("has_coordination"):
+        context["_pr1_coordination"] = session["coordination"]
     baseline = report(context, session["policy"]["eda"]["required"])
     plans = planning.build_plans(
         baseline, context["data_manifest"], selection, ai,
@@ -273,6 +405,10 @@ def apply_ai(pull_request, work):
     )
     if any(plans[stage]["ai_status"] != "provided" for stage in ("eda", "evaluation")):
         raise ValueError("A validated, non-stale Copilot recommendation is required.")
+    if session.get("has_coordination"):
+        initial = set(session["coordination"]["record"]["eda_add"]) - set(selection["eda"]["exclude"])
+        if not initial.issubset(plans["eda"]["ai_recommended_ids"]):
+            raise ValueError("후단 추천에는 앞단 AI가 요청한 추가 점검을 포함해야 합니다.")
     request = read_json(folder / "request.json")
     if (request.get("repository") != repository or request.get("issue_number") != issue
             or canonical_hash(request) != session["request_hash"]):

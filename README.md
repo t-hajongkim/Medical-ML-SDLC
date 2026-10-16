@@ -1,6 +1,7 @@
 # Medical ML SDLC Workshop
 
-구현 범위는 **Target → config/조건부 AI 입력 매핑 → 선택형 EDA → AI 블록 추천 → Evaluation Plan → 사람의 PR 병합 후 승인 계획 기록**입니다.
+구현 범위는 **Target → AI 목적·입력 조율 → Python EDA → AI 지표 추천을 포함한 PR1 → 자연어 피드백 반영 → 사람의 PR 병합 후 승인 계획 기록**입니다.
+전처리·train/validation/test 분할·대응 모델 준비는 완료된 입력 계약으로 가정하며 폼은 유지합니다.
 준비된 Diabetes 데이터와 검증된 모델 파일은 공통 GHCR에 게시했습니다.
 EDA 점검 7개와 결과 지표 15개는 별도 카탈로그로 관리하며, 기본·AI·사용자 선택을 조합합니다.
 **계획 확정은 모델 실행·최종 성능 평가·임상 사용 승인이 아닙니다.** Model·최종 Evaluation·Pages 연결은 후속 범위입니다.
@@ -38,9 +39,9 @@ GHCR은 이미지 레지스트리이지 실행 중인 DB가 아닙니다.
 | [publish-db-image.yml](.github/workflows/publish-db-image.yml) / **Establish Database Image** | 고정 공개 자산 검증 → DB 이미지 빌드·스모크 → 모델 파일 이미지 빌드·무결성 검사 → 두 공통 GHCR 게시 | [2026-10-15 실제 게시 성공](https://github.com/t-hajongkim/Medical-ML-SDLC/actions/runs/38722808263). 두 패키지 Public·익명 조회 확인 |
 | [initialize-workshop.yml](.github/workflows/initialize-workshop.yml) / **Initialize Workshop** | 이전 데이터/모델 pair 기반 참가자 초기화 초안 | 현재 계약과 호환되지 않아 첫 step에서 명시적으로 중단. 쓰기 권한 제거. 실행하지 않습니다 |
 | [ci.yml](.github/workflows/ci.yml) / **Check workshop setup** | 현재 자산 계약과 이전 코드의 합성 fixture 회귀 검사 | 외부 자산 다운로드·Docker·GHCR 게시 없음 |
-| [prepare-eda-pr.yml](.github/workflows/prepare-eda-pr.yml) / **Prepare research review** | Issue → 선택된 EDA → 계획·보고서 → draft PR → 정확한 추천 대상 전달 | Issue opened 또는 유지관리자의 수동 실행 |
-| [recommend-blocks.md](.github/workflows/recommend-blocks.md) / **연구 블록 추천** | 선행 워크플로 완료 → 대상·출처 검증 → gh-aw Copilot → 기존 PR 갱신 | `workflow_run` 또는 수동 PR 번호. 실행 파일은 공식 생성 `recommend-blocks.lock.yml`. PAT·AI Secret 없음 |
-| [review-plan.yml](.github/workflows/review-plan.yml) / **Review selections and freeze approved plan** | 명시적 댓글 명령 반영·보고서 갱신 / 사람이 Merge한 교육용 계획을 불변 기록 | 권한 확인, 등록 ID만 처리, 자동 승인·병합 없음 |
+| [prepare-eda-pr.yml](.github/workflows/prepare-eda-pr.yml) / **Prepare research review** | Issue·고정 이미지 스키마 검증 → EDA 미실행 draft PR → 정확한 추천 대상 전달 | Issue opened 또는 유지관리자의 수동 실행 |
+| [recommend-blocks.md](.github/workflows/recommend-blocks.md) / **연구 블록 추천** | 선행 완료 → 공개 목적·스키마 조율 → Python EDA → 실제 결과 기반 추천 → 같은 PR 갱신·댓글 안내 | `workflow_run` 또는 수동 PR 번호. 공식 생성 lock, native 인증. PAT·AI Secret 없음 |
+| [review-plan.yml](.github/workflows/review-plan.yml) / **Review selections and freeze approved plan** | 자연어 피드백 대기열·기존 명령 처리 / 사람이 Merge한 교육용 계획을 불변 기록 | 현재 write 권한·본문 hash 검증, 등록 ID/매개변수만 처리, 자동 승인·병합 없음 |
 
 운영자는 자산 게시 YML을 검토합니다. 참가자 개인 패키지·초기화·PR2·최종 모델 평가·Pages는 이번 범위가 아닙니다.
 
@@ -235,11 +236,14 @@ Issue opened 또는 유지관리자의 workflow_dispatch(issue_number)
  → 신뢰/권한 게이트 + 현재 5필드 폼 검증 (본문은 데이터)
  → 신뢰한 default branch 코드 + config/assets.json의 고정 data_image
  → Public 데이터 이미지 pull → docker create/cp로 준비파일만 추출 → 생성 컨테이너 삭제
- → 기존 manifest/파일 검증 → 기본·AI·사용자가 선택한 EDA → 입력 손상과 연구 판정 분리
- → 집계 JSON + 사람용 표 보고서 + EDA/평가 계획 + 사용자 선택
+ → 기존 manifest/스키마 검증 → EDA 미실행 준비 보고서
  → research/review-issue-{번호} → default branch 대상 연구검토 draft PR
  → 추천 대상 메타데이터 보관 → 선행 workflow 완료 이벤트
- → AI pending/stale 또는 명시적 재추천이면 정확한 PR을 읽어 Copilot 추천 → 기존 PR 갱신
+ → Copilot: 공개 연구 목적·스키마·현재 선택·허가된 미반영 피드백 확인
+ → 미확정 매핑만 AI 추천 → Python 검증·표준 context
+ → AI 조율안(등록 목적·점검 ID·허가된 선택 변경) → Python 검증·실제 EDA
+ → Copilot: 목적과 전체 실제 EDA를 근거로 평가 지표 추천
+ → Python 조합 → 집계·계획·조율/피드백 감사 기록 → 같은 PR 갱신·AI 댓글
  → 해당 실행에서 생성한 runtime context만 정리
 ```
 
@@ -254,7 +258,9 @@ Issue opened 또는 유지관리자의 workflow_dispatch(issue_number)
 수동 실행자는 API로 확인한 write/maintain/admin 권한이 필요합니다.
 다른 Issue는 대상 아님으로 처리하고, 5개 section의 누락/중복/순서 손상·미체크 동의는 실패합니다.
 목표·질문 값은 필수, 대상조건·추가요청 값은 비워도 됩니다. Issue 자유문구를 shell/Python/SQL로 실행하지 않습니다.
-제출 title/body를 YML run 문자열에 직접 삽입하지 않으며 공개 Issue 본문·토큰·개별 환자 정보를 로그로 출력하지 않습니다.
+제출 title/body를 YML run 문자열에 직접 삽입하지 않으며 토큰·개별 환자 정보를 로그로 출력하지 않습니다.
+동의한 공개 연구 텍스트 4필드와 허가된 미반영 댓글은 좁은 MCP 입력으로 Copilot에 제공합니다.
+원본 환자 행·식별자 값·환경·인증정보는 제공하지 않으며 명백한 민감정보 의심 텍스트는 오류로 중단합니다.
 
 PR의 허용된 보고서 디렉터리에는 다음 파일을 관리합니다:
 
@@ -264,12 +270,14 @@ PR의 허용된 보고서 디렉터리에는 다음 파일을 관리합니다:
 | `eda.json` | 선택된 블록의 집계·상태·근거·한계와 data digest/data_id/revision/code commit/실행 링크 |
 | `report.md` | 분할·사건·환자 중복·인구집단 표, 원본 결측/대치 구분, 연구 해석 경계 |
 | `eda-plan.json`, `evaluation-plan.json` | 서로 다른 점검/결과 지표 조합·선택 출처·필수 입력·차단 근거 |
-| `selection.json` | 사람 소유의 추가·제외·주지표·threshold·매개변수. 최초 생성 후 일반 재실행과 AI가 덮어쓰지 않음 |
+| `selection.json` | 연구별 추가·제외·주지표·threshold·매개변수. 기존 선택 보존; 권한 확인한 자연어 요청만 검증 후 변경. 초기 AI는 목적 힌트만 합침 |
 | `recommendation-request.json` | 자유서술·개별 행을 제외한 공개 집계·등록 카탈로그·허용 evidence·context hash |
 | `ai-recommendations.json` | 실제 Copilot이 제출하고 신뢰 코드가 검증한 추천. AI 대기를 빈 성공 파일로 대체하지 않음 |
 | `review-state.json` | 명시적 댓글의 작성자·본문 해시·적용/거부 내역. 명령 댓글 처리 때만 생성 |
 | `input-schema.json` | 환자 행 없는 등록 스키마·의미 후보·타입·결측 집계·공개 코드북·context hash |
 | `input-mapping.json` | 검증한 역할 매핑·원래 추천·profile/source 스냅샷. EDA와 승인 기록에 hash로 연결 |
+| `coordination-plan.json` | AI 조율 이유·목적/선택/스키마/피드백 hash·최초 실행 EDA 근거·실행 코드. 연구/댓글 원문은 복제하지 않음 |
+| `feedback-requests.json`, `feedback-applied.json` | 자연어 댓글 ID·작성자·본문 hash와 누적 반영 ID. 원문은 GitHub 댓글 API에서 재조회 |
 
 최초 `primary_metric`/`threshold`는 미확정이며 사람이 선택합니다. 지표 값·임계값 최적화·새 예측 결과는 계산하지 않습니다.
 hash/행/스키마/필수 metadata 파손·네트워크/GH/git 명령 오류는 중단합니다.
@@ -313,10 +321,27 @@ run ID·회차·source commit이 일치하는 전달 파일 하나만 허용합�
 ## 3단계: 댓글 선택과 사람의 승인
 
 기본 선택은 `config/planning-policy.json`, 사용 가능한 블록은 `eda-catalog.json`과 `metric-catalog.json`에서 읽습니다.
-AI는 등록 ID와 근거만 추천하며 주지표·threshold·임상 승인을 대신 결정하지 않습니다.
+AI는 공개 목적·질문·조건·추가 요청과 실제 EDA를 받아 등록 ID·이유·근거를 추천합니다.
+초기 AI가 주지표·threshold를 임의 확정하지 않습니다. 사람이 댓글로 명시한 선택은 검증 후 반영하며 Merge 승인은 별개입니다.
 필수 EDA `schema`와 `patient_overlap`은 제외할 수 없습니다.
 
-PR의 **Conversation에 명령만 별도 댓글**로 작성합니다. 아래 값은 사용법 예시이며 자동 적용되지 않습니다.
+**policy = 공통 규칙**, **selection = 해당 연구의 선택**입니다.
+
+| 구분 | 현재 값 / 적용 |
+|---|---|
+| policy 필수 EDA | `schema`, `patient_overlap` — 제외 불가 |
+| policy 기본 EDA | 위 2개 + `demographics`, `cohort` |
+| policy 기본 평가 | `roc_auc`, `average_precision`, `brier_score`, `calibration_curve` |
+| 조합 | 필수 보호 + 기본 + 실제 AI 추천 + 사용자 추가 − 사용자 제외 |
+| selection | 연구별 add/exclude/objectives/primary/threshold/parameters. 다른 연구의 전역 기본을 바꾸지 않음 |
+
+PR의 **Conversation에 자연어 피드백**을 작성할 수 있습니다.
+예를 들어 “F1을 추가하고 AP를 주지표로, threshold를 0.3으로 설정해 주세요”는 **사용법 예시**이며 자동 적용된 실제 결과가 아닙니다.
+write/maintain/admin 사람의 댓글만 원본 API·작성자·본문 hash를 확인하고 AI에 전달합니다.
+AI는 등록 ID/형식의 조율안을 제안하고 Python이 검증한 뒤 같은 PR의 선택·계획·보고서를 갱신합니다.
+AI가 변경 내용과 남은 선택·Merge 승인 대기를 댓글로 안내하며, 임의 코드/SQL 실행·자동 승인·모델 실행은 하지 않습니다.
+
+결정론적 명령 댓글도 그대로 지원합니다. 명령은 **명령만 별도 댓글**로 작성합니다.
 
 ```text
 /plan add eda prediction_timing
@@ -335,9 +360,10 @@ PR의 **Conversation에 명령만 별도 댓글**로 작성합니다. 아래 값
 | `/plan clinical-action TEXT` | DCA가 전제하는 교육용 행동 명시. 실제 개입·임상 승인 아님 |
 | `/plan recommend` | 실제 Copilot 재추천 요청. 고급 선택은 웹에서 `selection.json` 수정 후 이 명령으로 갱신 가능 |
 
-write/maintain/admin 권한이 있는 사람만 변경할 수 있습니다. 일반 문장·인용·코드블록은 실행하지 않습니다.
+write/maintain/admin 권한이 있는 사람만 변경할 수 있습니다. 자연어는 검증된 조율의 입력이지 실행 코드가 아닙니다.
 처리된 댓글의 편집은 재적용하지 않으므로 새 댓글로 변경합니다.
-여러 댓글이 연속 제출되면 미처리 명령을 ID 순서로 반영하고 중복 적용을 막습니다.
+여러 댓글은 ID 순서로 처리하고 중복 적용을 막습니다. 미반영 자연어 댓글이 편집되면 새 hash로 다시 준비합니다.
+AI 준비 이후 본문/권한/PR/연구 목적이 바뀌면 게시하지 않으며, 미반영 자연어 요청이 남으면 승인 기록도 만들지 않습니다.
 유효 명령과 거부 명령은 분리해서 Actions Summary·`review-state.json`에 표시합니다.
 선택 저장 후 갱신이 실패하면 같은 실행을 재시도해 명령을 중복 적용하지 않고 보고서를 복구할 수 있습니다.
 
@@ -354,23 +380,29 @@ write/maintain/admin 권한이 있는 사람만 변경할 수 있습니다. 일�
 ## 입력 프로필과 앞단 매핑
 
 입력 계약은 `config/input-profiles.json`, 읽기·검증·표준화는 `app/input_contracts.py`에서 관리합니다.
-현재 `diabetes_prepared`는 확정된 9개 컬럼 매핑을 config에서 재사용하므로 매번 AI에게 묻지 않습니다.
+현재 `diabetes_prepared`는 검증된 9개 컬럼 매핑을 재사용합니다.
+**매핑을 다시 추측하지 않는다는 뜻이지 앞단 AI를 생략한다는 뜻은 아닙니다.**
+알려진 스키마도 AI가 공개 목적·입력 계약·점검 구성을 먼저 확인한 뒤 Python EDA를 요청합니다.
 
 ```text
 Issue → 고정 이미지 무결성·스키마 확인
-  → bindings 있음: config 검증·적용
-  → bindings null: EDA 미실행 draft PR → workflow_run → AI 스키마 매핑 추천
+  → EDA 미실행 draft PR → workflow_run → AI 공개 목적·스키마 조율
+  → bindings 있음: 검증된 config 재사용
+  → bindings null: AI 스키마 매핑 추천
       → Python이 등록 컬럼·의미 후보·필수 역할·근거·hash 검증
-  → 표준 context → EDA → 별도 AI 블록 추천 → 사용자 선택·승인
+  → AI 조율안 → Python 검증·표준 context·실제 EDA
+  → AI 목적/전체 EDA 기반 지표 추천 → 같은 PR1·자연어 피드백·사람 승인
 ```
 
-앞단 AI에는 등록된 컬럼명·타입·설명·의미 후보·결측 집계·정답 정의·공개 변환 코드북만 제공합니다.
-환자 행·환자 키 값·원자료·Issue 자유서술은 제공하지 않습니다.
+앞단 AI에는 공개 연구 텍스트 4필드와 등록 컬럼명·타입·설명·의미 후보·결측 집계·정답 정의·공개 코드북을 제공합니다.
+환자 행·환자 키 값·원자료·인증정보는 제공하지 않습니다.
 AI는 `bindings`, 역할별 한국어 `reasons`, 허용 `evidence`, 스키마 `context_hash`를 돌려줍니다.
 컬럼이 없거나 환자 키의 의미 근거가 없으면 검증 실패로 멈추며 입원 ID를 환자 ID로 추정하지 않습니다.
 AI가 추천했다고 임의 코드·SQL·변환식을 실행하지 않습니다.
 
-후단 AI는 검증된 매핑 후의 EDA 공개 집계와 카탈로그로 블록을 추천합니다.
+후단 AI는 공개 목적·현재 선택·필수와 선택 EDA의 전체 실제 집계·카탈로그로 블록을 추천합니다.
+이 공개 텍스트/전체 EDA는 runner의 transient `RESEARCH_CONTEXT.json`·`AI_REQUEST.json`으로 전달합니다.
+커밋하는 `recommendation-request.json`은 원문을 제외한 구조화 요청이며 조율 hash로 결합합니다.
 두 단계의 context hash는 다르며 입력 매핑 hash를 후단 요청에도 묶어 오래된 추천을 막습니다.
 `input-schema.json`은 공개 요청, `input-mapping.json`은 검증된 바인딩·원래 추천·프로필·출처 명세입니다.
 Merge 승인 기록은 이 매핑을 병합 commit의 registry와 다시 대조하고 함께 보존합니다.
@@ -403,9 +435,9 @@ data_id는 manifest의 data_id 필드를 제외한 정규화 JSON hash이며 reg
 현재 Diabetes 목적·EDA 질문·전체 집단을 기본값으로 제안하되 사용자가 수정할 수 있습니다.
 113개 컬럼·target·checkpoint·GHCR digest를 직접 입력시키지 않으며 로컬 연결 코드는 시스템 명세/설정에서 읽습니다.
 
-**폼 제출 → 입력 매핑 확인/조건부 AI → 데이터 점검·조합형 평가 계획 → AI 블록 추천 → 댓글 선택 → 사람이 Merge한 계획 기록**을 연결합니다.
-자동 기능과 필수 PR 생성 설정을 안내하도록 폼 설명도 갱신했습니다. 입력 필드·동의 문구는 유지합니다.
-사용자의 지표 요청을 자동 확정하거나 자유 입력을 임의 Python/SQL로 실행하지 않습니다.
+**폼 제출 → AI 목적·입력 조율 → Python 점검 → AI 추천 포함 PR1 → 자연어 피드백·선택 변경 → 사람이 Merge한 계획 기록**을 연결합니다.
+현재 작업에서 Target 입력 필드·동의·폼 YAML은 변경하지 않습니다. 스키마는 등록 GHCR 자산에서 읽습니다.
+사용자의 명시적 선택 변경과 사람의 최종 승인은 구분하며 자유 입력을 임의 Python/SQL로 실행하지 않습니다.
 
 ## 로컬 소스 검증
 

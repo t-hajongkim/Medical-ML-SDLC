@@ -51,6 +51,10 @@ def context_and_source(overlap=False):
               "expected_patient_overlap": {"train_validation": int(overlap), "train_test": 0, "validation_test": 0},
               "expected_test_race_missing": 0, "target_mapping": context["target_mapping"]}
     context["data_manifest"] = {"data_id": "f" * 64, "prepared_source": source}
+    context["_input_schema_request"] = {
+        "schema_version": 1, "profile_id": "synthetic_context", "data_id": "f" * 64,
+        "context_hash": "c" * 64, "known_mapping": True, "columns": [],
+    }
     return context, source
 
 
@@ -521,11 +525,14 @@ class PayloadAndPublicationTests(unittest.TestCase):
                 patch("app.research.image_assets") as assets, \
                 patch("app.research.load_context", return_value=self.context), \
                 patch("app.research.publish_payload", return_value={"status": "created"}) as publish, \
+                patch("app.research.report", side_effect=AssertionError("EDA before AI coordination")), \
                 patch.dict(os.environ, {"GITHUB_RUN_ID": "38722808263"}):
             result = research.run_workflow(opened_event(), "issues", REPOSITORY, "synthetic-collaborator", "main", work)
         self.assertEqual(result["status"], "created")
         assets.assert_called_once_with(DATA_IMAGE, work / "assets")
-        self.assertEqual(publish.call_args.args[2]["assessment_status"], "failed")
+        self.assertIsNone(publish.call_args.args[2])
+        self.assertEqual(publish.call_args.kwargs["input_phase"], "coordination")
+        self.assertEqual(publish.call_args.kwargs["input_request"], self.context["_input_schema_request"])
         self.assertTrue(publish.call_args.args[3]["workflow_run_url"].endswith("/38722808263"))
         self.assertFalse(work.exists())
 
@@ -533,13 +540,12 @@ class PayloadAndPublicationTests(unittest.TestCase):
         (self.root / "config").mkdir()
         write_json(self.root / "config" / "assets.json", {"schema_version": 1, "data_image": DATA_IMAGE})
         work = self.folder / "runtime"
-        self.context["feature_rows"][0]["feature_values"].pop()
         with patch("app.research.ROOT", self.root), \
                 patch("app.research.intake", return_value=(self.request, None)), \
                 patch("app.research.existing_pull", return_value=(None, None)), \
                 patch("app.research.command", side_effect=self.fake_command), \
                 patch("app.research.image_assets"), \
-                patch("app.research.load_context", return_value=self.context), \
+                patch("app.research.load_context", side_effect=ValueError("damaged input package")), \
                 patch("app.research.publish_payload") as publish, \
                 patch.dict(os.environ, {"GITHUB_RUN_ID": "12"}):
             with self.assertRaisesRegex(ValueError, "damaged"):

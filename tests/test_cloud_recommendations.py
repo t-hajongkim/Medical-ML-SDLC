@@ -1,4 +1,5 @@
 import json
+import hashlib
 import os
 from pathlib import Path
 import shutil
@@ -87,6 +88,77 @@ class CloudContractTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "missing"):
             cloud._read_branch_file(flow, "b" * 40, "fixture.json")
 
+    def test_ai_comment_is_posted_only_after_verified_push_and_body_update(self):
+        import yaml
+        root = Path(__file__).resolve().parents[1]
+        text = (root / ".github" / "workflows" / "recommend-blocks.md").read_text(encoding="utf-8")
+        config = yaml.load(text.split("---", 2)[1], Loader=yaml.BaseLoader)
+        self.assertNotIn("add-comment", config["safe-outputs"])
+        job = config["safe-outputs"]["jobs"]["refresh-review-body"]
+        script = job["steps"][-1]["with"]["script"]
+        self.assertEqual(job["inputs"]["message"]["required"], "true")
+        harness = r"""
+const fs = require("node:fs"), path = require("node:path"), crypto = require("node:crypto");
+const {script, folder} = JSON.parse(fs.readFileSync(0, "utf8"));
+const hash = value => crypto.createHash("sha256").update(value, "utf8").digest("hex");
+const artifact = path.join(folder, "research-review-body"); fs.mkdirSync(artifact);
+const output = path.join(folder, "output.json");
+process.env.RUNNER_TEMP = folder; process.env.GH_AW_AGENT_OUTPUT = output;
+process.env.GITHUB_REPOSITORY = "fixture-owner/workshop";
+const body = "Preserved human note\nSynthetic report";
+fs.writeFileSync(path.join(artifact, "pr-body.md"), body);
+const meta = {
+  schema_version: 1, repository: process.env.GITHUB_REPOSITORY, pull_request: 7,
+  head_branch: "research/review-issue-2", publication_commit: "a".repeat(40),
+  previous_head_sha: "b".repeat(40), expected_tree_sha: "c".repeat(40),
+  body_refresh_required: true, body_sha256: hash(body), previous_body_sha256: hash("Human note")
+};
+fs.writeFileSync(path.join(artifact, "publication.json"), JSON.stringify(meta));
+const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
+const execute = new AsyncFunction("require", "github", "context", "core", script);
+(async()=>{
+  const results = [];
+  for (const kind of ["success", "unpublished", "body_failure", "bad_summary"]) {
+    const writes = [];
+    fs.writeFileSync(output, JSON.stringify({items: [
+      {type: "push_to_pull_request_branch"},
+      {type: "refresh_review_body", confirmed: true,
+       message: kind === "bad_summary" ? "" : "합성 변경 안내: F1·AP·threshold 0.3을 반영한 계획 검토를 기다립니다."}
+    ]}));
+    const github = {rest: {
+      pulls: {
+        get: async()=>({data: {state:"open", title:"연구검토 #2", body:"Human note",
+          head: {repo: {full_name:meta.repository}, ref:meta.head_branch, sha:meta.publication_commit}}}),
+        update: async()=>{writes.push("body"); if(kind==="body_failure")throw Error("synthetic failure");}
+      },
+      git: {getCommit: async()=>({data:{
+        tree: {sha:kind==="unpublished" ? "d".repeat(40) : meta.expected_tree_sha},
+        parents:[{sha:meta.previous_head_sha}]}})},
+      issues: {createComment: async args=>{
+        if(args.issue_number!==7 || !args.body.includes("사람의 승인 대기"))throw Error("wrong comment");
+        writes.push("comment");
+      }}
+    }};
+    let failed = false;
+    try { await execute(require, github, {repo:{owner:"fixture-owner",repo:"workshop"}}, {info:()=>{}}); }
+    catch { failed = true; }
+    results.push({kind, failed, writes});
+  }
+  console.log(JSON.stringify(results));
+})().catch(error=>{console.error(error);process.exitCode=1;});
+"""
+        with tempfile.TemporaryDirectory(prefix="publication-notice-") as folder:
+            result = subprocess.run(["node", "-e", harness], input=json.dumps({
+                "script": script, "folder": folder}), capture_output=True,
+                text=True, encoding="utf-8", timeout=30)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(result.stdout), [
+            {"kind": "success", "failed": False, "writes": ["body", "comment"]},
+            {"kind": "unpublished", "failed": True, "writes": []},
+            {"kind": "body_failure", "failed": True, "writes": ["body"]},
+            {"kind": "bad_summary", "failed": True, "writes": []},
+        ])
+
 
 class PublicationGitFixtureTests(unittest.TestCase):
     """Exercise local Git objects only, never the project checkout or a remote."""
@@ -165,12 +237,18 @@ class PublicationGitFixtureTests(unittest.TestCase):
         self.assertEqual(self.git("rev-parse", "HEAD"), self.default_sha)
 
     def test_prepare_and_apply_use_real_composition_with_mock_cloud_inputs(self):
+        self.run_controller()
+
+    def test_authorized_natural_feedback_changes_same_pr_and_publishes_audit(self):
+        self.run_controller(feedback=True)
+
+    def run_controller(self, *, feedback=False):
         from app.asset_contract import read_json, write_json
         from test_research_workflow import context_and_source, issue
         repository = "fixture-owner/fixture-workshop"
         image = "ghcr.io/fixture-owner/fixture-db@sha256:" + "a" * 64
         context, _ = context_and_source()
-        original = issue({"research_goal": "PRIVATE_SYNTHETIC_NOTE"})
+        original = issue({"research_goal": "PUBLIC_SYNTHETIC_GOAL"})
         original["number"] = 2
         request = research.parse_issue(original, repository)
         aggregate = research.report(context)
@@ -188,6 +266,15 @@ class PublicationGitFixtureTests(unittest.TestCase):
         selection["eda"]["add"] = ["preprocessing_lineage"]
         selection["evaluation"].update(
             add=["f1"], primary_metric="average_precision", threshold=0.3)
+        body = "합성 피드백: F1을 추가하고 AP를 주지표로, threshold를 0.3으로 설정해 주세요."
+        if feedback:
+            selection["evaluation"].update(add=["recall"], primary_metric="roc_auc", threshold=0.7)
+            write_json(self.report / "feedback-requests.json", {
+                "schema_version": 1, "kind": "pr1-natural-feedback", "repository": repository,
+                "pull_request": 7, "issue_number": 2, "comments": [{
+                    "comment_id": 17, "actor": "fixture-owner",
+                    "body_sha256": hashlib.sha256(body.encode("utf-8")).hexdigest()}],
+            })
         write_json(self.report / "selection.json", selection)
         selected_bytes = (self.report / "selection.json").read_bytes()
         self.git("add", "--", self.directory)
@@ -199,7 +286,9 @@ class PublicationGitFixtureTests(unittest.TestCase):
         (self.root / "config").mkdir()
         write_json(self.root / "config" / "assets.json",
                    {"schema_version": 1, "data_image": image})
-        self.git("add", "--", "config/assets.json")
+        self.report.mkdir(parents=True, exist_ok=True)
+        write_json(self.report / "feedback-requests.json", {"stale_default_branch_record": True})
+        self.git("add", "--", "config/assets.json", self.directory)
         self.git("commit", "-q", "-m", "Synthetic trusted asset reference")
         remote = self.folder / "remote.git"
         result = subprocess.run(
@@ -213,21 +302,46 @@ class PublicationGitFixtureTests(unittest.TestCase):
                      "repo": {"full_name": repository}}, "base": {"ref": "main"},
         }
         def api(path):
+            if path.endswith("/issues/comments/17"):
+                return {"id": 17, "body": body, "user": {"type": "User", "login": "fixture-owner"},
+                        "issue_url": f"https://api.github.com/repos/{repository}/issues/7"}
+            if path.endswith("/collaborators/fixture-owner/permission"):
+                return {"permission": "write"}
             return pull if path.endswith("/pulls/7") else {"default_branch": "main"}
         work = self.folder / "controller"
+        def image_assets(ref, path):
+            path.mkdir()
+            write_json(path / "data_manifest.json", {
+                "feature_columns": context["feature_columns"], "data_id": aggregate["data_id"]})
         with patch.object(cloud, "ROOT", self.root), \
                 patch.object(cloud, "_runtime", return_value=(research, repository)), \
                 patch.object(research, "gh_json", side_effect=api), \
-                patch.object(research, "image_assets", side_effect=lambda ref, path: path.mkdir()), \
+                patch.object(research, "image_assets", side_effect=image_assets), \
                 patch.object(cloud, "load_context", return_value=context), \
                 patch.dict(os.environ, {"GITHUB_RUN_ID": "38722808263"}):
             prepared = cloud.prepare_ai(7, work)
+            self.assertEqual(prepared["phase"], "coordination")
+            self.assertFalse((work / "AI_REQUEST.json").exists())
+            coordination = read_json(work / "RESEARCH_CONTEXT.json")
+            self.assertEqual(coordination["request"]["research_goal"], "PUBLIC_SYNTHETIC_GOAL")
+            write_json(work / "coordination-proposal.json", {
+                "schema_version": 1, "context_hash": coordination["context_hash"],
+                "eda_add": ["prediction_timing"],
+                "objectives": {"eda": [], "evaluation": []},
+                "feedback_ids": [17] if feedback else [],
+                "selection_updates": {"evaluation": {
+                    "add": ["f1"], "primary_metric": "average_precision", "threshold": 0.3,
+                }} if feedback else {},
+                "reason": "공개 연구 목적과 스키마를 확인하고 예측 시점 점검을 추가합니다.",
+            })
+            coordinated = cloud.run_data_checks(7, work)
             ai_request = read_json(work / "AI_REQUEST.json")
-            self.assertNotIn("PRIVATE_SYNTHETIC_NOTE", json.dumps(ai_request))
+            self.assertIn("PUBLIC_SYNTHETIC_GOAL", json.dumps(ai_request))
+            self.assertNotIn("metadata", ai_request["research_context"]["schema_request"])
             evidence = ai_request["allowed_evidence_ids"][0]
             recommendation = {
                 "schema_version": 1, "provider": "github-copilot-cloud-agent",
-                "status": "provided", "context_hash": prepared["context_hash"],
+                "status": "provided", "context_hash": coordinated["context_hash"],
                 "eda": [{"id": "prediction_timing", "reason": "합성 AI 응답: 시점 근거 확인",
                          "evidence": [evidence]}],
                 "evaluation": [{"id": "precision", "reason": "합성 AI 응답: 운영 판정 검토",
@@ -238,7 +352,17 @@ class PublicationGitFixtureTests(unittest.TestCase):
         self.assertEqual(outcome["status"], "validated_copilot_recommendations")
         self.assertFalse(outcome["remote_publication_performed"])
         self.assertEqual(self.git("rev-parse", outcome["publication_commit"] + "^"), head)
-        self.assertEqual((self.report / "selection.json").read_bytes(), selected_bytes)
+        if feedback:
+            self.assertNotEqual((self.report / "selection.json").read_bytes(), selected_bytes)
+            self.assertIn(self.directory + "/selection.json", outcome["allowed_outputs"])
+            self.assertEqual(read_json(self.report / "feedback-applied.json")["comment_ids"], [17])
+            record = read_json(self.report / "coordination-plan.json")["record"]
+            self.assertEqual(record["feedback_ids"], [17])
+            self.assertNotIn(body, json.dumps(record, ensure_ascii=False))
+            self.assertIn("recall", read_json(self.report / "selection.json")["evaluation"]["add"])
+        else:
+            self.assertEqual((self.report / "selection.json").read_bytes(), selected_bytes)
+            self.assertNotIn(self.directory + "/selection.json", outcome["allowed_outputs"])
         eda_plan = read_json(self.report / "eda-plan.json")
         metric_plan = read_json(self.report / "evaluation-plan.json")
         self.assertIn("prediction_timing", eda_plan["selected_ids"])
@@ -249,6 +373,103 @@ class PublicationGitFixtureTests(unittest.TestCase):
         self.assertEqual(metric_plan["ai_status"], "provided")
         self.assertIn("Human reviewer note must remain.",
                       (work / "pr-body.md").read_text(encoding="utf-8"))
+
+
+class FeedbackContextTests(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory(prefix="feedback-contract-")
+        self.addCleanup(self.temporary.cleanup)
+        self.folder = Path(self.temporary.name) / "issue-2"
+        self.folder.mkdir()
+        self.repo = "fixture-owner/workshop"
+        self.body = "합성 피드백: F1을 추가해 주세요."
+        self.comment = {
+            "id": 17, "body": self.body, "user": {"type": "User", "login": "writer"},
+            "issue_url": f"https://api.github.com/repos/{self.repo}/issues/7"}
+        from app.asset_contract import write_json
+        self.write = write_json
+        self.ledger = {
+            "schema_version": 1, "kind": "pr1-natural-feedback", "repository": self.repo,
+            "pull_request": 7, "issue_number": 2, "comments": [{
+                "comment_id": 17, "actor": "writer",
+                "body_sha256": hashlib.sha256(self.body.encode("utf-8")).hexdigest()}]}
+        self.write(self.folder / "feedback-requests.json", self.ledger)
+        self.flow = SimpleNamespace(issue_number=research.issue_number, gh_json=Mock(
+            side_effect=lambda path: self.comment if "/issues/comments/" in path else {"permission": "write"}))
+
+    def test_current_authorized_body_is_returned_only_transiently(self):
+        pending, applied = cloud._pending_feedback(self.flow, self.repo, 7, self.folder)
+        self.assertEqual(pending[0]["body"], self.body)
+        self.assertEqual(applied, [])
+        self.assertNotIn(self.body, (self.folder / "feedback-requests.json").read_text(encoding="utf-8"))
+
+    def test_changed_body_author_pr_bot_or_revoked_role_stops_ai(self):
+        cases = (
+            {"body": "편집된 합성 피드백"},
+            {"user": {"type": "User", "login": "other"}},
+            {"issue_url": f"https://api.github.com/repos/{self.repo}/issues/8"},
+            {"user": {"type": "Bot", "login": "writer"}},
+        )
+        original = dict(self.comment)
+        for change in cases:
+            with self.subTest(change=change):
+                self.comment = {**original, **change}
+                with self.assertRaises(ValueError):
+                    cloud._pending_feedback(self.flow, self.repo, 7, self.folder)
+        self.comment = original
+        self.flow.gh_json.side_effect = lambda path: self.comment if "/issues/comments/" in path else {"permission": "read"}
+        with self.assertRaisesRegex(ValueError, "write"):
+            cloud._pending_feedback(self.flow, self.repo, 7, self.folder)
+
+    def test_duplicate_or_cross_repository_ledger_is_rejected(self):
+        for changed in (
+            {**self.ledger, "comments": self.ledger["comments"] * 2},
+            {**self.ledger, "repository": "other/workshop"},
+            {**self.ledger, "pull_request": 8},
+            {**self.ledger, "issue_number": 3},
+            {**self.ledger, "kind": "untrusted"},
+        ):
+            with self.subTest(changed=changed):
+                self.write(self.folder / "feedback-requests.json", changed)
+                with self.assertRaises(ValueError):
+                    cloud._pending_feedback(self.flow, self.repo, 7, self.folder)
+
+    def test_applied_metadata_requires_matching_origin_and_known_ids(self):
+        for changed in (
+            {"repository": "other/workshop"}, {"pull_request": 8},
+            {"comment_ids": [18]}, {"comment_ids": [17, 17]},
+            {"comment_ids": [True]}, {"coordination_hash": "invalid"},
+        ):
+            with self.subTest(changed=changed):
+                self.write(self.folder / "feedback-applied.json", {
+                    "schema_version": 1, "repository": self.repo, "pull_request": 7,
+                    "comment_ids": [17], "coordination_hash": "f" * 64, **changed})
+                with self.assertRaises(ValueError):
+                    cloud._pending_feedback(self.flow, self.repo, 7, self.folder)
+
+    def test_final_publication_rechecks_feedback_even_after_local_mark_applied(self):
+        from app.asset_contract import canonical_hash
+        request = {"public_request": "synthetic"}
+        self.write(self.folder / "request.json", request)
+        pending, _ = cloud._pending_feedback(self.flow, self.repo, 7, self.folder)
+        work = Path(self.temporary.name)
+        self.write(work / "RESEARCH_CONTEXT.json", {"feedback": pending})
+        session = {"request_hash": canonical_hash(request), "applied_feedback_ids": []}
+        self.write(self.folder / "feedback-applied.json", {
+            "schema_version": 1, "repository": self.repo, "pull_request": 7,
+            "comment_ids": [17], "coordination_hash": "f" * 64})
+        cloud._verify_research_inputs(self.flow, self.repo, 7, self.folder, work, session)
+        self.comment["body"] = "게시 직전 편집된 합성 피드백"
+        with self.assertRaises(ValueError):
+            cloud._verify_research_inputs(self.flow, self.repo, 7, self.folder, work, session)
+
+    def test_request_change_stops_data_checks(self):
+        from app.asset_contract import canonical_hash
+        self.write(self.folder / "request.json", {"changed": True})
+        with self.assertRaisesRegex(ValueError, "연구 요청"):
+            cloud._verify_research_inputs(self.flow, self.repo, 7, self.folder,
+                                         Path(self.temporary.name),
+                                         {"request_hash": canonical_hash({"original": True})})
 
 
 if __name__ == "__main__":

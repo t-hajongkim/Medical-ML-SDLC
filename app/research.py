@@ -31,7 +31,7 @@ TRUSTED_ASSOCIATIONS = {"OWNER", "COLLABORATOR"}
 def pin_review_code():
     """Cache trusted helpers/checks before selecting a report-only PR tree."""
     # CHECKS already holds eagerly imported functions from the trusted catalog.
-    for name in ("app.input_review", "app.recommendation_events"):
+    for name in ("app.input_review", "app.recommendation_events", "app.pr1_intent"):
         importlib.import_module(name)
 
 
@@ -635,6 +635,13 @@ def write_payload(root, request, eda, provenance, *, context=None, catalogs=None
         write_json(directory / "input-schema.json", context["_input_schema_request"])
         markdown += "\n" + "\n".join(mapping_lines(context["input_contract"]))
         names.extend(("input-mapping.json", "input-schema.json"))
+    if context is not None and context.get("_pr1_coordination") is not None:
+        coordination = context["_pr1_coordination"]
+        write_json(directory / "coordination-plan.json", coordination)
+        markdown += ("\n## AI 연구 조율\n\n" + cell(coordination["record"]["reason"])
+                     + "\n\n공개 연구 목적·스키마와 권한 있는 사람의 피드백을 기준으로 구성한 수정안입니다."
+                     "\n최종 승인은 사람의 Merge이며 모델 실행 승인이 아닙니다.\n")
+        names.append("coordination-plan.json")
     (directory / "report.md").write_text(markdown, encoding="utf-8")
     if (directory / "ai-recommendations.json").is_file():
         names.append("ai-recommendations.json")
@@ -682,7 +689,8 @@ def merge_review_body(existing_body, generated_report):
 
 
 def publish_payload(root, request, eda, provenance, default_branch, *,
-                    context=None, catalogs=None, policy=None, input_request=None):
+                    context=None, catalogs=None, policy=None, input_request=None,
+                    input_phase="input_mapping"):
     pin_review_code()
     repository = request["repository"]
     branch = f"research/review-issue-{request['issue_number']}"
@@ -714,9 +722,9 @@ def publish_payload(root, request, eda, provenance, default_branch, *,
     if input_request is not None:
         from app.input_review import write_pending
         paths = write_pending(root, request, input_request, provenance,
-                              context["_initial_selection"])
+                              context["_initial_selection"], phase=input_phase)
         published = {"assessment_status": "not_run"}
-        evaluation = {"ai_status": "pending_input_mapping", "planning_complete": False}
+        evaluation = {"ai_status": "pending_" + input_phase, "planning_complete": False}
     else:
         paths = write_payload(root, request, eda, provenance, context=context, catalogs=catalogs, policy=policy)
         published = read_json(directory / "eda.json")
@@ -775,7 +783,7 @@ def publish_payload(root, request, eda, provenance, default_branch, *,
 def dispatch_ai(outcome, repository, default_branch):
     if outcome.get("status") not in ("created", "updated", "unchanged"):
         return {"status": "not_applicable"}
-    if outcome.get("ai_status") not in ("pending", "stale", "pending_input_mapping"):
+    if outcome.get("ai_status") not in ("pending", "stale", "pending_input_mapping", "pending_coordination"):
         return {"status": "not_needed", "ai_status": outcome.get("ai_status")}
     prefix = f"https://github.com/{repository}/pull/"
     url = outcome.get("pull_url", "")
@@ -830,12 +838,14 @@ def run_workflow(event, event_name, repository, actor, default_branch, work, man
                 catalogs=catalogs, policy=policy, input_request=pending.schema_request)
             return {**outcome, "workflow_run_url": provenance["workflow_run_url"],
                     "ai_dispatch": dispatch_ai(outcome, repository, default_branch)}
+        schema_request = context.get("_input_schema_request")
+        if not isinstance(schema_request, dict):
+            raise ValueError("AI 조율 전에 검증된 입력 스키마가 필요합니다.")
         context["_initial_selection"] = initial_selection
         context["_review_work"] = work
-        eda = report(context, identifiers=["schema", "patient_overlap"])
-        validate_aggregate(eda, context["data_manifest"]["prepared_source"], ["schema", "patient_overlap"])
-        outcome = publish_payload(ROOT, request, eda, provenance, default_branch,
-                                  context=context, catalogs=catalogs, policy=policy)
+        outcome = publish_payload(
+            ROOT, request, None, provenance, default_branch, context=context,
+            catalogs=catalogs, policy=policy, input_request=schema_request, input_phase="coordination")
         return {**outcome, "workflow_run_url": provenance["workflow_run_url"],
                 "ai_dispatch": dispatch_ai(outcome, repository, default_branch)}
     finally:
@@ -848,7 +858,7 @@ def main():
     commands = parser.add_subparsers(dest="mode", required=True)
     commands.add_parser("workflow")
     commands.add_parser("resolve-ai-target")
-    for name in ("prepare-ai", "apply-ai", "apply-input-mapping"):
+    for name in ("prepare-ai", "apply-ai", "apply-input-mapping", "run-data-checks"):
         cloud = commands.add_parser(name)
         cloud.add_argument("--pull-request", required=True, type=issue_number)
         cloud.add_argument("--work", required=True, type=Path)
@@ -871,7 +881,7 @@ def main():
                 os.environ.get("REQUESTED_PR"),
             )
             write_outputs(outcome)
-        elif args.mode in ("prepare-ai", "apply-ai", "apply-input-mapping"):
+        elif args.mode in ("prepare-ai", "apply-ai", "apply-input-mapping", "run-data-checks"):
             if os.environ.get("GITHUB_ACTIONS") != "true":
                 raise ValueError("Remote mode is restricted to the GitHub Actions runner.")
             from app import cloud_recommendations
@@ -879,8 +889,10 @@ def main():
                 handler = cloud_recommendations.prepare_ai
             elif args.mode == "apply-ai":
                 handler = cloud_recommendations.apply_ai
-            else:
+            elif args.mode == "apply-input-mapping":
                 handler = cloud_recommendations.apply_input_mapping
+            else:
+                handler = cloud_recommendations.run_data_checks
             outcome = handler(args.pull_request, args.work)
         elif args.mode == "workflow":
             if os.environ.get("GITHUB_ACTIONS") != "true":

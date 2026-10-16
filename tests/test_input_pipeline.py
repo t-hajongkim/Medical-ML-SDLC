@@ -128,14 +128,26 @@ class InputPipelineTests(unittest.TestCase):
         folder.mkdir(parents=True)
         selection = planning.default_selection()
         write_json(folder / "selection.json", selection)
+        request = research.parse_issue(issue(), REPO)
+        write_json(folder / "request.json", request)
         original_selection = (folder / "selection.json").read_bytes()
         session = {
             "schema_version": 1, "repository": REPO, "pull_request": 7, "issue_number": 2,
             "head_sha": SHA, "phase": "input_mapping", "input_profile": profile,
             "selection_hash": canonical_hash(selection), "report_dir": "research/reports/issue-2",
+            "request_hash": canonical_hash(request),
             "policy": planning.load_policy(),
             "catalogs": {stage: planning.load_catalog(stage) for stage in ("eda", "evaluation")},
+            "initial_selection_hash": canonical_hash(selection), "applied_feedback_ids": [],
+            "code_commit": SHA, "has_coordination": True, "has_input_mapping": True,
+            "coordination_schema": {**schema, "feature_columns": ["synthetic_f1", "synthetic_f2"],
+                                    "model_ref": IMAGE, "current_bindings": None},
         }
+        from app.pr1_intent import build_context
+        context = build_context(
+            research.parse_issue(issue(), REPO), session["coordination_schema"], selection, [],
+            catalogs=session["catalogs"], policy=session["policy"])
+        write_json(work / "RESEARCH_CONTEXT.json", context)
         write_json(work / "session.json", session)
         write_json(work / "input-mapping-proposal.json", self.fixture.recommendation(schema, mapping))
         pull = {"head": {"sha": SHA}}
@@ -146,9 +158,20 @@ class InputPipelineTests(unittest.TestCase):
                 cloud.apply_ai(7, work)
             outcome = cloud.apply_input_mapping(7, work)
         self.assertEqual(outcome["status"], "input_mapping_validated")
-        self.assertNotEqual(outcome["context_hash"], schema["context_hash"])
-        self.assertEqual(read_json(work / "session.json")["phase"], "recommendation")
+        self.assertFalse((work / "AI_REQUEST.json").exists())
+        self.assertEqual(read_json(work / "session.json")["phase"], "coordination")
         self.assertTrue((folder / "input-mapping.json").is_file())
+        write_json(work / "coordination-proposal.json", {
+            "schema_version": 1, "context_hash": context["context_hash"], "eda_add": [],
+            "objectives": {"eda": [], "evaluation": []}, "feedback_ids": [],
+            "selection_updates": {}, "reason": "공개 연구 목적과 입력 계약을 확인해 기본 점검을 수행합니다.",
+        })
+        with patch.object(cloud, "ROOT", self.root), \
+                patch.object(cloud, "_runtime", return_value=(research, REPO)), \
+                patch.object(cloud, "_pull", return_value=(pull, "research/review-issue-2", 2, "main")):
+            checked = cloud.run_data_checks(7, work)
+        self.assertEqual(checked["status"], "data_checks_completed")
+        self.assertEqual(read_json(work / "session.json")["phase"], "recommendation")
         request = (work / "AI_REQUEST.json").read_text(encoding="utf-8")
         self.assertNotIn("private-shared-patient", request)
         self.assertNotIn("private-admission", request)
@@ -164,7 +187,20 @@ class InputPipelineTests(unittest.TestCase):
         self.assertTrue(plans["evaluation"]["planned_inputs"]["y_true"])
         self.assertFalse(plans["evaluation"]["planned_inputs"]["y_probability"])
 
-    def approval_bundle(self):
+    def test_corrupt_numeric_input_cannot_pass_eda_after_coordination(self):
+        assets, profile, _ = self.package(known=True)
+        context = load_context(assets, input_profile=profile)
+        original = context["feature_rows"]
+        def damaged_rows():
+            for row in original():
+                row["feature_values"].pop()
+                yield row
+        context["feature_rows"] = damaged_rows
+        aggregate = report(context)
+        with self.assertRaisesRegex(ValueError, "damaged"):
+            research.validate_aggregate(aggregate, context["data_manifest"]["prepared_source"])
+
+    def approval_bundle(self, *, coordinated=False):
         assets, profile, _ = self.package(known=True)
         context = load_context(assets, input_profile=profile)
         aggregate = report(context)
@@ -176,6 +212,26 @@ class InputPipelineTests(unittest.TestCase):
         selection = planning.default_selection()
         selection["evaluation"].update(primary_metric="roc_auc", add=["roc_auc"])
         write_json(folder / "selection.json", selection)
+        model_image = "ghcr.io/fixture-owner/model@sha256:" + "c" * 64
+        if coordinated:
+            from app.pr1_intent import apply_proposal, build_context
+            schema = {**context["_input_schema_request"], "feature_columns": context["feature_columns"],
+                      "model_ref": model_image, "current_bindings": context["input_contract"]["bindings"]}
+            transient = build_context(request, schema, selection, [])
+            intent = apply_proposal(selection, {
+                "schema_version": 1, "context_hash": transient["context_hash"], "eda_add": [],
+                "objectives": {"eda": [], "evaluation": []}, "feedback_ids": [],
+                "selection_updates": {}, "reason": "합성 검증용 목적·입력 조율"}, transient)
+            wrapper = {
+                "record": intent["record"], "code_commit": SHA, "schema": schema,
+                "eda_evidence": {item["block"]: {"status": item["status"], "details": item["details"]}
+                                 for item in aggregate["results"]}}
+            wrapper["coordination_hash"] = canonical_hash(wrapper)
+            context["_pr1_coordination"] = wrapper
+            aggregate = report(context)
+            write_json(folder / "feedback-applied.json", {
+                "schema_version": 1, "repository": REPO, "pull_request": 7, "comment_ids": [],
+                "coordination_hash": wrapper["coordination_hash"]})
         initial = planning.build_plans(aggregate, context["data_manifest"], selection, None)
         write_json(folder / "ai-recommendations.json", {
             "schema_version": 1, "provider": "github-copilot-cloud-agent", "status": "provided",
@@ -190,11 +246,14 @@ class InputPipelineTests(unittest.TestCase):
         files = {name: (folder / name).read_bytes() for name in review.REPORT_FILES}
         for name in ("input-schema.json", "input-mapping.json"):
             files[name] = (folder / name).read_bytes()
+        if coordinated:
+            for name in ("coordination-plan.json", "feedback-applied.json"):
+                files[name] = (folder / name).read_bytes()
         for name in review.CONFIG_FILES:
             files[name] = (research.ROOT / name).read_bytes()
         files["config/assets.json"] = json.dumps({
             "schema_version": 1, "data_image": IMAGE,
-            "model_image": "ghcr.io/fixture-owner/model@sha256:" + "c" * 64,
+            "model_image": model_image,
         }).encode()
         files["config/input-profiles.json"] = self.fixture.config_path.read_bytes()
         pull = {"number": 7, "head": {"sha": "d" * 40},
@@ -226,6 +285,36 @@ class InputPipelineTests(unittest.TestCase):
         changed["eda.json"] = json.dumps(eda).encode()
         with self.assertRaisesRegex(ValueError, "data_id/hash"):
             review._snapshot(REPO, pull, 2, changed)
+
+    def test_approval_freezes_coordination_and_rejects_changed_goal_or_audit(self):
+        files, pull = self.approval_bundle(coordinated=True)
+        approved = review._snapshot(REPO, pull, 2, files)
+        self.assertEqual(approved["coordination"]["schema"]["model_ref"], approved["model_image"])
+        for name in ("coordination-plan.json", "feedback-applied.json"):
+            changed = {key: value for key, value in files.items() if key != name}
+            with self.subTest(missing=name), self.assertRaises(ValueError):
+                review._snapshot(REPO, pull, 2, changed)
+        changed = dict(files)
+        request = json.loads(files["request.json"])
+        request["research_goal"] = "조율 이후 바뀐 합성 목적"
+        changed["request.json"] = json.dumps(request).encode()
+        with self.assertRaises(ValueError):
+            review._snapshot(REPO, pull, 2, changed)
+        changed = dict(files)
+        wrapper = json.loads(files["coordination-plan.json"])
+        wrapper["record"]["reason"] = "변경된 조율 기록"
+        changed["coordination-plan.json"] = json.dumps(wrapper).encode()
+        with self.assertRaises(ValueError):
+            review._snapshot(REPO, pull, 2, changed)
+
+    def test_pending_natural_feedback_blocks_freezing_even_legacy_plan(self):
+        files, pull = self.approval_bundle()
+        files["feedback-requests.json"] = json.dumps({
+            "schema_version": 1, "kind": "pr1-natural-feedback", "repository": REPO,
+            "pull_request": 7, "issue_number": 2, "comments": [{
+                "comment_id": 17, "actor": "fixture-owner", "body_sha256": "f" * 64}]}).encode()
+        with self.assertRaisesRegex(ValueError, "미반영"):
+            review._snapshot(REPO, pull, 2, files)
 
 
 if __name__ == "__main__":

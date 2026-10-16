@@ -176,6 +176,11 @@ def report(context: dict, identifiers: list[str] | None = None) -> dict:
             ("profile_id", "data_id", "bindings", "split_values", "target_values", "profile_snapshot")
         })
         output["dataset_context"] = context["dataset_context"]
+    if context.get("_pr1_coordination") is not None:
+        coordination = context["_pr1_coordination"]
+        output["coordination_hash"] = coordination["coordination_hash"]
+        output["research_request_hash"] = coordination["record"]["request_hash"]
+        output["coordination_evidence"] = coordination["eda_evidence"]
     return output
 
 

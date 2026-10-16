@@ -333,6 +333,19 @@ def _request(eda, manifest, selection, catalogs):
         if not isinstance(mapping_hash, str) or re.fullmatch(r"[0-9a-f]{64}", mapping_hash) is None:
             raise ValueError("Input mapping must have a SHA256 identifier.")
         facts["input_mapping_hash"] = mapping_hash
+    for name in ("coordination_hash", "research_request_hash"):
+        if name in eda:
+            if not isinstance(eda[name], str) or re.fullmatch(r"[0-9a-f]{64}", eda[name]) is None:
+                raise ValueError("Research coordination must have a SHA256 identifier.")
+            facts[name] = eda[name]
+    evidence = eda.get("coordination_evidence")
+    if evidence is not None:
+        if not isinstance(evidence, dict) or set(evidence) - {
+                item["id"] for item in catalogs["eda"]["checks"]}:
+            raise ValueError("Unregistered coordinated EDA evidence.")
+        for identifier, details in evidence.items():
+            if identifier not in ("schema", "patient_overlap"):
+                facts[f"coordinated.{identifier}"] = deepcopy(details)
     source = manifest.get("prepared_source", {})
     source = source if isinstance(source, dict) else {}
     target = source.get("target")
