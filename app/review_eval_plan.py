@@ -1,7 +1,7 @@
-"""Trusted comment selections and immutable, educational-only merge approvals.
+"""Human evaluation-plan feedback and immutable educational merge approvals.
 
-Only /plan lines are interpreted. Edits to processed comments require a new
-comment; their bodies are never copied into the audit record or executed.
+Authorized natural-language feedback is queued for planning; /plan commands are
+validated directly. Processed comments require a new request, never code execution.
 """
 
 import base64
@@ -16,7 +16,7 @@ import shutil
 import uuid
 from urllib.parse import quote
 
-from app import planning, research
+from app import planning_eval as planning, research
 from app.asset_contract import canonical_hash, validate_image_reference
 
 
@@ -331,7 +331,7 @@ def _queue_natural_feedback(repository, number, identifier, actor, default, targ
         "schema_version": 1, "kind": "pr1-natural-feedback",
         "repository": repository, "pull_request": number, "issue_number": issue, "comments": []}
     applied_data = _file(repository, tree, directory + "feedback-applied.json", optional=True)
-    from app.pr1_intent import validate_feedback_state
+    from app.planning_eda import validate_feedback_state
     references, applied_ids = validate_feedback_state(
         ledger, _object(applied_data) if applied_data is not None else None,
         repository, number, issue)
@@ -510,7 +510,7 @@ def _snapshot(repository, pull, issue, files):
     catalogs = {"eda": _object(files["config/eda-catalog.json"]),
                 "evaluation": _object(files["config/metric-catalog.json"])}
     policy = _object(files["config/planning-policy.json"])
-    from app.pr1_intent import validate_feedback_state
+    from app.planning_eda import validate_feedback_state
     feedback, applied_ids = validate_feedback_state(
         _object(files["feedback-requests.json"]) if "feedback-requests.json" in files else None,
         _object(files["feedback-applied.json"]) if "feedback-applied.json" in files else None,
@@ -523,13 +523,14 @@ def _snapshot(repository, pull, issue, files):
             raise ValueError("AI 조율 hash에 대응하는 승인 전 조율 기록이 없습니다.")
         coordination = _object(files["coordination-plan.json"])
         required = {"record", "code_commit", "schema", "eda_evidence", "coordination_hash"}
-        if (set(coordination) != required or coordination["code_commit"] != code
+        if (not required.issubset(coordination) or set(coordination) - required - {"execution_plan"}
+                or coordination["code_commit"] != code
                 or coordination["coordination_hash"] != canonical_hash({
                     key: value for key, value in coordination.items() if key != "coordination_hash"})
                 or coordination["coordination_hash"] != eda["coordination_hash"]
                 or coordination["eda_evidence"] != eda.get("coordination_evidence")):
             raise ValueError("AI 조율 기록·실행 코드·EDA 근거 hash가 일치하지 않습니다.")
-        from app.pr1_intent import validate_record
+        from app.planning_eda import validate_record
         validate_record(coordination["record"], selection, request, coordination["schema"],
                         catalogs=catalogs, policy=policy)
         if ("feedback-applied.json" not in files
@@ -548,6 +549,35 @@ def _snapshot(repository, pull, issue, files):
                     or any(coordination["schema"][key] != value for key, value in bound_schema.items())
                     or coordination["schema"]["current_bindings"] not in (None, input_binding["bindings"])):
                 raise ValueError("AI 조율의 입력 스키마와 검증된 바인딩이 다릅니다.")
+    execution = None
+    if eda.get("execution_plan_hash") is not None:
+        if "execution-plan.json" not in files or coordination is None or "execution_plan" not in coordination:
+            raise ValueError("실제 실행 결과에 대응하는 시작 실행 계획이 없습니다.")
+        from app.planning_eda import validate_execution_plan
+        from app.executor_eda import execution_result_hash
+        execution = validate_execution_plan(
+            _object(files["execution-plan.json"]), catalog=catalogs["eda"], policy=policy)
+        initial = validate_execution_plan(
+            coordination["execution_plan"], catalog=catalogs["eda"], policy=policy)
+        signature = execution["input_signature"]
+        if (execution["plan_hash"] != eda["execution_plan_hash"]
+                or execution["data_id"] != eda["data_id"]
+                or execution["data_image"] != reference
+                or execution["model_image"] != model_reference
+                or execution["code_commit"] != code
+                or signature["feature_columns"] != source["features"]
+                or signature["expected_feature_columns"] != source["features"]
+                or signature["input_mapping_hash"] != eda.get("input_mapping_hash")
+                or signature["bindings"] != (input_binding["bindings"] if input_binding else {})
+                or signature["target_mapping"] != source["target_mapping"]
+                or signature["split_rows"] != {
+                    name: source["splits"][name]["rows"] for name in ("train", "validation", "test")}
+                or [call["tool_id"] for call in execution["calls"]] != eda_plan["selected_ids"]
+                or initial["plan_hash"] != eda.get("initial_execution_plan_hash")
+                or any(execution[key] != initial[key] for key in (
+                    "data_id", "data_image", "model_image", "code_commit", "schema_hash"))
+                or eda.get("execution_result_hash") != execution_result_hash(eda)):
+            raise ValueError("병합된 입력·선택·실행 결과와 EDA 실행 계약이 일치하지 않습니다.")
     manifest = {
         "data_id": eda["data_id"], "prepared_source": source,
         "feature_columns": source["features"],
@@ -604,6 +634,7 @@ def _snapshot(repository, pull, issue, files):
         "data_id": eda["data_id"], "data_image": reference, "model_image": model_reference,
         "input_contract": input_binding,
         "coordination": coordination,
+        "execution_plan": execution,
         "model": copy.deepcopy(source.get("model", {})),
         "selection": selection, "primary_metric": primary,
         "threshold": evaluation.get("threshold"), "parameters": evaluation.get("parameters"),
@@ -656,7 +687,7 @@ def freeze_merge(event, repository, default):
     coordination = _file(repository, tree, directory + "coordination-plan.json", optional=True)
     if coordination is not None:
         files["coordination-plan.json"] = coordination
-    for name in ("feedback-requests.json", "feedback-applied.json"):
+    for name in ("feedback-requests.json", "feedback-applied.json", "execution-plan.json"):
         value = _file(repository, tree, directory + name, optional=True)
         if value is not None:
             files[name] = value

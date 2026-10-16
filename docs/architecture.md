@@ -1,5 +1,35 @@
 # GHCR 자산·조합형 EDA·평가 계획 승인 구조
 
+## 2026-10-16: 계획과 실행의 명시적 파일 경계
+
+```text
+연구 요청 + 시작 GHCR 데이터의 schema/data_id
+  → research.py (공통 CLI·PR/세션·출처 검증)
+  → planning_eda (가벼운 목적 정리·매핑/Tool 실행계획, 계산 없음)
+  → executor_eda (동일 plan_hash의 등록 블록 계산)
+  → planning_eval (실제 결과 기반 지표계획, 계산 없음)
+  → safe_outputs/본문 검증 → PR1 사람 선택·승인
+```
+
+시작 입력은 `input_contracts.profile_for_data`로 등록 profile 하나를 선택하며, 활성 profile과 다른 등록 데이터도
+코드를 하드코딩해 바꾸지 않고 선택한다. 모호한 profile·의미 사전 없는 새 데이터는 중단한다.
+계획에는 실제 feature 순서/매핑 해시·data_id·데이터/모델 digest·코드 commit·Tool 계약/정책 hash·입력 참조만 저장한다.
+raw metadata·숫자 벡터는 Python context 안에 있고 AI 계획 JSON에 복제하지 않는다.
+
+`plan-eda`와 `execute-eda`는 서로 다른 MCP 도구지만 같은 agent job에 있다.
+계획·입력 변경과 필수 진단 누락은 계산 전에 실패한다. 출력은 집계 계약으로 검사하며,
+환자 중복 failed/증거 부족 unverifiable를 계산 오류와 구분한다.
+후단 추가 진단은 최초 검증 결과와 해당 실행계획을 확인해 새 블록만 계산한다.
+최초 실행계획 hash는 평가계획 문맥에 고정하고 최종 실행계획은 승인 snapshot에 별도로 보존한다.
+입력 서명·코드·도구/정책·매개변수가 다른 결과는 재사용하지 않는다.
+
+`executor_eval`은 기존 지표 15개를 호출하는 순수 수치 라이브러리이며 현재 MCP/Actions 경로에서는 호출하지 않는다.
+계획의 planning_complete는 사람 승인 증거가 아니다. 모델 로딩·predict·PR2 승인·최종 평가/Pages 자동 연결은 여전히 후속이다.
+실행 중 데이터 교체·자동 재계획·새 전처리 fit은 추가하지 않는다.
+`research-plan.md`는 AI/도구/권한 원본, `.lock.yml`은 공식 compiler의 생성 결과다.
+`review-eval-plan.yml`/`review_eval_plan.py`는 사람의 피드백과 교육용 Merge 기록만 처리한다.
+기존 블록·등록 목록과 안전한 게시·재시도·입력/승인 검증은 재사용한다.
+
 ## 현재 연결 범위: Target → EDA → Evaluation Plan
 
 ```text
@@ -11,14 +41,14 @@
   → PR 번호·run ID/회차·source SHA만 전달 artifact에 기록
   → 선행 workflow 성공 완료 이벤트(workflow_run)
   → resolve_review: 동일 저장소·기본 브랜치·등록된 선행 경로·전달 출처 검증
-  → recommend-blocks.lock.yml의 Copilot 엔진
+  → research-plan.lock.yml의 Copilot 엔진
       공개 연구 텍스트 4필드·스키마·현재 선택·허가된 미반영 피드백 제공
       확정 bindings 재사용 / 미확정만 AI 추천 → Python 의미·타입·hash 검증
       AI 목적·점검 조율안 → Python 등록 ID/매개변수 검증·실제 EDA
       목적·필수/선택 전체 EDA 기반 AI 지표 추천 → Python 조합
       기본 생성파일 + 입력/조율/반영 기록 + 허가된 선택 변경만 같은 PR에 게시
       AI 댓글: 변경·제한·사람의 선택/승인 대기 안내
-  → review-plan.yml의 자연어 피드백 / 기존 /plan 댓글
+  → review-eval-plan.yml의 자연어 피드백 / 기존 /plan 댓글
       사람의 현재 write/maintain/admin 권한·원본 API·본문 hash 확인
       자연어는 본문 없는 대기열 → workflow_run → AI 조율·Python 검증
       /plan은 명령 검증·선택 저장 → 신뢰 소스 clone에서 갱신
@@ -80,7 +110,7 @@ Merge 후 `research/approved/issue-N/{merge-SHA}.json`은 현재 main의 보고�
 
 ```text
 검증된 data/assets (+ 선택적 고정 UCI raw)
-  → app.eda.load_context
+  → app.executor_eda.load_context
       validate_data_manifest / validate_dataset 재사용
       metadata 1회 적재, feature row 스트리밍
   → catalog.run_checks
@@ -184,11 +214,13 @@ GHCR은 실행 DB가 아니라 재현할 이미지와 파일의 저장소다.
 | `.github/workflows/ci.yml` | 전체 합성 회귀 검증. ML 의존성은 이전 fixture 테스트 때문에만 사용 |
 | `.github/ISSUE_TEMPLATE/research-request.yml` | 기존 5필드·동의 유지, 자동 연결과 복사본 PR 생성 설정 안내 |
 | `.github/workflows/prepare-eda-pr.yml`, `app/research.py` | Issue intake→데이터 이미지 스키마→EDA 미실행 준비 draft PR |
-| `app/planning.py`, `config/*-catalog.json`, `config/planning-policy.json` | 독립 카탈로그·정책·AI·사용자 선택 조합, 별도 승인 준비 판정 |
+| `app/planning_eval.py`, `config/*-catalog.json`, `config/planning-policy.json` | 독립 카탈로그·정책·AI·사용자 선택 조합, 별도 승인 준비 판정 |
 | `app/blocks/metrics/` | 독립 결과 지표 15개와 입력 검증. 3단계에서는 계산하지 않음 |
-| `recommend-blocks.md`, `recommend-blocks.lock.yml`, `app/cloud_recommendations.py` | 실제 gh-aw Copilot 엔진·공개 집계·추천 검증·기존 PR 안전 갱신 |
-| `review-plan.yml`, `app/review.py` | 자연어 피드백 대기열·기존 명령·Merge 기반 불변 승인 기록 |
-| `app/pr1_intent.py`, `tests/test_pr1_intent.py` | 공개 목적·피드백 문맥, 등록 조율안·선택 변경·감사 기록 순수 검증 |
+| `research-plan.md`, `research-plan.lock.yml`, `app/research.py` | 실제 gh-aw Copilot 엔진·공개 집계·추천 검증·기존 PR 안전 갱신 |
+| `review-eval-plan.yml`, `app/review_eval_plan.py` | 자연어 피드백 대기열·기존 명령·Merge 기반 불변 승인 기록 |
+| `app/planning_eda.py`, `tests/test_pr1_intent.py`, `tests/test_eda_execution_plan.py` | 가벼운 목적·피드백 문맥, 등록 조율안·시작 입력 실행계획 계약·감사 hash |
+| `app/executor_eda.py` | 입력/출력 계약을 검증해 등록 EDA 블록 실행·집계·정확한 캐시 재사용 |
+| `app/executor_eval.py`, `tests/test_executor_eval.py` | 기존 15개 지표의 순수 실행·명시적 매개변수·출력 검증, Actions 미연결 |
 | `app/recommendation_events.py` | 선행 실행의 정확한 대상·출처를 검증하고 추천 job에 PR 번호 전달 |
 | `app/input_contracts.py`, `config/input-profiles.json` | 등록 프로필·무결성·config/AI 매핑·표준 context·저장 매핑 검증 |
 | `app/input_review.py` | 미확정 입력 PR·입력 역할 표시·데이터셋 중립 집계 보고서 |

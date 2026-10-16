@@ -8,7 +8,7 @@ import unittest
 from unittest.mock import patch
 
 from app.blocks.catalog import CHECKS, run_checks
-from app.eda import feature_rows, load_context, raw_evidence, report
+from app.executor_eda import feature_rows, load_context, raw_evidence, report
 from app.prepared import FEATURE_COLUMNS, METADATA_COLUMNS, SPLITS
 
 
@@ -59,7 +59,8 @@ class EDABlockTests(unittest.TestCase):
 
     def test_stage_two_code_has_no_model_execution_or_dynamic_text_execution(self):
         root = Path(__file__).resolve().parents[1]
-        paths = [root / "app" / "eda.py", root / "app" / "blocks" / "catalog.py"]
+        paths = [root / "app" / "executor_eda.py", root / "app" / "planning_eda.py",
+                 root / "app" / "blocks" / "catalog.py"]
         paths.extend((root / "app" / "blocks" / "checks").glob("*.py"))
         for path in paths:
             tree = ast.parse(path.read_text(encoding="utf-8"))
@@ -447,9 +448,9 @@ class EDARunnerTests(unittest.TestCase):
 
     def test_loader_reuses_manifest_validation_and_lazy_features(self):
         content = csv_text(METADATA_COLUMNS, self.context["metadata"])
-        with patch("app.eda.validate_data_manifest", return_value=self.manifest) as validate, \
+        with patch("app.executor_eda.validate_data_manifest", return_value=self.manifest) as validate, \
                 patch.object(Path, "open", return_value=io.StringIO(content)), \
-                patch("app.eda.feature_rows") as stream:
+                patch("app.executor_eda.feature_rows") as stream:
             context = load_context(Path("synthetic-assets"))
             validate.assert_called_once_with(Path("synthetic-assets"))
             stream.assert_not_called()
@@ -458,13 +459,13 @@ class EDARunnerTests(unittest.TestCase):
             stream.assert_called_once_with(Path("synthetic-assets"))
 
     def test_loader_rejects_manifest_failure(self):
-        with patch("app.eda.validate_data_manifest", side_effect=ValueError("integrity")):
+        with patch("app.executor_eda.validate_data_manifest", side_effect=ValueError("integrity")):
             with self.assertRaisesRegex(ValueError, "integrity"):
                 load_context(Path("synthetic-assets"))
 
     def test_loader_rejects_metadata_count_mismatch(self):
         content = csv_text(METADATA_COLUMNS, self.context["metadata"][:2])
-        with patch("app.eda.validate_data_manifest", return_value=self.manifest), \
+        with patch("app.executor_eda.validate_data_manifest", return_value=self.manifest), \
                 patch.object(Path, "open", return_value=io.StringIO(content)):
             with self.assertRaisesRegex(ValueError, "split counts"):
                 load_context(Path("synthetic-assets"))
@@ -488,7 +489,7 @@ class EDARunnerTests(unittest.TestCase):
 
     def evidence(self, rows, checksum=None):
         content = csv_text(list(rows[0]), rows)
-        with patch("app.eda.validate_dataset", return_value={"sha256": checksum or "a" * 64}) as validate, \
+        with patch("app.executor_eda.validate_dataset", return_value={"sha256": checksum or "a" * 64}) as validate, \
                 patch.object(Path, "open", return_value=io.StringIO(content)):
             evidence = raw_evidence(Path("synthetic.csv"), self.context["metadata"], self.manifest)
             validate.assert_called_once()

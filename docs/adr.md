@@ -1,5 +1,27 @@
 # 현재 결정 기록
 
+## 2026-10-16: 사용자 승인에 따른 네 업무 파일 리팩토링
+
+- 요구/결정자: 사용자가 planning_eda/executor_eda/planning_eval/executor_eval 네 업무 파일과
+  “실행 중 데이터 교체·재계획 루프 불필요”를 확정하고 실제 리팩토링·전후 HTML·블록별 코드 리뷰를 승인했다.
+- 선택: 추가 추상 계층보다 기존 모듈을 역할별로 재편한다. 얇은 Intent·조율은 planning_eda에,
+  계획은 planning_eval에, EDA 실행·집계·캐시는 executor_eda에 둔다.
+  별도 cloud 연결 파일은 기존 research 공통 CLI/세션/게시 입구로 이관한다.
+- 대안: Intent 전용 에이전트·독립 실행계약/Executor 추가 파일·LangGraph 의존성·재계획 루프는 선택하지 않는다.
+  단방향 계획 JSON과 등록 함수 참조를 사용하며 실제 AI 추론 엔진은 gh-aw Copilot을 유지한다.
+- 입력: 시작 data_id에 맞는 등록 profile을 선택하고 컬럼 의미·타입·역할·모델 입력 순서를 검증한다.
+  미등록·모호한 새 데이터는 추정하지 않는다. 실행 중에는 입력을 고정한다.
+- 실행 계약: schema/매핑·data/model digest·코드·도구/정책 hash·Tool 입력 참조를 저장한다.
+  plan-eda는 계산하지 않고 execute-eda가 같은 plan_hash를 확인한다.
+  입출력 불일치·필수 진단 누락·변조 캐시는 실패, 새로 선택한 블록만 추가 실행한다.
+- 보존: 기본/AI/사용자 선택 조합·댓글 권한·민감정보 의심 거부·승인 snapshot·계산/게시 분리·멱등 재조회.
+  업무명 research-plan과 review-eval-plan으로 workflow 원본/등록 경로·테스트·문서를 함께 변경한다.
+- 범위: executor_eval은 기존 지표의 순수 실행기로 구현하지만 모델 IO·PR2·추론·Pages workflow는 새로 켜지 않는다.
+  실제 EDA/지표 수치 예시는 기존 실제 실행과 명시한 합성 회귀만 사용한다.
+- 검토: 기존 75f79d2 기준과 새 Git 객체의 실제 코드를 같은 전후 HTML에 표시하고 이후 코드를 블록별로 설명한다.
+  workflow job 통합은 별도 변경이며 runner 수를 줄였다고 주장하지 않는다.
+- 다시 볼 조건: 새로운 준비 포맷/분할/다중분류, 의미 사전 미제공 입력, 최종 모델/평가 승인 자동 연결이 필요할 때.
+
 ## 2026-10-16: 실제 Test2 적용 호출 시간 초과와 결과 재조회
 
 - 관측: run 38846466834에서 EDA·추천 검증 후 적용은 61.15초에 완료했으나 호출 측은 60초에 응답 대기를 종료했다.
@@ -111,7 +133,7 @@
 - 최신 승인: "이것도 같이 구현해주고 이 단계까지 전부 완료되면 나한테 코드리뷰 요청해줘".
   로컬 구현·검증→사용자 리뷰→승인 후 원격 반영 순서를 지킨다. 원본/독립 복사본에 commit/push/dispatch/실제 PR을 하지 않는다.
 - 선택: 새 YML 1개와 표준 라이브러리 `app.research.py`, 신규 합성 테스트만 추가한다.
-  기존 5필드 폼·config·publisher·Dockerfile은 바꾸지 않고 `app.eda`와 manifest/이미지 참조 검증을 재사용한다.
+  기존 5필드 폼·config·publisher·Dockerfile은 바꾸지 않고 `app.executor_eda`와 manifest/이미지 참조 검증을 재사용한다.
 - 데이터 접근: 고정 Public data_image만 pull하고 create/cp로 준비파일을 추출한다.
   DB 서비스를 실행/질의하지 않고 모델 이미지·raw 원본을 받지 않는다. 생성 container와 runtime context만 정리한다.
 - 안전: default branch 코드만 실행하며 Issue 본문은 JSON 데이터다. OWNER/COLLABORATOR만 자동 진행,
@@ -133,7 +155,7 @@
 
 - 승인: "1단계 완료되었으면 2단계 블록들 준비 시작해줘". 원격 Issue/PR·push/dispatch 승인은 아니다.
 - 선택: 기존 catalog와 3개 파일을 보강하고 cohort/prediction_timing/label_observability/preprocessing_lineage를
-  각 독립 파일로 등록한다. 작은 공유 입력 도우미와 `app.eda` 집계 runner, 합성 회귀 테스트만 추가한다.
+  각 독립 파일로 등록한다. 작은 공유 입력 도우미와 `app.executor_eda` 집계 runner, 합성 회귀 테스트만 추가한다.
 - 입력: 기존 검증된 data/assets manifest와 metadata/db_features. stage1 hash·원본 검증은 복제하지 않고 재사용한다.
   숫자 113개×101,766행은 행별 스트리밍하고 모델·checkpoint를 읽거나 실행하지 않는다.
 - 분할: validation을 정규 명칭으로 사용한다. valid는 로그에 명시하는 alias이며 옛 overlap 조회키는 alias 입력에만

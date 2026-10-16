@@ -9,7 +9,7 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
-from app import planning, research, review
+from app import planning_eval as planning, research, review_eval_plan as review
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -738,7 +738,7 @@ class IsolationAndWorkflowTests(unittest.TestCase):
                 review.main()
 
     def test_no_model_or_metric_imports(self):
-        tree = ast.parse((ROOT / "app" / "review.py").read_text(encoding="utf-8"))
+        tree = ast.parse((ROOT / "app" / "review_eval_plan.py").read_text(encoding="utf-8"))
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
                 names = [alias.name for alias in node.names]
@@ -751,7 +751,7 @@ class IsolationAndWorkflowTests(unittest.TestCase):
 
     def test_workflow_trusted_ref_native_token_minimal_events_and_concurrency(self):
         import yaml
-        workflow = yaml.safe_load((ROOT / ".github" / "workflows" / "review-plan.yml").read_text(encoding="utf-8"))
+        workflow = yaml.safe_load((ROOT / ".github" / "workflows" / "review-eval-plan.yml").read_text(encoding="utf-8"))
         trigger = workflow.get("on", workflow.get(True))
         self.assertEqual(set(trigger), {"issue_comment", "pull_request"})
         self.assertEqual(trigger["issue_comment"]["types"], ["created"])
@@ -765,7 +765,7 @@ class IsolationAndWorkflowTests(unittest.TestCase):
         checkout = job["steps"][0]
         self.assertEqual(checkout["with"]["ref"], "${{ github.event.repository.default_branch }}")
         self.assertFalse(checkout["with"]["persist-credentials"])
-        execution = next(step for step in job["steps"] if step.get("run") == "python -B -m app.review")
+        execution = next(step for step in job["steps"] if step.get("run") == "python -B -m app.review_eval_plan")
         self.assertEqual(execution["env"]["GH_TOKEN"], "${{ github.token }}")
         self.assertEqual(job["steps"][-1]["with"]["if-no-files-found"], "error")
         self.assertIn("research-ai-target", job["steps"][-1]["with"]["name"])

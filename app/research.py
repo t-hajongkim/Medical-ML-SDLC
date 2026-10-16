@@ -3,6 +3,7 @@
 import argparse
 import copy
 import html
+import hashlib
 import importlib
 import json
 import os
@@ -13,12 +14,13 @@ import subprocess
 import sys
 import uuid
 
-from app.asset_contract import read_json, validate_image_reference, write_json
+from app.asset_contract import canonical_hash, read_json, validate_image_reference, write_json
 from app.blocks.catalog import CHECKS
 from app.dataset import ROOT
-from app.eda import InputMappingRequired, load_context, report
+from app.executor_eda import InputMappingRequired, load_context, report
+from app import executor_eda, planning_eda
 from app.prepared import CONFIG, SPLITS, docker
-from app import planning
+from app import planning_eval as planning
 
 
 OUTPUT_NAMES = ("request.json", "eda.json", "report.md", "evaluation-plan.json",
@@ -31,7 +33,7 @@ TRUSTED_ASSOCIATIONS = {"OWNER", "COLLABORATOR"}
 def pin_review_code():
     """Cache trusted helpers/checks before selecting a report-only PR tree."""
     # CHECKS already holds eagerly imported functions from the trusted catalog.
-    for name in ("app.input_review", "app.recommendation_events", "app.pr1_intent"):
+    for name in ("app.input_review", "app.recommendation_events", "app.planning_eda", "app.executor_eval"):
         importlib.import_module(name)
 
 
@@ -185,7 +187,7 @@ def command(arguments, cwd=None, allowed=(0,), *, input_text=None):
             )
         if arguments[:3] == ["gh", "workflow", "run"]:
             raise RuntimeError(
-                "Copilot 추천 워크플로 요청 실패. 기본 브랜치의 recommend-blocks.lock.yml과 "
+                "Copilot 추천 워크플로 요청 실패. 기본 브랜치의 research-plan.lock.yml과 "
                 "workflow_dispatch 입력, 요청 워크플로의 actions: write 권한을 확인하세요. "
                 "이미 생성된 검토 PR과 사용자 선택은 보존됩니다. "
                 f"(exit {result.returncode}; 입력·인증정보·응답 원문은 출력하지 않습니다.)"
@@ -593,7 +595,8 @@ def payload_plans(directory, eda, context, catalogs, policy):
 def write_payload(root, request, eda, provenance, *, context=None, catalogs=None, policy=None):
     directory = report_directory(root, request["issue_number"])
     directory.mkdir(parents=True, exist_ok=True)
-    for name in (*OUTPUT_NAMES, "ai-recommendations.json", "input-schema.json", "input-mapping.json"):
+    for name in (*OUTPUT_NAMES, "ai-recommendations.json", "input-schema.json", "input-mapping.json",
+                 "execution-plan.json"):
         if (directory / name).is_symlink():
             raise ValueError("Generated report files must not be symlinks.")
     catalogs = catalogs if catalogs is not None else {
@@ -645,6 +648,14 @@ def write_payload(root, request, eda, provenance, *, context=None, catalogs=None
                      + "\n\n공개 연구 목적·스키마와 권한 있는 사람의 피드백을 기준으로 구성한 수정안입니다."
                      "\n최종 승인은 사람의 Merge이며 모델 실행 승인이 아닙니다.\n")
         names.append("coordination-plan.json")
+    if context is not None and context.get("_execution_plan") is not None:
+        execution = context["_execution_plan"]
+        write_json(directory / "execution-plan.json", execution)
+        markdown += ("\n## EDA 실행 계약\n\n"
+                     f"계획 hash: `{execution['plan_hash']}`. "
+                     "시작 데이터·컬럼 역할·등록된 블록의 입력 참조를 고정한 단방향 계획입니다. "
+                     "실행 중 데이터 교체·자동 재계획은 하지 않습니다.\n")
+        names.append("execution-plan.json")
     (directory / "report.md").write_text(markdown, encoding="utf-8")
     if (directory / "ai-recommendations.json").is_file():
         names.append("ai-recommendations.json")
@@ -794,7 +805,7 @@ def dispatch_ai(outcome, repository, default_branch):
         raise ValueError("AI dispatch requires the current repository's review PR.")
     number = issue_number(url[len(prefix):])
     # The completed workflow event starts Copilot without changing actor to a bot.
-    return {"status": "requested", "workflow": "recommend-blocks.lock.yml",
+    return {"status": "requested", "workflow": "research-plan.lock.yml",
             "pull_request": number, "trigger": "workflow_run", "default_branch": default_branch}
 
 
@@ -826,8 +837,8 @@ def run_workflow(event, event_name, repository, actor, default_branch, work, man
     work.mkdir(parents=True)
     try:
         image_assets(reference, work / "assets")
-        from app.input_contracts import load_profile
-        profile = load_profile()
+        from app.input_contracts import profile_for_data
+        profile = profile_for_data(read_json(work / "assets" / "data_manifest.json")["data_id"])
         binding = None
         if profile["bindings"] is None and previous_pull is not None:
             from app.input_review import read_binding
@@ -855,16 +866,523 @@ def run_workflow(event, event_name, repository, actor, default_branch, work, man
         shutil.rmtree(work)
 
 
+
+INPUT_FILES = (
+    "request.json", "eda.json", "report.md", "evaluation-plan.json",
+    "eda-plan.json", "recommendation-request.json", "selection.json",
+    "ai-recommendations.json",
+    "input-schema.json", "input-mapping.json",
+    "feedback-requests.json", "feedback-applied.json", "coordination-plan.json", "execution-plan.json",
+)
+
+OUTPUT_FILES = (
+    "ai-recommendations.json", "eda-plan.json", "evaluation-plan.json",
+    "eda.json", "report.md", "recommendation-request.json",
+)
+
+MAPPING_OUTPUTS = ("input-schema.json", "input-mapping.json")
+
+COORDINATION_OUTPUTS = ("coordination-plan.json", "feedback-applied.json")
+
+def _outputs(session):
+    names = (*OUTPUT_FILES, *MAPPING_OUTPUTS) if session.get("has_input_mapping") else OUTPUT_FILES
+    if session.get("has_coordination"):
+        names = (*names, *COORDINATION_OUTPUTS)
+    if session.get("selection_changed"):
+        names = (*names, "selection.json")
+    if session.get("has_execution_plan"):
+        names = (*names, "execution-plan.json")
+    return [session["report_dir"] + "/" + name for name in names]
+
+def _runtime():
+    from app import research
+    if os.environ.get("GITHUB_ACTIONS") != "true":
+        raise ValueError("Copilot recommendation preparation is restricted to Actions.")
+    return research, research.repository_name(os.environ.get("GITHUB_REPOSITORY"))
+
+def _sha(value, label):
+    if not isinstance(value, str) or not re.fullmatch(r"[0-9a-f]{40}", value):
+        raise ValueError(f"Invalid {label} commit.")
+    return value
+
+def _pull(flow, repository, number):
+    pull = flow.gh_json(f"repos/{repository}/pulls/{number}")
+    branch = pull.get("head", {}).get("ref", "")
+    match = re.fullmatch(r"research/review-issue-([1-9][0-9]{0,9})", branch)
+    if (pull.get("number") != number or pull.get("state") != "open" or not match
+            or pull.get("head", {}).get("repo", {}).get("full_name") != repository
+            or not isinstance(pull.get("title"), str)
+            or not pull["title"].startswith("연구검토 #")):
+        raise ValueError("Recommendations require an open, same-repository research review PR.")
+    default = flow.gh_json(f"repos/{repository}")["default_branch"]
+    if pull.get("base", {}).get("ref") != default:
+        raise ValueError("Research review must target the repository default branch.")
+    return pull, branch, int(match.group(1)), default
+
+def _read_branch_file(flow, commit, relative, optional=False):
+    entry = flow.command(["git", "ls-tree", commit, "--", relative], cwd=ROOT).stdout.strip()
+    if not entry:
+        if optional:
+            return None
+        raise ValueError("The review branch is missing a required report file.")
+    parts = entry.split(None, 3)
+    if len(parts) != 4 or parts[0] != "100644" or parts[1] != "blob" or parts[3] != relative:
+        raise ValueError("Research review inputs must be regular tracked files.")
+    content = flow.command(["git", "show", f"{commit}:{relative}"], cwd=ROOT).stdout
+    if len(content.encode("utf-8")) > 10_000_000:
+        raise ValueError("Research review input exceeds its size limit.")
+    return content
+
+def _pending_feedback(flow, repository, number, folder, *, applied_ids=None):
+    path, applied_path = folder / "feedback-requests.json", folder / "feedback-applied.json"
+    from app.planning_eda import validate_feedback_state
+    references, applied = validate_feedback_state(
+        read_json(path) if path.is_file() else None,
+        read_json(applied_path) if applied_path.is_file() else None,
+        repository, number, int(folder.name.removeprefix("issue-")))
+    if applied_ids is not None:
+        applied = applied_ids
+    pending, permissions = [], {}
+    for reference in references:
+        identifier = flow.issue_number(reference.get("comment_id"))
+        if identifier in applied:
+            continue
+        comment = flow.gh_json(f"repos/{repository}/issues/comments/{identifier}")
+        author = comment.get("user", {})
+        actor = author.get("login", "")
+        if (comment.get("id") != identifier or author.get("type") != "User"
+                or not re.fullmatch(r"[A-Za-z0-9-]+", actor)
+                or actor != reference.get("actor")
+                or comment.get("issue_url") != f"https://api.github.com/repos/{repository}/issues/{number}"
+                or not isinstance(comment.get("body"), str)
+                or hashlib.sha256(comment["body"].encode("utf-8")).hexdigest()
+                != reference.get("body_sha256")):
+            raise ValueError("피드백 작성자·본문·대상 PR이 변경되었습니다. 검토 실행을 다시 시작하세요.")
+        if actor not in permissions:
+            permissions[actor] = flow.gh_json(f"repos/{repository}/collaborators/{actor}/permission").get("permission")
+        if permissions[actor] not in ("admin", "maintain", "write"):
+            raise ValueError("현재 write 이상 권한이 있는 사람의 피드백만 AI에 전달합니다.")
+        pending.append({"comment_id": identifier, "actor": actor, "body": comment["body"],
+                        "body_sha256": reference["body_sha256"]})
+    return pending, applied
+
+def _verify_research_inputs(flow, repository, number, folder, work, session):
+    if canonical_hash(read_json(folder / "request.json")) != session["request_hash"]:
+        raise ValueError("연구 요청이 조율 준비 이후 변경되었습니다. 다시 시작하세요.")
+    pending, _ = _pending_feedback(
+        flow, repository, number, folder, applied_ids=session["applied_feedback_ids"])
+    if pending != read_json(work / "RESEARCH_CONTEXT.json")["feedback"]:
+        raise ValueError("조율 준비 이후 피드백이 변경되었습니다. 다시 시작하세요.")
+
+def prepare_ai(pull_request, work):
+    flow, repository = _runtime()
+    number = flow.issue_number(pull_request)
+    work = Path(work)
+    if work.exists() or work.resolve().is_relative_to(ROOT.resolve()):
+        raise ValueError("Use a new recommendation directory outside the checkout.")
+    if flow.command(["git", "status", "--porcelain"], cwd=ROOT).stdout.strip():
+        raise ValueError("Copilot preparation requires a clean trusted checkout.")
+    pull, branch, issue, default = _pull(flow, repository, number)
+    head = _sha(pull["head"]["sha"], "PR head")
+    code_commit = _sha(flow.command(["git", "rev-parse", "HEAD"], cwd=ROOT).stdout.strip(), "code")
+    flow.command(["git", "fetch", "origin", f"refs/heads/{branch}"], cwd=ROOT)
+    if flow.command(["git", "rev-parse", "FETCH_HEAD"], cwd=ROOT).stdout.strip() != head:
+        raise ValueError("The review branch changed while preparing recommendations.")
+    catalogs = {stage: planning.load_catalog(stage) for stage in ("eda", "evaluation")}
+    policy = planning.load_policy()
+    report_dir = f"research/reports/issue-{issue}"
+    content = {}
+    for name in INPUT_FILES:
+        value = _read_branch_file(
+            flow, head, report_dir + "/" + name, optional=name not in ("request.json", "selection.json"))
+        if value is not None:
+            content[name] = value
+    request = json.loads(content["request.json"])
+    if request.get("repository") != repository or request.get("issue_number") != issue:
+        raise ValueError("The PR's request marker is inconsistent.")
+    reference = flow.data_reference(read_json(ROOT / "config" / "assets.json"))
+    work.mkdir(parents=True)
+    try:
+        destination = flow.report_directory(ROOT, issue)
+        destination.mkdir(parents=True, exist_ok=True)
+        for name in INPUT_FILES:
+            path = destination / name
+            if path.is_symlink():
+                raise ValueError("Research review files must not be symlinks.")
+            if name in content:
+                path.write_text(content[name], encoding="utf-8")
+            elif path.exists():
+                path.unlink()
+        selection = read_json(destination / "selection.json")
+        flow.image_assets(reference, work / "assets")
+        from app.input_contracts import profile_for_data
+        manifest = read_json(work / "assets" / "data_manifest.json")
+        profile = profile_for_data(manifest["data_id"])
+        binding = read_json(destination / "input-mapping.json") if "input-mapping.json" in content else None
+        phase, context, schema_request = "coordination", None, None
+        try:
+            context = load_context(work / "assets", input_profile=profile, input_mapping=binding)
+        except InputMappingRequired as pending:
+            phase, schema_request = "input_mapping", pending.schema_request
+        session = {
+            "schema_version": 1, "repository": repository, "pull_request": number,
+            "issue_number": issue, "head_sha": head, "head_branch": branch,
+            "default_branch": default, "report_dir": report_dir,
+            "data_image": reference, "code_commit": code_commit,
+            "catalogs": catalogs, "policy": policy, "phase": phase, "input_profile": profile,
+            "selection_hash": canonical_hash(selection), "request_hash": canonical_hash(request),
+            "initial_selection_hash": canonical_hash(selection), "has_coordination": True,
+            "selection_changed": False,
+            "has_input_mapping": phase == "input_mapping" or context.get("input_contract") is not None,
+        }
+        session["allowed_outputs"] = _outputs(session)
+        if context is not None:
+            schema_request = context.get("_input_schema_request")
+        if not isinstance(schema_request, dict):
+            raise ValueError("연구 목적 조율에 검증된 입력 스키마가 필요합니다.")
+        coordination_schema = {**schema_request,
+                               "feature_columns": manifest["feature_columns"],
+                               "model_ref": read_json(ROOT / "config" / "assets.json").get("model_image"),
+                               "current_bindings": context["input_contract"]["bindings"]
+                               if context is not None and context.get("input_contract") else None}
+        feedback, applied_ids = _pending_feedback(flow, repository, number, destination)
+        from app.planning_eda import build_context
+        research_context = build_context(
+            request, coordination_schema, selection, feedback, catalogs=catalogs, policy=policy)
+        session.update(context_hash=research_context["context_hash"],
+                       coordination_schema=coordination_schema,
+                       applied_feedback_ids=applied_ids)
+        write_json(work / "RESEARCH_CONTEXT.json", research_context)
+        write_json(work / "INPUT_SCHEMA_REQUEST.json", {"status": phase, "request": schema_request})
+        write_json(work / "session.json", session)
+        return {"status": "ready_for_input_mapping" if phase == "input_mapping" else "ready_for_coordination",
+                "phase": phase, "pull_request": number, "context_hash": session["context_hash"],
+                "request_path": str(work / "RESEARCH_CONTEXT.json")}
+    except Exception:
+        shutil.rmtree(work)
+        raise
+
+def _prepare_block_request(flow, folder, work, session, context, selection, baseline=None):
+    baseline = report(context, session["policy"]["eda"]["required"]) if baseline is None else baseline
+    flow.validate_aggregate(baseline, context["data_manifest"]["prepared_source"],
+                            [item["block"] for item in baseline["results"]])
+    plans = planning.build_plans(
+        baseline, context["data_manifest"], selection, None,
+        catalogs=session["catalogs"], policy=session["policy"])
+    request = plans["recommendation_request"]
+    write_json(folder / "recommendation-request.json", request)
+    transient = dict(request)
+    research_context = read_json(work / "RESEARCH_CONTEXT.json")
+    transient["research_context"] = research_context
+    transient["eda_results"] = baseline
+    write_json(work / "AI_REQUEST.json", transient)
+    if context.get("input_contract") is not None:
+        write_json(folder / "input-mapping.json", context["input_contract"])
+        write_json(folder / "input-schema.json", context["_input_schema_request"])
+    return request
+
+def apply_input_mapping(pull_request, work):
+    flow, repository = _runtime()
+    number, work = flow.issue_number(pull_request), Path(work)
+    session = read_json(work / "session.json")
+    if (session.get("repository") != repository or session.get("pull_request") != number
+            or session.get("phase") != "input_mapping"):
+        raise ValueError("현재 입력 매핑 단계의 세션만 처리합니다.")
+    pull, _, _, _ = _pull(flow, repository, number)
+    if pull["head"]["sha"] != session["head_sha"]:
+        raise ValueError("입력 매핑 중 PR이 변경되었습니다. 최신 입력으로 다시 시작하세요.")
+    folder = flow.report_directory(ROOT, session["issue_number"])
+    selection = read_json(folder / "selection.json")
+    if canonical_hash(selection) != session["selection_hash"]:
+        raise ValueError("입력 매핑 단계에서 사람의 선택을 바꿀 수 없습니다.")
+    from app.input_contracts import _read_json, apply_mapping
+    proposal = _read_json(work / "input-mapping-proposal.json")
+    bundle = apply_mapping(work / "assets", proposal, profile=session["input_profile"])
+    context = bundle["context"]
+    context["_input_schema_request"] = bundle["schema_request"]
+    write_json(folder / "input-mapping.json", bundle["binding"])
+    write_json(folder / "input-schema.json", bundle["schema_request"])
+    session.update(phase="coordination", has_input_mapping=True)
+    session["allowed_outputs"] = _outputs(session)
+    write_json(work / "session.json", session)
+    write_json(work / "INPUT_SCHEMA_REQUEST.json",
+               {"status": "coordination", "request": bundle["schema_request"]})
+    return {"status": "input_mapping_validated", "next_tool": "plan-eda",
+            "model_execution_performed": False}
+
+def plan_eda(pull_request, work):
+    flow, repository = _runtime()
+    number, work = flow.issue_number(pull_request), Path(work)
+    session = read_json(work / "session.json")
+    if (session.get("repository") != repository or session.get("pull_request") != number
+            or session.get("phase") not in ("coordination", "eda_planned")):
+        raise ValueError("입력 매핑을 검증하고 연구 목적 조율 단계에서만 EDA를 실행합니다.")
+    pull, _, _, _ = _pull(flow, repository, number)
+    if pull["head"]["sha"] != session["head_sha"]:
+        raise ValueError("점검 계획 중 PR이 변경되었습니다. 최신 상태로 다시 시작하세요.")
+    folder = flow.report_directory(ROOT, session["issue_number"])
+    selection = read_json(folder / "selection.json")
+    if canonical_hash(selection) != session["selection_hash"]:
+        raise ValueError("사람 선택이 변경되어 조율을 중단했습니다.")
+    _verify_research_inputs(flow, repository, number, folder, work, session)
+    from app.input_contracts import _read_json
+    from app.planning_eda import apply_proposal
+    proposal = _read_json(work / "coordination-proposal.json")
+    if session["phase"] == "eda_planned":
+        prepared = read_json(work / "EDA_PLAN.json")
+        if (canonical_hash(proposal) != session["planner_proposal_hash"]
+                or canonical_hash(prepared) != session["prepared_plan_hash"]):
+            raise ValueError("이미 준비한 계획과 다른 조율안은 같은 세션에 적용할 수 없습니다.")
+        return {"status": "eda_plan_validated", "next_tool": "execute-eda",
+                "plan_hash": session["execution_plan_hash"],
+                "selected_eda_ids": [call["tool_id"] for call in prepared["execution_plan"]["calls"]],
+                "eda_execution_performed": False}
+    result = apply_proposal(
+        selection, proposal,
+        read_json(work / "RESEARCH_CONTEXT.json"),
+        catalogs=session["catalogs"], policy=session["policy"])
+    updated, record = result["selection"], result["record"]
+    mapping_path = folder / "input-mapping.json"
+    context = load_context(
+        work / "assets", input_profile=session["input_profile"],
+        input_mapping=read_json(mapping_path) if mapping_path.is_file() else None)
+    execution = planning_eda.build_execution_plan(
+        context, result["eda_ids"], catalog=session["catalogs"]["eda"], policy=session["policy"],
+        data_image=session.get("data_image"), model_image=session["coordination_schema"].get("model_ref"),
+        code_commit=session["code_commit"])
+    prepared = {"selection": updated, "record": record, "execution_plan": execution}
+    write_json(work / "EDA_PLAN.json", prepared)
+    session.update(phase="eda_planned", prepared_plan_hash=canonical_hash(prepared),
+                   execution_plan_hash=execution["plan_hash"], has_execution_plan=True,
+                   planner_proposal_hash=canonical_hash(proposal))
+    session["allowed_outputs"] = _outputs(session)
+    write_json(work / "session.json", session)
+    return {"status": "eda_plan_validated", "next_tool": "execute-eda",
+            "plan_hash": execution["plan_hash"], "selected_eda_ids": result["eda_ids"],
+            "eda_execution_performed": False}
+
+
+def execute_eda(pull_request, work, expected_plan_hash=None):
+    flow, repository = _runtime()
+    number, work = flow.issue_number(pull_request), Path(work)
+    session = read_json(work / "session.json")
+    if (session.get("repository") != repository or session.get("pull_request") != number
+            or session.get("phase") not in ("eda_planned", "recommendation")):
+        raise ValueError("검증된 EDA 계획이 준비된 세션만 실행할 수 있습니다.")
+    if expected_plan_hash is not None and expected_plan_hash != session["execution_plan_hash"]:
+        raise ValueError("실행 요청의 EDA 계획 hash가 현재 계획과 다릅니다.")
+    pull, _, _, _ = _pull(flow, repository, number)
+    if pull["head"]["sha"] != session["head_sha"]:
+        raise ValueError("EDA 실행 전에 PR이 변경되었습니다.")
+    folder = flow.report_directory(ROOT, session["issue_number"])
+    if canonical_hash(read_json(folder / "selection.json")) != session["selection_hash"]:
+        raise ValueError("EDA 실행 전에 사람 선택이 변경되었습니다.")
+    _verify_research_inputs(flow, repository, number, folder, work, session)
+    prepared = read_json(work / "EDA_PLAN.json")
+    if (canonical_hash(prepared) != session["prepared_plan_hash"]
+            or prepared["execution_plan"]["plan_hash"] != session["execution_plan_hash"]):
+        raise ValueError("검증 후 EDA 계획이나 선택이 변경되었습니다.")
+    if session["phase"] == "recommendation":
+        request = read_json(work / "AI_REQUEST.json")
+        if (canonical_hash(request["eda_results"]) != session["baseline_hash"]
+                or request["eda_results"]["execution_plan_hash"] != session["execution_plan_hash"]):
+            raise ValueError("완료된 EDA 결과가 변경되었습니다.")
+        return {"status": "data_checks_completed", "next_tool": "read-recommendation-context",
+                "context_hash": session["context_hash"], "selected_eda_ids": session["initial_eda_ids"],
+                "feedback_applied": len(session["coordination"]["record"]["feedback_ids"]),
+                "model_execution_performed": False}
+    updated, record, execution = (prepared[key] for key in ("selection", "record", "execution_plan"))
+    mapping_path = folder / "input-mapping.json"
+    context = load_context(
+        work / "assets", input_profile=session["input_profile"],
+        input_mapping=read_json(mapping_path) if mapping_path.is_file() else None)
+    baseline = executor_eda.execute_plan(
+        execution, context, catalog=session["catalogs"]["eda"], policy=session["policy"])
+    identifiers = [call["tool_id"] for call in execution["calls"]]
+    flow.validate_aggregate(baseline, context["data_manifest"]["prepared_source"], identifiers)
+    wrapper = {"record": record, "code_commit": session["code_commit"],
+               "schema": session["coordination_schema"],
+               "eda_evidence": {item["block"]: {"status": item["status"], "details": item["details"]}
+                                for item in baseline["results"]},
+               "execution_plan": execution}
+    wrapper["coordination_hash"] = canonical_hash(wrapper)
+    context["_pr1_coordination"] = wrapper
+    baseline.update(coordination_hash=wrapper["coordination_hash"],
+                    research_request_hash=record["request_hash"],
+                    coordination_evidence=wrapper["eda_evidence"])
+    write_json(folder / "selection.json", updated)
+    write_json(folder / "coordination-plan.json", wrapper)
+    write_json(folder / "execution-plan.json", execution)
+    feedback_ids = record["feedback_ids"]
+    write_json(folder / "feedback-applied.json", {
+        "schema_version": 1, "repository": repository, "pull_request": number,
+        "comment_ids": sorted(set(session["applied_feedback_ids"]) | set(feedback_ids)),
+        "coordination_hash": wrapper["coordination_hash"],
+    })
+    session.update(
+        phase="recommendation", selection_hash=canonical_hash(updated),
+        selection_changed=canonical_hash(updated) != session["initial_selection_hash"],
+        initial_eda_ids=identifiers, coordination=wrapper,
+        baseline_hash=canonical_hash(baseline))
+    request = _prepare_block_request(flow, folder, work, session, context, updated, baseline)
+    session["context_hash"] = request["context_hash"]
+    session["allowed_outputs"] = _outputs(session)
+    write_json(work / "session.json", session)
+    return {"status": "data_checks_completed", "next_tool": "read-recommendation-context",
+            "context_hash": request["context_hash"], "selected_eda_ids": identifiers,
+            "feedback_applied": len(feedback_ids), "model_execution_performed": False}
+
+
+def run_data_checks(pull_request, work):
+    """Compatibility entrypoint; the workflow exposes planning and execution separately."""
+    planned = plan_eda(pull_request, work)
+    return execute_eda(pull_request, work, planned["plan_hash"])
+
+def _git_tree_commit(flow, root, work, session):
+    environment = {**os.environ, "GIT_INDEX_FILE": str(work / "publication.index")}
+    def git(*args, data=None):
+        result = subprocess.run(
+            ["git", *args], cwd=root, env=environment, input=data,
+            capture_output=True, text=True, encoding="utf-8", timeout=120,
+        )
+        if result.returncode:
+            raise RuntimeError("Building the constrained recommendation commit failed.")
+        return result.stdout.strip()
+    git("read-tree", session["head_sha"])
+    for relative in session["allowed_outputs"]:
+        path = root / relative
+        if path.is_symlink() or not path.is_file():
+            raise ValueError("A permitted recommendation output is missing or is a symlink.")
+        blob = _sha(git("hash-object", "-w", "--no-filters", str(path)), "output blob")
+        git("update-index", "--add", "--cacheinfo", "100644", blob, relative)
+    tree = _sha(git("write-tree"), "publication tree")
+    if tree == git("rev-parse", session["head_sha"] + "^{tree}"):
+        return None
+    commit = _sha(git(
+        "-c", "user.name=github-actions[bot]",
+        "-c", "user.email=41898282+github-actions[bot]@users.noreply.github.com",
+        "commit-tree", tree, "-p", session["head_sha"],
+        "-m", f"Update registered block recommendations for Issue #{session['issue_number']}",
+    ), "publication")
+    changed = git("diff-tree", "--no-commit-id", "--name-only", "-r", commit).splitlines()
+    if not set(changed).issubset(session["allowed_outputs"]):
+        raise ValueError("Recommendation commit includes files outside the permitted outputs.")
+    # Stage only restored report inputs so checkout cannot overwrite untracked user files.
+    paths = [session["report_dir"] + "/" + name for name in INPUT_FILES
+             if (root / session["report_dir"] / name).is_file()]
+    flow.command(["git", "add", "--", *paths], cwd=root)
+    staged = flow.command(["git", "diff", "--cached", "--name-only"], cwd=root).stdout.splitlines()
+    if not set(staged).issubset(paths):
+        raise ValueError("Unrelated staged changes block recommendation publication.")
+    # All Python work is complete before selecting the PR-based publication commit.
+    flow.command(["git", "checkout", "--detach", commit], cwd=root)
+    return commit
+
+def apply_ai(pull_request, work):
+    flow, repository = _runtime()
+    number = flow.issue_number(pull_request)
+    work = Path(work)
+    session = read_json(work / "session.json")
+    if (session.get("schema_version") != 1 or session.get("repository") != repository
+            or session.get("pull_request") != number):
+        raise ValueError("Recommendation session does not match this repository and PR.")
+    if session.get("phase", "recommendation") != "recommendation":
+        raise ValueError("먼저 입력 매핑을 검증한 뒤 EDA·블록 추천을 처리해야 합니다.")
+    pull, branch, issue, default = _pull(flow, repository, number)
+    if (session.get("head_sha") != pull["head"]["sha"] or session.get("head_branch") != branch
+            or session.get("issue_number") != issue or session.get("default_branch") != default
+            or session.get("report_dir") != f"research/reports/issue-{issue}"):
+        raise ValueError("The review PR changed; rerun recommendations on its current head.")
+    expected_outputs = _outputs(session)
+    if session.get("allowed_outputs") != expected_outputs:
+        raise ValueError("Recommendation output allowlist changed.")
+    folder = flow.report_directory(ROOT, issue)
+    selection = read_json(folder / "selection.json")
+    if canonical_hash(selection) != session["selection_hash"]:
+        raise ValueError("선택이 검증된 AI 조율 결과와 다릅니다. 최신 상태로 다시 시작하세요.")
+    if session.get("has_coordination"):
+        _verify_research_inputs(flow, repository, number, folder, work, session)
+    ai = read_json(folder / "ai-recommendations.json")
+    if ai.get("context_hash") != session["context_hash"]:
+        raise ValueError("Copilot recommendations belong to a different context.")
+    if "input_profile" in session:
+        binding_path = folder / "input-mapping.json"
+        context = load_context(
+            work / "assets", input_profile=session["input_profile"],
+            input_mapping=read_json(binding_path) if binding_path.is_file() else None)
+    else:
+        context = load_context(work / "assets")
+    if session.get("has_coordination"):
+        context["_pr1_coordination"] = session["coordination"]
+        baseline = read_json(work / "AI_REQUEST.json")["eda_results"]
+        if (canonical_hash(baseline) != session["baseline_hash"]
+                or baseline["data_id"] != context["data_manifest"]["data_id"]):
+            raise ValueError("검증한 EDA 집계가 변경되었습니다. 다시 시작하세요.")
+        flow.validate_aggregate(
+            baseline, context["data_manifest"]["prepared_source"], session["initial_eda_ids"])
+    else:
+        baseline = report(context, session["policy"]["eda"]["required"])
+    plans = planning.build_plans(
+        baseline, context["data_manifest"], selection, ai,
+        catalogs=session["catalogs"], policy=session["policy"],
+    )
+    if any(plans[stage]["ai_status"] != "provided" for stage in ("eda", "evaluation")):
+        raise ValueError("A validated, non-stale Copilot recommendation is required.")
+    if session.get("has_coordination"):
+        initial = set(session["coordination"]["record"]["eda_add"]) - set(selection["eda"]["exclude"])
+        if not initial.issubset(plans["eda"]["ai_recommended_ids"]):
+            raise ValueError("후단 추천에는 앞단 AI가 요청한 추가 점검을 포함해야 합니다.")
+    request = read_json(folder / "request.json")
+    if (request.get("repository") != repository or request.get("issue_number") != issue
+            or canonical_hash(request) != session["request_hash"]):
+        raise ValueError("The research request marker changed.")
+    provenance = {
+        "data_image": session["data_image"], "code_commit": session["code_commit"],
+        "workflow_run_url": f"https://github.com/{repository}/actions/runs/"
+                            + flow.run_identifier(os.environ.get("GITHUB_RUN_ID")),
+        "data_access": "Validated prepared files extracted from the fixed data image; no database queries.",
+    }
+    if session.get("has_execution_plan"):
+        execution = planning_eda.build_execution_plan(
+            context, plans["eda"]["selected_ids"], catalog=session["catalogs"]["eda"],
+            policy=session["policy"], data_image=session["data_image"],
+            model_image=session["coordination_schema"].get("model_ref"),
+            code_commit=session["code_commit"])
+        eda = executor_eda.execute_plan(
+            execution, context, catalog=session["catalogs"]["eda"], policy=session["policy"],
+            reuse=baseline, reuse_plan=session["coordination"]["execution_plan"])
+        context["_execution_plan"] = execution
+    else:
+        eda = flow.selected_report(baseline, plans["eda"]["selected_ids"], context)
+    flow.write_payload(
+        ROOT, request, eda, provenance, context=context,
+        catalogs=session["catalogs"], policy=session["policy"],
+    )
+    if canonical_hash(read_json(folder / "selection.json")) != session["selection_hash"]:
+        raise ValueError("User selections were not preserved.")
+    body = flow.merge_review_body(pull.get("body") or "", (folder / "report.md").read_text(encoding="utf-8"))
+    (work / "pr-body.md").write_text(body, encoding="utf-8")
+    commit = _git_tree_commit(flow, ROOT, work, session)
+    status = "validated_copilot_recommendations" if commit else (
+        "body_refresh" if body != (pull.get("body") or "") else "unchanged")
+    return {"status": status, "pull_request": number,
+            "issue_number": issue, "publication_commit": commit,
+            "allowed_outputs": session["allowed_outputs"],
+            "pr_body_path": str(work / "pr-body.md"), "remote_publication_performed": False}
+
+
 def main():
     pin_review_code()
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="mode", required=True)
     commands.add_parser("workflow")
     commands.add_parser("resolve-ai-target")
-    for name in ("prepare-ai", "apply-ai", "apply-input-mapping", "run-data-checks"):
+    for name in ("prepare-ai", "apply-ai", "apply-input-mapping", "run-data-checks", "plan-eda", "execute-eda"):
         cloud = commands.add_parser(name)
         cloud.add_argument("--pull-request", required=True, type=issue_number)
         cloud.add_argument("--work", required=True, type=Path)
+        if name == "execute-eda":
+            cloud.add_argument("--plan-hash", required=True)
     dry = commands.add_parser("dry-run")
     dry.add_argument("--issue-json", type=Path, required=True)
     dry.add_argument("--aggregate-json", type=Path, required=True)
@@ -884,19 +1402,23 @@ def main():
                 os.environ.get("REQUESTED_PR"),
             )
             write_outputs(outcome)
-        elif args.mode in ("prepare-ai", "apply-ai", "apply-input-mapping", "run-data-checks"):
+        elif args.mode in ("prepare-ai", "apply-ai", "apply-input-mapping", "run-data-checks", "plan-eda", "execute-eda"):
             if os.environ.get("GITHUB_ACTIONS") != "true":
                 raise ValueError("Remote mode is restricted to the GitHub Actions runner.")
-            from app import cloud_recommendations
             if args.mode == "prepare-ai":
-                handler = cloud_recommendations.prepare_ai
+                handler = prepare_ai
             elif args.mode == "apply-ai":
-                handler = cloud_recommendations.apply_ai
+                handler = apply_ai
             elif args.mode == "apply-input-mapping":
-                handler = cloud_recommendations.apply_input_mapping
+                handler = apply_input_mapping
+            elif args.mode == "plan-eda":
+                handler = plan_eda
+            elif args.mode == "execute-eda":
+                handler = execute_eda
             else:
-                handler = cloud_recommendations.run_data_checks
-            outcome = handler(args.pull_request, args.work)
+                handler = run_data_checks
+            outcome = (handler(args.pull_request, args.work, args.plan_hash)
+                       if args.mode == "execute-eda" else handler(args.pull_request, args.work))
         elif args.mode == "workflow":
             if os.environ.get("GITHUB_ACTIONS") != "true":
                 raise ValueError("Remote mode is restricted to the GitHub Actions runner.")

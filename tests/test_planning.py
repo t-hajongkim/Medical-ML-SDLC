@@ -7,7 +7,7 @@ import sys
 import unittest
 from unittest.mock import patch
 
-from app import planning
+from app import planning_eval as planning
 
 
 def fixture_catalogs():
@@ -498,7 +498,7 @@ class PlanningTests(unittest.TestCase):
                 self.assertNotIn(node.func.id, {"eval", "exec", "__import__", "compile"})
         completed = subprocess.run(
             [sys.executable, "-B", "-c",
-             "import sys; from app.planning import load_catalog, load_policy; "
+             "import sys; from app.planning_eval import load_catalog, load_policy; "
              "load_catalog('eda'); load_catalog('evaluation'); load_policy(); "
              "assert not any(k.split('.')[0] in {'numpy','sklearn','pandas','joblib'} "
              "for k in sys.modules)"],

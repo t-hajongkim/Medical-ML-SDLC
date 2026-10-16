@@ -12,7 +12,7 @@ from app.asset_contract import write_json
 INPUT_FILES = ("input-schema.json", "input-mapping.json")
 STALE_FILES = ("eda.json", "eda-plan.json", "evaluation-plan.json",
                "recommendation-request.json", "ai-recommendations.json", "input-mapping.json",
-               "coordination-plan.json")
+               "coordination-plan.json", "execution-plan.json")
 
 
 def read_binding(repository, pull):

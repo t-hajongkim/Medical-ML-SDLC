@@ -12,7 +12,7 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock, patch
 
-from app import cloud_recommendations as cloud
+from app import research as cloud
 from app import research
 
 
@@ -20,7 +20,7 @@ class CloudContractTests(unittest.TestCase):
     def workflow_config(self):
         import yaml
         root = Path(__file__).resolve().parents[1]
-        text = (root / ".github" / "workflows" / "recommend-blocks.md").read_text(encoding="utf-8")
+        text = (root / ".github" / "workflows" / "research-plan.md").read_text(encoding="utf-8")
         return yaml.load(text.split("---", 2)[1], Loader=yaml.BaseLoader)
 
     def test_publication_retry_returns_verified_flags_without_running_application(self):
@@ -129,10 +129,27 @@ class CloudContractTests(unittest.TestCase):
                 write_json(output_path, {"items": [{**push, "pull_request_number": 7}, refresh]})
                 exec(compile(program, "<publication-audit>", "exec"), {})
 
+    def test_only_receipt_replay_is_allowed_after_publication_seals_the_workspace(self):
+        config = self.workflow_config()
+        for tool in ("apply-input-mapping", "plan-eda", "execute-eda"):
+            raw = config["mcp-scripts"][tool]["run"]
+            script = raw.split("<<'PY'\n", 1)[1].rsplit("\nPY", 1)[0]
+            for marker in ("publication.json", "application.lock"):
+                with self.subTest(tool=tool, marker=marker), \
+                        tempfile.TemporaryDirectory(prefix="sealed-publication-") as folder:
+                    work = Path(folder)
+                    (work / marker).write_text("{}", encoding="utf-8")
+                    program = script.replace(
+                        'Path("/tmp/gh-aw/research-recommendation")', f"Path({str(work)!r})")
+                    with patch("subprocess.run", side_effect=AssertionError("PR code must not execute")):
+                        with self.assertRaises(SystemExit) as stopped:
+                            exec(compile(program, "<sealed-stage-tool>", "exec"), {})
+                    self.assertIn("게시", str(stopped.exception))
+
     def test_completed_workflow_triggers_keep_default_human_roles(self):
         import yaml
         root = Path(__file__).resolve().parents[1]
-        text = (root / ".github" / "workflows" / "recommend-blocks.md").read_text(encoding="utf-8")
+        text = (root / ".github" / "workflows" / "research-plan.md").read_text(encoding="utf-8")
         frontmatter = text.split("---", 2)[1]
         config = yaml.load(frontmatter, Loader=yaml.BaseLoader)
         trigger = config["on"]
@@ -140,7 +157,7 @@ class CloudContractTests(unittest.TestCase):
         self.assertNotIn("roles", trigger)
         self.assertIn("workflow_dispatch", trigger)
         self.assertEqual(trigger["workflow_run"]["workflows"],
-                         ["Prepare research review", "Review selections and freeze approved plan"])
+                         ["Prepare research review", "Review evaluation plan and freeze approval"])
         self.assertEqual(trigger["workflow_run"]["types"], ["completed"])
         self.assertNotIn("pull_request_target", trigger)
         self.assertNotIn("repository_dispatch", trigger)
@@ -150,7 +167,7 @@ class CloudContractTests(unittest.TestCase):
     def test_compiled_workflow_keeps_default_roles_and_exact_target_dependencies(self):
         import yaml
         root = Path(__file__).resolve().parents[1]
-        path = root / ".github" / "workflows" / "recommend-blocks.lock.yml"
+        path = root / ".github" / "workflows" / "research-plan.lock.yml"
         config = yaml.load(path.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
         pre = config["jobs"]["pre_activation"]
         membership = next(step for step in pre["steps"] if step.get("id") == "check_membership")
@@ -205,7 +222,7 @@ class CloudContractTests(unittest.TestCase):
     def test_ai_comment_is_posted_only_after_verified_push_and_body_update(self):
         import yaml
         root = Path(__file__).resolve().parents[1]
-        text = (root / ".github" / "workflows" / "recommend-blocks.md").read_text(encoding="utf-8")
+        text = (root / ".github" / "workflows" / "research-plan.md").read_text(encoding="utf-8")
         config = yaml.load(text.split("---", 2)[1], Loader=yaml.BaseLoader)
         self.assertNotIn("add-comment", config["safe-outputs"])
         job = config["safe-outputs"]["jobs"]["refresh-review-body"]
@@ -358,6 +375,7 @@ class PublicationGitFixtureTests(unittest.TestCase):
 
     def run_controller(self, *, feedback=False):
         from app.asset_contract import read_json, write_json
+        from app.input_contracts import load_profile
         from test_research_workflow import context_and_source, issue
         repository = "fixture-owner/fixture-workshop"
         image = "ghcr.io/fixture-owner/fixture-db@sha256:" + "a" * 64
@@ -427,11 +445,13 @@ class PublicationGitFixtureTests(unittest.TestCase):
             path.mkdir()
             write_json(path / "data_manifest.json", {
                 "feature_columns": context["feature_columns"], "data_id": aggregate["data_id"]})
+        measured_schema = Mock(wraps=cloud.CHECKS["schema"])
         with patch.object(cloud, "ROOT", self.root), \
                 patch.object(cloud, "_runtime", return_value=(research, repository)), \
                 patch.object(research, "gh_json", side_effect=api), \
                 patch.object(research, "image_assets", side_effect=image_assets), \
-                patch.object(cloud, "report", wraps=cloud.report) as measured_report, \
+                patch.dict(cloud.CHECKS, {"schema": measured_schema}), \
+                patch("app.input_contracts.profile_for_data", return_value=load_profile()), \
                 patch.object(cloud, "load_context", return_value=context), \
                 patch.dict(os.environ, {"GITHUB_RUN_ID": "38722808263"}):
             prepared = cloud.prepare_ai(7, work)
@@ -449,7 +469,23 @@ class PublicationGitFixtureTests(unittest.TestCase):
                 }} if feedback else {},
                 "reason": "공개 연구 목적과 스키마를 확인하고 예측 시점 점검을 추가합니다.",
             })
-            coordinated = cloud.run_data_checks(7, work)
+            planned = cloud.plan_eda(7, work)
+            self.assertEqual(planned["status"], "eda_plan_validated")
+            self.assertEqual(cloud.plan_eda(7, work), planned)
+            self.assertEqual(measured_schema.call_count, 0, "Planning must not execute a block")
+            self.assertFalse((work / "AI_REQUEST.json").exists())
+            with self.assertRaisesRegex(ValueError, "hash"):
+                cloud.execute_eda(7, work, "f" * 64)
+            original_plan = read_json(work / "EDA_PLAN.json")
+            modified_plan = {**original_plan, "selection": {
+                **original_plan["selection"], "schema_version": 99}}
+            write_json(work / "EDA_PLAN.json", modified_plan)
+            with self.assertRaisesRegex(ValueError, "계획"):
+                cloud.execute_eda(7, work, planned["plan_hash"])
+            self.assertEqual(measured_schema.call_count, 0)
+            write_json(work / "EDA_PLAN.json", original_plan)
+            coordinated = cloud.execute_eda(7, work, planned["plan_hash"])
+            self.assertEqual(cloud.execute_eda(7, work, planned["plan_hash"]), coordinated)
             ai_request = read_json(work / "AI_REQUEST.json")
             self.assertIn("PUBLIC_SYNTHETIC_GOAL", json.dumps(ai_request))
             self.assertNotIn("metadata", ai_request["research_context"]["schema_request"])
@@ -458,6 +494,8 @@ class PublicationGitFixtureTests(unittest.TestCase):
                 "schema_version": 1, "provider": "github-copilot-cloud-agent",
                 "status": "provided", "context_hash": coordinated["context_hash"],
                 "eda": [{"id": "prediction_timing", "reason": "합성 AI 응답: 시점 근거 확인",
+                         "evidence": [evidence]},
+                        {"id": "label_observability", "reason": "합성 AI 응답: 관찰 근거 추가 점검",
                          "evidence": [evidence]}],
                 "evaluation": [{"id": "precision", "reason": "합성 AI 응답: 운영 판정 검토",
                                 "evidence": [evidence]}],
@@ -471,7 +509,8 @@ class PublicationGitFixtureTests(unittest.TestCase):
                 cloud.apply_ai(7, work)
             write_json(work / "AI_REQUEST.json", original_request)
             outcome = cloud.apply_ai(7, work)
-            self.assertEqual(measured_report.call_count, 1, "Validated EDA must not be rescanned during application")
+            self.assertEqual(measured_schema.call_count, 1, "Validated EDA must not be rescanned during application")
+            self.assertIn(self.directory + "/execution-plan.json", outcome["allowed_outputs"])
         self.assertEqual(outcome["status"], "validated_copilot_recommendations")
         self.assertFalse(outcome["remote_publication_performed"])
         self.assertEqual(self.git("rev-parse", outcome["publication_commit"] + "^"), head)
@@ -489,6 +528,7 @@ class PublicationGitFixtureTests(unittest.TestCase):
         eda_plan = read_json(self.report / "eda-plan.json")
         metric_plan = read_json(self.report / "evaluation-plan.json")
         self.assertIn("prediction_timing", eda_plan["selected_ids"])
+        self.assertIn("label_observability", eda_plan["selected_ids"])
         self.assertIn("preprocessing_lineage", eda_plan["selected_ids"])
         self.assertEqual(metric_plan["primary_metric"], "average_precision")
         self.assertIn("f1", metric_plan["selected_ids"])

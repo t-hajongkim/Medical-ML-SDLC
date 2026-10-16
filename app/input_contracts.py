@@ -163,6 +163,25 @@ def load_profile(profile_id=None, *, registry=None):
     return profile
 
 
+def profile_for_data(data_id, *, registry=None):
+    """Select an explicitly registered startup dataset, never guess its meaning."""
+    if not _hash(data_id):
+        _fail("시작 데이터에는 검증 가능한 data_id가 필요합니다.")
+    config = _read_json(CONFIG) if registry is None else registry
+    active = load_profile(registry=config)
+    if active["data_id"] == data_id:
+        return active
+    matches = []
+    for identifier, candidate in config["profiles"].items():
+        if not isinstance(candidate, dict):
+            _fail("입력 profile 등록 항목은 객체여야 합니다.")
+        if candidate.get("data_id") == data_id:
+            matches.append(load_profile(identifier, registry=config))
+    if len(matches) != 1:
+        _fail("시작 데이터와 일치하는 입력 profile 하나를 등록해야 합니다. 임의 매핑은 추측하지 않습니다.")
+    return matches[0]
+
+
 def _profile(value):
     if value is None or isinstance(value, str):
         return load_profile(value)

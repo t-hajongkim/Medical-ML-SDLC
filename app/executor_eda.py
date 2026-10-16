@@ -1,9 +1,10 @@
-"""Aggregate-only EDA over validated prepared data assets; no model execution."""
+"""Execute registered EDA blocks over validated prepared data; never a model."""
 
 import argparse
 from collections import Counter
 import csv
 import json
+import math
 from pathlib import Path
 
 from app.asset_contract import canonical_hash, write_json
@@ -154,6 +155,11 @@ def load_context(assets: Path, raw_csv: Path | None = None, *,
 
 def report(context: dict, identifiers: list[str] | None = None) -> dict:
     results = run_checks(list(CHECKS) if identifiers is None else identifiers, context)
+    return aggregate_results(context, results)
+
+
+def aggregate_results(context: dict, results: list[dict]) -> dict:
+    """Assemble measured block outputs without performing another calculation."""
     statuses = [item["status"] for item in results]
     status = "failed" if "failed" in statuses else (
         "unverifiable" if "unverifiable" in statuses else "completed")
@@ -181,6 +187,122 @@ def report(context: dict, identifiers: list[str] | None = None) -> dict:
         output["coordination_hash"] = coordination["coordination_hash"]
         output["research_request_hash"] = coordination["record"]["request_hash"]
         output["coordination_evidence"] = coordination["eda_evidence"]
+        if "execution_plan" in coordination:
+            output["initial_execution_plan_hash"] = coordination["execution_plan"]["plan_hash"]
+    return output
+
+
+def _validate_result(result, identifier):
+    if (not isinstance(result, dict) or set(result) != {"block", "status", "details"}
+            or result["block"] != identifier or result["status"] not in STATUS_MEANINGS
+            or not isinstance(result["details"], dict)):
+        raise ValueError("A registered EDA block returned an invalid output contract")
+    forbidden = {"row_key", "patient_key", "row_keys", "patient_keys", "metadata",
+                 "feature_values", "predictions", "y_true", "y_probability",
+                 "reference_probabilities", "sample_ids", "reference_sample_ids"}
+    def visit(value):
+        if isinstance(value, dict):
+            if forbidden.intersection(value):
+                raise ValueError("EDA outputs must contain aggregates, not individual input rows")
+            if any(not isinstance(key, str) for key in value):
+                raise ValueError("EDA output keys must be strings")
+            for item in value.values():
+                visit(item)
+        elif isinstance(value, list):
+            for item in value:
+                visit(item)
+        elif value is None or type(value) in (str, bool, int):
+            return
+        elif type(value) is float and math.isfinite(value):
+            return
+        else:
+            raise ValueError("EDA outputs must contain finite JSON values")
+    visit(result["details"])
+
+
+def execution_result_hash(eda: dict) -> str:
+    return canonical_hash({
+        key: eda.get(key) for key in
+        ("data_id", "input_mapping_hash", "execution_plan_hash", "initial_execution_plan_hash", "results")
+    })
+
+
+def execute_plan(plan: dict, context: dict, *, catalog=None, policy=None,
+                 reuse=None, reuse_plan=None) -> dict:
+    """Execute one immutable, linear startup-data plan, using only registered tools.
+
+    Patient-overlap failures and unavailable evidence remain diagnostic results.
+    Invalid input/output contracts fail explicitly. No model or replanning loop
+    is reachable from this executor.
+    """
+    from app import planning_eda, planning_eval
+    catalog = planning_eval.load_catalog("eda") if catalog is None else planning_eval._catalog(catalog, "eda")
+    policy = planning_eval.load_policy() if policy is None else planning_eval._policy(policy)
+    planning_eda.validate_execution_plan(plan, catalog=catalog, policy=policy)
+    if planning_eda.input_signature(context) != plan["input_signature"]:
+        raise ValueError("Prepared input does not match the startup execution plan")
+    entries = {entry["id"]: entry for entry in catalog["checks"]}
+    required_roles = set()
+    for call in plan["calls"]:
+        entry = entries[call["tool_id"]]
+        for name in entry["requires"]:
+            if name not in context or context[name] is None:
+                raise ValueError("Missing required EDA input: " + name)
+        required_roles.update(entry.get("input_contract", {}).get("metadata_roles", []))
+    if required_roles:
+        records = context.get("metadata")
+        if not isinstance(records, (list, tuple)):
+            raise ValueError("Prepared metadata must be a collection of normalized rows")
+        if any(not isinstance(row, dict) or not required_roles.issubset(row) for row in records):
+            raise ValueError("Prepared metadata is missing a required normalized role")
+    cached = {}
+    previous_calls = {}
+    if reuse is not None:
+        if reuse_plan is None:
+            raise ValueError("Reusing EDA requires the original validated execution plan")
+        planning_eda.validate_execution_plan(reuse_plan, catalog=catalog, policy=policy)
+        if (any(plan[key] != reuse_plan[key] for key in (
+                "data_id", "data_image", "model_image", "code_commit", "schema_hash", "catalog_hash", "policy_hash"))
+                or reuse.get("execution_plan_hash") != reuse_plan["plan_hash"]
+                or reuse.get("data_id") != reuse_plan["data_id"]
+                or reuse.get("input_mapping_hash") != reuse_plan["input_signature"]["input_mapping_hash"]
+                or reuse.get("execution_result_hash") != execution_result_hash(reuse)):
+            raise ValueError("Cached EDA belongs to a different or modified execution")
+        previous_calls = {call["tool_id"]: call for call in reuse_plan["calls"]}
+        results = reuse.get("results")
+        if (not isinstance(results, list)
+                or [item.get("block") for item in results] != list(previous_calls)):
+            raise ValueError("Cached EDA outputs do not match their original tool calls")
+        for item in results:
+            _validate_result(item, item["block"])
+            cached[item["block"]] = item
+    import copy
+    measured, executed, reused = [], [], []
+    for call in plan["calls"]:
+        identifier = call["tool_id"]
+        if identifier in cached and previous_calls[identifier] == call:
+            result = copy.deepcopy(cached[identifier])
+            reused.append(identifier)
+        else:
+            entry = entries[identifier]
+            names = set(entry["requires"]) | set(
+                entry.get("input_contract", {}).get("optional_context", []))
+            # The compatibility catalog predates explicit optional-context metadata.
+            if "input_contract" not in entry:
+                names.update(context)
+            block_context = {name: context[name] for name in names if name in context}
+            result = CHECKS[identifier](block_context)
+            _validate_result(result, identifier)
+            executed.append(identifier)
+        measured.append(result)
+    output = aggregate_results(context, measured)
+    output.update(execution_plan_hash=plan["plan_hash"],
+                  execution_mode="registered_execution_plan",
+                  executed_ids=executed, reused_ids=reused)
+    output.setdefault("initial_execution_plan_hash",
+                      reuse.get("initial_execution_plan_hash", reuse_plan["plan_hash"])
+                      if reuse is not None else plan["plan_hash"])
+    output["execution_result_hash"] = execution_result_hash(output)
     return output
 
 

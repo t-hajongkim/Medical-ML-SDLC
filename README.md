@@ -8,6 +8,27 @@ EDA 점검 7개와 결과 지표 15개는 별도 카탈로그로 관리하며, �
 게시 YML은 새 학습·전처리 fit·모델 로딩·predict를 실행하지 않습니다.
 GHCR은 이미지 레지스트리이지 실행 중인 DB가 아닙니다.
 
+## 코드 읽기: 계획과 실행의 네 경계
+
+| 모듈 | 책임 | 하지 않는 일 |
+|---|---|---|
+| `app/planning_eda.py` | 가벼운 목적/피드백 정리, 등록 입력 서명·블록 ID·입력 참조의 단방향 실행계획 생성/검증 | EDA 계산·모델 실행 |
+| `app/executor_eda.py` | 계획의 입력/출력 계약 확인, 등록 EDA 계산·집계·검증된 결과 재사용 | AI 추론·임의 코드·자동 재계획 |
+| `app/planning_eval.py` | 목적·실제 EDA·AI 추천·정책·사용자 선택으로 평가계획/승인 준비 판정 | 지표 값 계산·사람 승인 대체 |
+| `app/executor_eval.py` | 명시적으로 요청한 기존 지표 15개의 순수 계산·출력 검증 | 모델 로딩/predict·GitHub/네트워크 IO·승인 부여 |
+
+실제 AI 추론은 기존 gh-aw Copilot이 수행합니다. Python Planner는 AI 제안과 계약을 검증합니다.
+MCP의 `plan-eda`는 **계획만** 저장하며, `execute-eda(plan_hash)`가 같은 계획을 확인한 뒤 계산합니다.
+그 뒤 `read-recommendation-context`와 `apply-recommendations`로 평가계획과 게시 결과를 준비합니다.
+`research.py`는 공통 CLI·실행 세션·GitHub/게시 연결을 맡고, `review_eval_plan.py`는 사람의 댓글·Merge 기록을 맡습니다.
+이전 `cloud_recommendations.py`의 중간 연결은 별도 파일로 남기지 않습니다.
+
+실행 시작 시 GHCR 파일의 `data_id`와 일치하는 등록 profile을 선택합니다. 모호하거나 미등록이면 중단하며,
+AI가 의미 사전 없이 환자 키·정답 의미를 추측하거나 기존 학습 특성을 바꾸지 않습니다.
+**실행 중 데이터 교체·감시·자동 재계획 루프는 없습니다.** 사람의 새 댓글은 별도의 명시적 수정 요청입니다.
+`execution-plan.json`은 데이터/모델 digest·코드·입력 서명·Tool 참조를 고정하는 생성 결과이며 공통 config를 덮어쓰지 않습니다.
+이 리팩토링은 합성 회귀·공식 compiler로 확인하며, 새 원격 AI 실연이나 PR2/모델/Pages 자동 실행을 추가하지 않습니다.
+
 ## 참가자 주의사항
 
 > [!IMPORTANT]
@@ -40,8 +61,8 @@ GHCR은 이미지 레지스트리이지 실행 중인 DB가 아닙니다.
 | [initialize-workshop.yml](.github/workflows/initialize-workshop.yml) / **Initialize Workshop** | 이전 데이터/모델 pair 기반 참가자 초기화 초안 | 현재 계약과 호환되지 않아 첫 step에서 명시적으로 중단. 쓰기 권한 제거. 실행하지 않습니다 |
 | [ci.yml](.github/workflows/ci.yml) / **Check workshop setup** | 현재 자산 계약과 이전 코드의 합성 fixture 회귀 검사 | 외부 자산 다운로드·Docker·GHCR 게시 없음 |
 | [prepare-eda-pr.yml](.github/workflows/prepare-eda-pr.yml) / **Prepare research review** | Issue·고정 이미지 스키마 검증 → EDA 미실행 draft PR → 정확한 추천 대상 전달 | Issue opened 또는 유지관리자의 수동 실행 |
-| [recommend-blocks.md](.github/workflows/recommend-blocks.md) / **연구 블록 추천** | 선행 완료 → 공개 목적·스키마 조율 → Python EDA → 실제 결과 기반 추천 → 같은 PR 갱신·댓글 안내 | `workflow_run` 또는 수동 PR 번호. 공식 생성 lock, native 인증. PAT·AI Secret 없음 |
-| [review-plan.yml](.github/workflows/review-plan.yml) / **Review selections and freeze approved plan** | 자연어 피드백 대기열·기존 명령 처리 / 사람이 Merge한 교육용 계획을 불변 기록 | 현재 write 권한·본문 hash 검증, 등록 ID/매개변수만 처리, 자동 승인·병합 없음 |
+| [research-plan.md](.github/workflows/research-plan.md) / **연구 점검·평가계획** | 선행 완료 → 공개 목적·스키마 → 계획 검증 → 동일 계획 hash로 EDA 실행 → 실제 결과 기반 평가계획 → 같은 PR 게시 | `workflow_run` 또는 수동 PR 번호. 공식 생성 lock, native 인증. PAT·AI Secret 없음 |
+| [review-eval-plan.yml](.github/workflows/review-eval-plan.yml) / **Review evaluation plan and freeze approval** | 자연어 피드백 대기열·기존 명령 처리 / 사람이 Merge한 교육용 계획을 불변 기록 | 현재 write 권한·본문 hash 검증, 등록 ID/매개변수만 처리, 자동 승인·병합 없음 |
 
 운영자는 자산 게시 YML을 검토합니다. 참가자 개인 패키지·초기화·PR2·최종 모델 평가·Pages는 이번 범위가 아닙니다.
 
@@ -167,7 +188,7 @@ metadata·feature 각 101,766행 및 asset_info 전체 대조, 모델 이미지 
 
 `app.blocks.catalog.run_checks(identifiers, context)`는 각 독립 파일의
 `run(context: dict) -> {"block", "status", "details"}`를 호출합니다.
-`app.eda`는 `app.prepared.validate_data_manifest`를 재사용해 `data/assets`를 확인하고
+`app.executor_eda`는 `app.prepared.validate_data_manifest`를 재사용해 `data/assets`를 확인하고
 metadata를 한 번 읽으며, `db_features.csv`의 113개 숫자 배열은 **한 행씩 스트리밍**합니다.
 선택한 고정 raw CSV는 기존 `validate_dataset`로 검사한 뒤 선정조건·라벨 연결 **집계만** 만듭니다.
 모델 이미지·checkpoint·추론 모듈은 읽거나 실행하지 않습니다.
@@ -211,7 +232,7 @@ raw의 입원일수 1–14일·검사 수 양수·투약 수 양수 조건은 �
 ```powershell
 $env:PYTHONDONTWRITEBYTECODE = '1'
 $env:PYTHONUTF8 = '1'
-python -B -m app.eda --assets 'C:\workshop-assets\data\assets' `
+python -B -m app.executor_eda --assets 'C:\workshop-assets\data\assets' `
   --raw-csv 'C:\workshop-assets\diabetes130_raw.csv' `
   --output 'C:\workshop-results\eda-aggregate.json'
 python -B -m unittest discover -s tests -p 'test_eda_blocks.py' -v
@@ -276,6 +297,7 @@ PR의 허용된 보고서 디렉터리에는 다음 파일을 관리합니다:
 | `review-state.json` | 명시적 댓글의 작성자·본문 해시·적용/거부 내역. 명령 댓글 처리 때만 생성 |
 | `input-schema.json` | 환자 행 없는 등록 스키마·의미 후보·타입·결측 집계·공개 코드북·context hash |
 | `input-mapping.json` | 검증한 역할 매핑·원래 추천·profile/source 스냅샷. EDA와 승인 기록에 hash로 연결 |
+| `execution-plan.json` | 시작 입력 서명·데이터/모델 참조·코드·정책/카탈로그 hash와 실행할 등록 Tool·입력 참조. 원본 행·벡터 없음 |
 | `coordination-plan.json` | AI 조율 이유·목적/선택/스키마/피드백 hash·최초 실행 EDA 근거·실행 코드. 연구/댓글 원문은 복제하지 않음 |
 | `feedback-requests.json`, `feedback-applied.json` | 자연어 댓글 ID·작성자·본문 hash와 누적 반영 ID. 원문은 GitHub 댓글 API에서 재조회 |
 
@@ -314,7 +336,7 @@ dry-run의 기준 commit은 미커밋 변경이 포함된 로컬 base이며 모�
 추천 시작 경로는 `app/recommendation_events.py`가 검증합니다. 같은 저장소·기본 브랜치의 등록된 선행 실행과
 run ID·회차·source commit이 일치하는 전달 파일 하나만 허용합니다.
 전달 파일이 없거나 만료되었으면 선행 준비·검토 워크플로를 업데이트·재실행하거나 추천의 수동 PR 번호 입력을 사용합니다.
-워크플로 이름이 연결 계약이므로 이름을 바꾸면 `recommend-blocks.md`의 `workflow_run.workflows`도 함께 변경합니다.
+워크플로 이름이 연결 계약이므로 이름을 바꾸면 `research-plan.md`의 `workflow_run.workflows`도 함께 변경합니다.
 컴파일러의 정적 branch-filter 경고는 기본 브랜치 이름을 고정하지 않아 남습니다.
 대신 읽기 전용 대상 해석 job이 실제 기본 브랜치·동일 저장소·등록된 경로를 확인한 뒤에만 agent를 허용합니다.
 

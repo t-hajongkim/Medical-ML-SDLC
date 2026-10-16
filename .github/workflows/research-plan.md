@@ -1,9 +1,9 @@
 ---
-name: 연구 블록 추천
+name: 연구 점검·평가계획
 description: GitHub Copilot이 기존 연구검토 PR에 등록된 EDA 블록과 결과평가 블록을 추천합니다.
 on:
   workflow_run:
-    workflows: ["Prepare research review", "Review selections and freeze approved plan"]
+    workflows: ["Prepare research review", "Review evaluation plan and freeze approval"]
     types: [completed]
   workflow_dispatch:
     inputs:
@@ -103,7 +103,7 @@ mcp-scripts:
       print(Path("/tmp/gh-aw/research-recommendation/INPUT_SCHEMA_REQUEST.json").read_text(encoding="utf-8"))
       PY
   apply-input-mapping:
-    description: AI 추천 매핑을 등록 스키마·의미·근거와 대조해 표준 입력 계약을 저장합니다. EDA는 run-data-checks가 실행합니다.
+    description: AI 추천 매핑을 등록 스키마·의미·근거와 대조해 표준 입력 계약을 저장합니다. EDA는 계획 검증 후 execute-eda가 실행합니다.
     timeout: 600
     inputs:
       mapping:
@@ -120,6 +120,8 @@ mcp-scripts:
       from pathlib import Path
       import subprocess
       work = Path("/tmp/gh-aw/research-recommendation")
+      if (work / "publication.json").exists() or (work / "application.lock").exists():
+          raise SystemExit("게시 적용이 시작된 뒤에는 입력 매핑 도구를 다시 실행하지 않습니다.")
       raw = os.environ["INPUT_MAPPING"]
       if len(raw.encode("utf-8")) > 65536:
           raise SystemExit("입력 매핑 JSON 크기가 허용 범위를 넘었습니다.")
@@ -133,16 +135,19 @@ mcp-scripts:
       print(json.dumps(json.loads(result.stdout), ensure_ascii=False))
       PY
   read-recommendation-context:
-    description: AI 조율 후 실제 실행한 EDA 집계, 공개 연구 목적, 현재 선택과 등록 카탈로그를 읽습니다.
+    description: execute-eda 완료 후 실제 EDA 집계, 공개 연구 목적, 현재 선택과 등록 카탈로그를 읽습니다.
     run: |
       python -B - <<'PY'
       import json
       from pathlib import Path
+      session = json.loads(Path("/tmp/gh-aw/research-recommendation/session.json").read_text(encoding="utf-8"))
+      if session["phase"] != "recommendation":
+          raise SystemExit("execute-eda가 완료된 뒤 평가계획 입력을 읽으세요.")
       request = json.loads(Path("/tmp/gh-aw/research-recommendation/AI_REQUEST.json").read_text(encoding="utf-8"))
       print(json.dumps(request, ensure_ascii=False))
       PY
-  run-data-checks:
-    description: 연구 목적과 스키마에 맞는 조율안을 검증하고, 허가된 피드백만 선택에 반영한 뒤 등록된 Python EDA 블록을 실행합니다.
+  plan-eda:
+    description: planning_eda가 목적·입력 매핑·등록 Tool의 입력 계약으로 실행 계획을 검증합니다. EDA는 아직 실행하지 않습니다.
     timeout: 600
     inputs:
       proposal:
@@ -159,16 +164,51 @@ mcp-scripts:
       from pathlib import Path
       import subprocess
       work = Path("/tmp/gh-aw/research-recommendation")
+      if (work / "publication.json").exists() or (work / "application.lock").exists():
+          raise SystemExit("게시 적용이 시작된 뒤에는 계획 도구를 다시 실행하지 않습니다.")
       raw = os.environ["INPUT_PROPOSAL"]
       if len(raw.encode("utf-8")) > 65536:
           raise SystemExit("연구 조율안이 허용 크기를 넘었습니다.")
       (work / "coordination-proposal.json").write_text(raw, encoding="utf-8")
       result = subprocess.run(
-          ["python", "-B", "-m", "app.research", "run-data-checks",
+          ["python", "-B", "-m", "app.research", "plan-eda",
            "--pull-request", os.environ["REQUESTED_PR"], "--work", str(work)],
           capture_output=True, text=True, encoding="utf-8")
       if result.returncode:
           raise SystemExit("연구 조율안 검증 실패: context hash·허용 ID/목적·피드백 ID·선택 매개변수를 확인하세요. 원격 게시하지 않았습니다.")
+      print(json.dumps(json.loads(result.stdout), ensure_ascii=False))
+      PY
+  execute-eda:
+    description: executor_eda가 검증된 plan_hash의 계획만 실행하고 실제 EDA 결과·출력 계약을 검증합니다.
+    timeout: 600
+    inputs:
+      plan_hash:
+        type: string
+        required: true
+        description: plan-eda가 반환한 동일한 64자리 SHA256 계획 hash
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REQUESTED_PR: ${{ needs.resolve_review.outputs.pull_request }}
+    run: |
+      python -B - <<'PY'
+      import json
+      import os
+      import re
+      import subprocess
+      from pathlib import Path
+      work = Path("/tmp/gh-aw/research-recommendation")
+      if (work / "publication.json").exists() or (work / "application.lock").exists():
+          raise SystemExit("게시 적용이 시작된 뒤에는 EDA 실행 도구를 다시 실행하지 않습니다.")
+      plan = os.environ["INPUT_PLAN_HASH"]
+      if re.fullmatch(r"[0-9a-f]{64}", plan) is None:
+          raise SystemExit("검증한 EDA 계획 hash가 필요합니다.")
+      result = subprocess.run(
+          ["python", "-B", "-m", "app.research", "execute-eda",
+           "--pull-request", os.environ["REQUESTED_PR"],
+           "--work", str(work), "--plan-hash", plan],
+          capture_output=True, text=True, encoding="utf-8")
+      if result.returncode:
+          raise SystemExit("EDA 입력·계획·출력 계약 확인 또는 계산에 실패했습니다. 원격 게시하지 않았습니다.")
       print(json.dumps(json.loads(result.stdout), ensure_ascii=False))
       PY
   apply-recommendations:
@@ -205,7 +245,7 @@ mcp-scripts:
       names = {"ai-recommendations.json", "eda-plan.json", "evaluation-plan.json",
                "eda.json", "report.md", "recommendation-request.json",
                "input-schema.json", "input-mapping.json", "coordination-plan.json",
-               "feedback-applied.json", "selection.json"}
+               "feedback-applied.json", "selection.json", "execution-plan.json"}
       allowed = {f"{directory}/{name}" for name in names}
       if (type(issue) is not int or issue < 1 or session["pull_request"] != int(pr)
               or session["repository"] != os.environ["GITHUB_REPOSITORY"]
@@ -394,6 +434,7 @@ safe-outputs:
       - research/reports/**/coordination-plan.json
       - research/reports/**/feedback-applied.json
       - research/reports/**/selection.json
+      - research/reports/**/execution-plan.json
   jobs:
     refresh-review-body:
       description: 실제 PR push를 확인한 뒤 보존된 본문을 갱신하고 AI 변경 요약·사람 승인 대기를 댓글로 안내합니다.
@@ -467,7 +508,7 @@ safe-outputs:
               core.info("검증된 자동 생성 영역을 갱신하고 사람의 원문을 보존했습니다.");
 ---
 
-# 등록된 연구 블록 추천
+# 연구 점검과 평가계획
 
 고정 목록이나 모의 응답이 아니라 **GitHub Copilot의 실제 추론**으로 추천하세요.
 먼저 `read-research-context`와 `read-input-schema`를 호출하세요. 연구 목적·상세 질문과 현재 입력 계약을 함께 읽고 조율합니다.
@@ -480,7 +521,7 @@ evidence(각 컬럼·역할의 allowed_evidence_ids)만 포함합니다.
 `apply-input-mapping`은 입력 매핑만 검증합니다. EDA는 아직 실행하지 않습니다. 근거가 부족하면 매핑을 추측하거나 성공으로 표시하지 마세요.
 status가 `coordination`이면 config의 확정 매핑 또는 재검증된 매핑을 재사용합니다. config가 있다고 연구 목적 조율을 생략하지 마세요.
 
-이후 `run-data-checks`에 다음 조율 JSON을 문자열로 제출하세요:
+이후 `plan-eda`에 다음 조율 JSON을 문자열로 제출하세요:
 schema_version=1, RESEARCH_CONTEXT의 context_hash, eda_add(추가 점검 ID 배열),
 objectives(eda/evaluation별 허용 목적 배열), feedback_ids(미반영 댓글 전체 ID),
 selection_updates(허가된 피드백에서 요청한 변경만), reason(한국어 근거).
@@ -490,7 +531,14 @@ selection_updates(허가된 피드백에서 요청한 변경만), reason(한국�
 필수 schema/patient_overlap을 끄거나 기존 선택을 통째로 초기화하지 마세요.
 모델 입력 특성·출처 이미지·raw 데이터·새 Python/SQL 코드는 변경 대상이 아닙니다.
 
-그다음 `read-recommendation-context`를 호출하세요. 블록 추천의 유일한 판단 입력은
+`plan-eda`는 계획만 검증하며 계산하지 않습니다. 반환한 plan_hash로 `execute-eda`를 호출하세요.
+계획 제출과 실행은 다른 도구입니다. execute-eda 완료 전에 다음 입력을 병렬로 읽지 마세요.
+계획/실행 도구의 응답만 끊기면 동일 조율안/plan_hash로 재조회할 수 있으며 이미 계산한 블록은 반복하지 않습니다.
+가벼운 Intent와 EDA 계획은 planning_eda, 등록 EDA 계산은 executor_eda,
+후속 지표계획은 planning_eval이 담당합니다. executor_eval은 현재 Actions에서 호출하지 않습니다.
+시작할 때 선택한 데이터 digest를 고정하며 실행 중 데이터 교체·자동 재계획 루프는 없습니다.
+
+실행이 완료된 다음에만 `read-recommendation-context`를 호출하세요. 블록 추천의 유일한 판단 입력은
 `AI_REQUEST.json`의 공개 집계 근거, 분리된 EDA/데이터검증 카탈로그와
 결과평가/지표 카탈로그, 적용 가능 조건, 공개 연구 원문·구조화 목적·전체 실제 EDA입니다.
 입력 매핑의 context_hash와 EDA 후 블록 추천의 context_hash는 다릅니다. 각 도구에서 새로 읽은 해시를 사용하세요.
@@ -521,6 +569,8 @@ Python이 추천·맥락을 검증하고 조율 단계의 `selection.json`과 �
 변경이 있을 때만 검증된 PR head를 부모로 하는 로컬 커밋을 준비합니다.
 학습, 모델 로딩, 결과 지표 계산, 원격 push, GitHub 수정은 하지 않습니다.
 직접 파일을 수정하거나 git을 실행하지 마세요.
+게시 적용을 시작한 뒤에는 입력 매핑·계획·EDA 실행 도구를 다시 호출하지 마세요.
+최종 로컬 커밋 이후에는 저장된 적용 결과 재조회와 safe-output 게시 요청만 허용합니다.
 검증 실패를 성공한 AI 추천처럼 표시하거나 일부 결과를 게시하지 마세요.
 적용 도구의 응답만 시간 초과되면 같은 추천 JSON으로 재호출하세요.
 이미 적용된 동일 요청은 계산을 다시 하지 않고 검증된 게시 플래그를 반환합니다.

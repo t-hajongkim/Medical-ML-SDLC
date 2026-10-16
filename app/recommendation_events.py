@@ -15,7 +15,7 @@ from app.asset_contract import write_json
 TARGET_FILE = "research-ai-target.json"
 SOURCES = {
     ".github/workflows/prepare-eda-pr.yml": {"issues", "workflow_dispatch"},
-    ".github/workflows/review-plan.yml": {"issue_comment", "pull_request"},
+    ".github/workflows/review-eval-plan.yml": {"issue_comment", "pull_request"},
 }
 
 
@@ -41,7 +41,7 @@ def write_target(outcome, repository):
     numbers = set()
     for candidate in candidates:
         if candidate.get("status") == "requested":
-            if candidate.get("workflow") != "recommend-blocks.lock.yml":
+            if candidate.get("workflow") != "research-plan.lock.yml":
                 raise ValueError("등록되지 않은 추천 워크플로입니다.")
             numbers.add(research.issue_number(candidate.get("pull_request")))
     if len(numbers) > 1:
@@ -111,7 +111,7 @@ def resolve_target(event, event_name, repository, requested=None):
             raise ValueError("같은 저장소·기본 브랜치의 등록된 선행 워크플로만 이어받습니다.")
         if source.get("status") != "completed" or source.get("conclusion") != "success":
             return {"ready": False, "reason": "선행 워크플로가 성공하지 않아 AI를 실행하지 않습니다."}
-        if source["path"] == ".github/workflows/review-plan.yml" and source["event"] == "pull_request":
+        if source["path"] == ".github/workflows/review-eval-plan.yml" and source["event"] == "pull_request":
             return {"ready": False, "reason": "병합된 승인 계획은 AI 추천을 다시 요청하지 않습니다."}
         if (source.get("head_branch") != default
                 or not re.fullmatch(r"[0-9a-f]{40}", source.get("head_sha", ""))):
@@ -146,7 +146,7 @@ def resolve_target(event, event_name, repository, requested=None):
         number = research.issue_number(payload.get("pull_request"))
     else:
         raise ValueError("지원하지 않는 추천 시작 이벤트입니다.")
-    from app.cloud_recommendations import _pull
+    from app.research import _pull
     _pull(research, repository, number)
     return {"ready": True, "pull_request": number, "trigger": event_name}
 

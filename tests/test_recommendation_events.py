@@ -41,7 +41,7 @@ class EventHandoffTests(unittest.TestCase):
         self.environment = patch.dict(os.environ, environment)
         self.environment.start()
         self.addCleanup(self.environment.stop)
-        self.target = {"status": "requested", "workflow": "recommend-blocks.lock.yml",
+        self.target = {"status": "requested", "workflow": "research-plan.lock.yml",
                        "pull_request": PR}
 
     def test_normal_review_and_forced_review_emit_the_exact_pr_only(self):
@@ -151,13 +151,13 @@ class ResolutionTests(unittest.TestCase):
         self.process.assert_not_called()
 
     def test_comment_source_is_supported_and_failed_source_does_not_run_ai(self):
-        self.source.update(path=".github/workflows/review-plan.yml", event="issue_comment")
+        self.source.update(path=".github/workflows/review-eval-plan.yml", event="issue_comment")
         self.assertTrue(self.resolve()["ready"])
         self.source["conclusion"] = "failure"
         self.assertFalse(self.resolve()["ready"])
 
     def test_merge_freeze_does_not_recommend_again(self):
-        self.source.update(path=".github/workflows/review-plan.yml", event="pull_request",
+        self.source.update(path=".github/workflows/review-eval-plan.yml", event="pull_request",
                            head_branch="research/review-issue-2")
         self.assertFalse(self.resolve()["ready"])
         self.process.assert_not_called()

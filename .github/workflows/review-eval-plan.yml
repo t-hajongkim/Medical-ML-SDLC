@@ -1,4 +1,4 @@
-name: Review selections and freeze approved plan
+name: Review evaluation plan and freeze approval
 
 on:
   issue_comment:
@@ -45,7 +45,7 @@ jobs:
       - name: Apply explicit human commands or freeze merged educational plan
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python -B -m app.review
+        run: python -B -m app.review_eval_plan
       - name: Hand off exact recommendation target to workflow_run
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:

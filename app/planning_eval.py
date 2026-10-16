@@ -1,4 +1,4 @@
-"""Metadata-only plans: policy defaults + cloud-agent suggestions + user choices.
+"""Evaluation planning: policy defaults + Copilot suggestions + human choices.
 
 Catalogs describe executable blocks but this module never imports or runs them.
 The GitHub Agentic Workflows Copilot engine reads the request and automatically
@@ -83,7 +83,8 @@ def _catalog(catalog, stage):
     fields = {"id", "name", "description", "module", "aliases", "requires",
               "requires_parameters", "requires_context"}
     for entry in result[collection]:
-        _object(entry, f"{stage} catalog entry", fields, fields)
+        extra = {"input_contract", "output_contract"} if stage == "eda" else set()
+        _object(entry, f"{stage} catalog entry", fields | extra, fields)
         identifier = _token(entry["id"], "catalog id")
         if identifier != entry["id"] or identifier in ids:
             raise ValueError("Catalog ids must be unique canonical identifiers")
@@ -99,6 +100,25 @@ def _catalog(catalog, stage):
                             if alias != identifier]
         for field in ("requires", "requires_parameters", "requires_context"):
             entry[field] = _tokens(entry[field], field)
+        if stage == "eda" and extra.intersection(entry):
+            if not extra.issubset(entry):
+                raise ValueError("EDA input and output contracts must be declared together")
+            contract = _object(entry["input_contract"], "EDA input contract",
+                               {"metadata_roles", "optional_context"},
+                               {"metadata_roles", "optional_context"})
+            for field in ("metadata_roles", "optional_context"):
+                contract[field] = _tokens(contract[field], field)
+            if set(contract["metadata_roles"]) - {
+                    "row_key", "patient_key", "split", "target", "race", "gender",
+                    "age_group", "race_original", "race_was_missing"}:
+                raise ValueError("EDA contract contains an unknown metadata role")
+            if set(contract["optional_context"]).intersection(entry["requires"]):
+                raise ValueError("An EDA input cannot be both required and optional")
+            output = _object(entry["output_contract"], "EDA output contract",
+                             {"fields", "statuses"}, {"fields", "statuses"})
+            if (output["fields"] != ["block", "status", "details"]
+                    or output["statuses"] != ["passed", "failed", "unverifiable", "completed"]):
+                raise ValueError("EDA output must preserve the aggregate diagnostic contract")
         if set(entry["requires_parameters"]) - _PARAMETERS:
             raise ValueError("Catalog contains unsupported parameter requirements")
         if set(entry["requires_context"]) - _CONTEXT:
@@ -333,7 +353,7 @@ def _request(eda, manifest, selection, catalogs):
         if not isinstance(mapping_hash, str) or re.fullmatch(r"[0-9a-f]{64}", mapping_hash) is None:
             raise ValueError("Input mapping must have a SHA256 identifier.")
         facts["input_mapping_hash"] = mapping_hash
-    for name in ("coordination_hash", "research_request_hash"):
+    for name in ("coordination_hash", "research_request_hash", "initial_execution_plan_hash"):
         if name in eda:
             if not isinstance(eda[name], str) or re.fullmatch(r"[0-9a-f]{64}", eda[name]) is None:
                 raise ValueError("Research coordination must have a SHA256 identifier.")

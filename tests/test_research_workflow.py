@@ -9,13 +9,12 @@ import unittest
 from unittest.mock import patch
 import uuid
 import sys
-import types
 
 from app.asset_contract import write_json
 from app.dataset import ROOT
-from app.eda import report
+from app.executor_eda import report
 from app import research
-from app import planning
+from app import planning_eval as planning
 from test_eda_blocks import fixture
 
 
@@ -354,7 +353,7 @@ class AssetAndReportTests(unittest.TestCase):
         result = subprocess.CompletedProcess(["gh"], 1, stdout="", stderr="secret-token")
         with patch("subprocess.run", return_value=result):
             with self.assertRaises(RuntimeError) as failure:
-                research.command(["gh", "workflow", "run", "recommend-blocks.lock.yml"])
+                research.command(["gh", "workflow", "run", "research-plan.lock.yml"])
         self.assertIn("Copilot 추천 워크플로 요청 실패", str(failure.exception))
         self.assertIn("actions: write", str(failure.exception))
         self.assertNotIn("secret-token", str(failure.exception))
@@ -524,15 +523,20 @@ class PayloadAndPublicationTests(unittest.TestCase):
         self.assertNotIn(text, json.dumps(self.calls))
 
     def test_pipeline_uses_only_data_image_and_cleans_owned_runtime(self):
+        from app.input_contracts import load_profile
         (self.root / "config").mkdir()
         write_json(self.root / "config" / "assets.json",
                    {"schema_version": 1, "data_image": DATA_IMAGE, "model_image": "never-pull-model"})
         work = self.folder / "runtime"
+        def image_assets(ref, path):
+            path.mkdir(parents=True)
+            write_json(path / "data_manifest.json", {"data_id": self.context["data_manifest"]["data_id"]})
         with patch("app.research.ROOT", self.root), \
                 patch("app.research.intake", return_value=(self.request, None)), \
                 patch("app.research.existing_pull", return_value=(None, None)), \
                 patch("app.research.command", side_effect=self.fake_command), \
-                patch("app.research.image_assets") as assets, \
+                patch("app.research.image_assets", side_effect=image_assets) as assets, \
+                patch("app.input_contracts.profile_for_data", return_value=load_profile()), \
                 patch("app.research.load_context", return_value=self.context), \
                 patch("app.research.publish_payload", return_value={"status": "created"}) as publish, \
                 patch("app.research.report", side_effect=AssertionError("EDA before AI coordination")), \
@@ -547,14 +551,19 @@ class PayloadAndPublicationTests(unittest.TestCase):
         self.assertFalse(work.exists())
 
     def test_pipeline_input_corruption_blocks_pr_and_cleans_runtime(self):
+        from app.input_contracts import load_profile
         (self.root / "config").mkdir()
         write_json(self.root / "config" / "assets.json", {"schema_version": 1, "data_image": DATA_IMAGE})
         work = self.folder / "runtime"
+        def image_assets(ref, path):
+            path.mkdir(parents=True)
+            write_json(path / "data_manifest.json", {"data_id": self.context["data_manifest"]["data_id"]})
         with patch("app.research.ROOT", self.root), \
                 patch("app.research.intake", return_value=(self.request, None)), \
                 patch("app.research.existing_pull", return_value=(None, None)), \
                 patch("app.research.command", side_effect=self.fake_command), \
-                patch("app.research.image_assets"), \
+                patch("app.research.image_assets", side_effect=image_assets), \
+                patch("app.input_contracts.profile_for_data", return_value=load_profile()), \
                 patch("app.research.load_context", side_effect=ValueError("damaged input package")), \
                 patch("app.research.publish_payload") as publish, \
                 patch.dict(os.environ, {"GITHUB_RUN_ID": "12"}):
@@ -738,7 +747,7 @@ class PayloadAndPublicationTests(unittest.TestCase):
                                               "pull_url": f"https://github.com/{REPOSITORY}/pull/19"},
                                              REPOSITORY, "main")
             self.assertEqual(result["status"], "requested")
-            self.assertEqual(result["workflow"], "recommend-blocks.lock.yml")
+            self.assertEqual(result["workflow"], "research-plan.lock.yml")
             self.assertEqual(result["pull_request"], 19)
             self.assertEqual(result["default_branch"], "main")
             self.assertEqual(result["trigger"], "workflow_run")
@@ -759,19 +768,18 @@ class PayloadAndPublicationTests(unittest.TestCase):
         self.assertEqual(result["status"], "not_needed")
 
     def test_cloud_cli_routes_lazily_without_remote_execution(self):
-        module = types.ModuleType("app.cloud_recommendations")
-        module.prepare_ai = unittest.mock.Mock(return_value={"status": "prepared_mock"})
-        module.apply_ai = unittest.mock.Mock(return_value={"status": "applied_mock"})
-        module.apply_input_mapping = unittest.mock.Mock(return_value={"status": "mapping_mock"})
-        import app
-        for mode, handler in (("prepare-ai", module.prepare_ai), ("apply-ai", module.apply_ai),
-                              ("apply-input-mapping", module.apply_input_mapping)):
-            with patch.dict(sys.modules, {"app.cloud_recommendations": module}), \
-                    patch.object(app, "cloud_recommendations", module, create=True), \
-                    patch.object(sys, "argv", ["research", mode, "--pull-request", "19", "--work", str(self.folder)]), \
+        for mode, name in (("prepare-ai", "prepare_ai"), ("apply-ai", "apply_ai"),
+                           ("apply-input-mapping", "apply_input_mapping"),
+                           ("plan-eda", "plan_eda"), ("execute-eda", "execute_eda")):
+            arguments = ["research", mode, "--pull-request", "19", "--work", str(self.folder)]
+            if mode == "execute-eda":
+                arguments += ["--plan-hash", "a" * 64]
+            with patch.object(research, name, return_value={"status": "mock"}) as handler, \
+                    patch.object(sys, "argv", arguments), \
                     patch.dict(os.environ, {"GITHUB_ACTIONS": "true"}), patch("builtins.print"):
                 research.main()
-            handler.assert_called_once_with(19, self.folder)
+            expected = (19, self.folder, "a" * 64) if mode == "execute-eda" else (19, self.folder)
+            handler.assert_called_once_with(*expected)
 
     def test_cloud_cli_refuses_local_remote_mode(self):
         with patch.object(sys, "argv", ["research", "prepare-ai", "--pull-request", "19",

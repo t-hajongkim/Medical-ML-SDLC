@@ -10,11 +10,12 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
-from app import cloud_recommendations as cloud
+from app import research as cloud
 from app import input_contracts as inputs
-from app import planning, research, review
+from app import executor_eda, planning_eda
+from app import planning_eval as planning, research, review_eval_plan as review
 from app.asset_contract import canonical_hash, read_json, write_json
-from app.eda import InputMappingRequired, load_context, report
+from app.executor_eda import InputMappingRequired, load_context, report
 from app.input_review import write_pending
 import test_input_contracts as contract_fixtures
 from test_research_workflow import issue
@@ -143,7 +144,7 @@ class InputPipelineTests(unittest.TestCase):
             "coordination_schema": {**schema, "feature_columns": ["synthetic_f1", "synthetic_f2"],
                                     "model_ref": IMAGE, "current_bindings": None},
         }
-        from app.pr1_intent import build_context
+        from app.planning_eda import build_context
         context = build_context(
             research.parse_issue(issue(), REPO), session["coordination_schema"], selection, [],
             catalogs=session["catalogs"], policy=session["policy"])
@@ -200,7 +201,7 @@ class InputPipelineTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "damaged"):
             research.validate_aggregate(aggregate, context["data_manifest"]["prepared_source"])
 
-    def approval_bundle(self, *, coordinated=False):
+    def approval_bundle(self, *, coordinated=False, execution=False):
         assets, profile, _ = self.package(known=True)
         context = load_context(assets, input_profile=profile)
         aggregate = report(context)
@@ -213,8 +214,18 @@ class InputPipelineTests(unittest.TestCase):
         selection["evaluation"].update(primary_metric="roc_auc", add=["roc_auc"])
         write_json(folder / "selection.json", selection)
         model_image = "ghcr.io/fixture-owner/model@sha256:" + "c" * 64
+        execution_plan = None
+        if execution:
+            coordinated = True
+            selected_ids = planning.build_plans(
+                aggregate, context["data_manifest"], selection, None)["eda"]["selected_ids"]
+            execution_plan = planning_eda.build_execution_plan(
+                context, selected_ids,
+                data_image=IMAGE, model_image=model_image, code_commit=SHA)
+            aggregate = executor_eda.execute_plan(execution_plan, context)
+            context["_execution_plan"] = execution_plan
         if coordinated:
-            from app.pr1_intent import apply_proposal, build_context
+            from app.planning_eda import apply_proposal, build_context
             schema = {**context["_input_schema_request"], "feature_columns": context["feature_columns"],
                       "model_ref": model_image, "current_bindings": context["input_contract"]["bindings"]}
             transient = build_context(request, schema, selection, [])
@@ -226,9 +237,17 @@ class InputPipelineTests(unittest.TestCase):
                 "record": intent["record"], "code_commit": SHA, "schema": schema,
                 "eda_evidence": {item["block"]: {"status": item["status"], "details": item["details"]}
                                  for item in aggregate["results"]}}
+            if execution_plan is not None:
+                wrapper["execution_plan"] = execution_plan
             wrapper["coordination_hash"] = canonical_hash(wrapper)
             context["_pr1_coordination"] = wrapper
-            aggregate = report(context)
+            if execution_plan is not None:
+                aggregate.update(
+                    coordination_hash=wrapper["coordination_hash"],
+                    research_request_hash=wrapper["record"]["request_hash"],
+                    coordination_evidence=wrapper["eda_evidence"])
+            else:
+                aggregate = report(context)
             write_json(folder / "feedback-applied.json", {
                 "schema_version": 1, "repository": REPO, "pull_request": 7, "comment_ids": [],
                 "coordination_hash": wrapper["coordination_hash"]})
@@ -249,6 +268,8 @@ class InputPipelineTests(unittest.TestCase):
         if coordinated:
             for name in ("coordination-plan.json", "feedback-applied.json"):
                 files[name] = (folder / name).read_bytes()
+        if execution:
+            files["execution-plan.json"] = (folder / "execution-plan.json").read_bytes()
         for name in review.CONFIG_FILES:
             files[name] = (research.ROOT / name).read_bytes()
         files["config/assets.json"] = json.dumps({
@@ -270,6 +291,22 @@ class InputPipelineTests(unittest.TestCase):
         self.assertFalse(approved["clinical_use_approved"])
         self.assertNotIn("private-admission", json.dumps(approved))
         self.assertNotIn("private-shared-patient", json.dumps(approved))
+
+    def test_execution_contract_is_frozen_and_missing_or_changed_plan_is_rejected(self):
+        files, pull = self.approval_bundle(execution=True)
+        approved = review._snapshot(REPO, pull, 2, files)
+        self.assertEqual(approved["execution_plan"]["data_image"], approved["data_image"])
+        self.assertEqual(approved["execution_plan"]["input_signature"]["bindings"],
+                         approved["input_contract"]["bindings"])
+        changed = {key: value for key, value in files.items() if key != "execution-plan.json"}
+        with self.assertRaisesRegex(ValueError, "실행 계획"):
+            review._snapshot(REPO, pull, 2, changed)
+        changed = dict(files)
+        plan = json.loads(changed["execution-plan.json"])
+        plan["calls"][0]["inputs"]["metadata"] = "other.dataset"
+        changed["execution-plan.json"] = json.dumps(plan).encode()
+        with self.assertRaises(ValueError):
+            review._snapshot(REPO, pull, 2, changed)
 
     def test_approval_rejects_mapping_tamper_and_stale_mapping_hash(self):
         files, pull = self.approval_bundle()

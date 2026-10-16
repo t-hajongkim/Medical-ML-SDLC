@@ -1,4 +1,4 @@
-"""Pure PR1 research-intent coordination; no AI, rows, models or block execution.
+"""EDA planning and light intent normalization; no data or model execution.
 
 ``build_context`` is the transient input for the real Copilot agent. Its
 ``request_hash`` hashes exactly the four public form text fields, not the whole
@@ -21,8 +21,8 @@ import hashlib
 import math
 import re
 
-from app import planning
-from app.asset_contract import canonical_hash
+from app import planning_eval as planning
+from app.asset_contract import canonical_hash, validate_image_reference
 
 
 PROVIDER = "github-copilot-cloud-agent"
@@ -462,3 +462,121 @@ def validate_record(record, selection, request, schema_request, *, catalogs=None
     if _coordination_hash(record, catalogs, policy) != record["coordination_hash"]:
         raise ValueError("Coordination hash does not match the record and registered configuration")
     return deepcopy(record)
+
+
+def input_signature(context: dict) -> dict:
+    """Describe a prepared input without copying rows, vectors or credentials."""
+    manifest = planning._object(context.get("data_manifest"), "prepared manifest")
+    data_id = _digest(manifest.get("data_id"), "prepared data_id")
+    binding = context.get("input_contract")
+    mapping_hash = None
+    bindings = {}
+    if binding is not None:
+        mapping_hash = canonical_hash({
+            key: binding[key] for key in
+            ("profile_id", "data_id", "bindings", "split_values", "target_values", "profile_snapshot")
+        })
+        bindings = deepcopy(binding["bindings"])
+    features = context.get("feature_columns")
+    expected = context.get("expected_feature_columns")
+    if (not isinstance(features, list) or not features
+            or any(not isinstance(name, str) or not name for name in features)
+            or len(features) != len(set(features)) or expected != features):
+        raise ValueError("Prepared feature names and frozen feature order must match")
+    signature = {
+        "data_id": data_id, "feature_columns": list(features),
+        "expected_feature_columns": list(expected), "bindings": bindings,
+        "input_mapping_hash": mapping_hash,
+        "target_mapping": deepcopy(context.get("target_mapping")),
+        "split_rows": deepcopy(manifest.get("split_rows")),
+    }
+    _public_json(signature)
+    return signature
+
+
+def build_execution_plan(context: dict, identifiers: list[str], *, catalog=None,
+                         policy=None, data_image=None, model_image=None,
+                         code_commit=None) -> dict:
+    """Build a linear EDA plan for one startup dataset; never execute a block."""
+    catalog = planning.load_catalog("eda") if catalog is None else planning._catalog(catalog, "eda")
+    policy = planning.load_policy() if policy is None else planning._policy(policy)
+    aliases = planning._aliases(catalog, "eda")
+    selected = planning._ids(identifiers, aliases, "EDA execution tools")
+    required = set(planning._ids(policy["eda"]["required"], aliases, "required EDA"))
+    if not required.union(_PROTECTED_EDA).issubset(selected):
+        raise ValueError("An EDA execution plan must retain every required diagnosis")
+    entries = {entry["id"]: entry for entry in catalog["checks"]}
+    signature = input_signature(context)
+    plan = {
+        "schema_version": 1, "stage": "eda", "kind": "prepared-eda-execution",
+        "data_id": signature["data_id"],
+        "data_image": validate_image_reference(data_image) if data_image is not None else None,
+        "model_image": validate_image_reference(model_image) if model_image is not None else None,
+        "code_commit": code_commit,
+        "input_signature": signature, "schema_hash": canonical_hash(signature),
+        "catalog_hash": canonical_hash(catalog), "policy_hash": canonical_hash(policy),
+        "calls": [{
+            "tool_id": identifier,
+            "inputs": {name: "dataset." + name for name in entries[identifier]["requires"]},
+            "parameters": {},
+        } for identifier in selected],
+    }
+    plan["plan_hash"] = canonical_hash(plan)
+    validate_execution_plan(plan, catalog=catalog, policy=policy)
+    return plan
+
+
+def validate_execution_plan(plan: dict, *, catalog=None, policy=None) -> dict:
+    """Validate the published metadata-only plan independently of dataset rows."""
+    fields = {
+        "schema_version", "stage", "kind", "data_id", "data_image", "model_image",
+        "code_commit", "input_signature", "schema_hash", "catalog_hash", "policy_hash", "calls", "plan_hash",
+    }
+    _object(plan, "EDA execution plan", fields, fields)
+    planning._version(plan, "EDA execution plan")
+    if plan["stage"] != "eda" or plan["kind"] != "prepared-eda-execution":
+        raise ValueError("Only prepared EDA tools can execute before PR1 approval")
+    _public_json(plan)
+    signature_fields = {
+        "data_id", "feature_columns", "expected_feature_columns", "bindings",
+        "input_mapping_hash", "target_mapping", "split_rows",
+    }
+    _object(plan["input_signature"], "prepared input signature", signature_fields, signature_fields)
+    if (plan["code_commit"] is not None and (
+            not isinstance(plan["code_commit"], str)
+            or re.fullmatch(r"[0-9a-f]{40}", plan["code_commit"]) is None)):
+        raise ValueError("EDA code version must be a fixed commit")
+    for field in ("data_id", "schema_hash", "catalog_hash", "policy_hash", "plan_hash"):
+        _digest(plan[field], field)
+    if (canonical_hash({key: value for key, value in plan.items() if key != "plan_hash"})
+            != plan["plan_hash"]
+            or canonical_hash(plan["input_signature"]) != plan["schema_hash"]
+            or plan["input_signature"].get("data_id") != plan["data_id"]):
+        raise ValueError("The EDA execution plan or input signature was modified")
+    for field in ("data_image", "model_image"):
+        if plan[field] is not None:
+            validate_image_reference(plan[field])
+    catalog = planning.load_catalog("eda") if catalog is None else planning._catalog(catalog, "eda")
+    policy = planning.load_policy() if policy is None else planning._policy(policy)
+    if (plan["catalog_hash"] != canonical_hash(catalog)
+            or plan["policy_hash"] != canonical_hash(policy)):
+        raise ValueError("The EDA tool catalog or policy changed")
+    if not isinstance(plan["calls"], list):
+        raise ValueError("EDA calls must be a linear list")
+    entries = {entry["id"]: entry for entry in catalog["checks"]}
+    selected = []
+    for call in plan["calls"]:
+        _object(call, "EDA call", {"tool_id", "inputs", "parameters"},
+                {"tool_id", "inputs", "parameters"})
+        identifier = call["tool_id"]
+        if not isinstance(identifier, str) or identifier not in entries or identifier in selected:
+            raise ValueError("EDA calls must use distinct, registered canonical tool IDs")
+        expected = {name: "dataset." + name for name in entries[identifier]["requires"]}
+        if call["inputs"] != expected or call["parameters"] != {}:
+            raise ValueError("EDA input references and parameters must match the registered contract")
+        selected.append(identifier)
+    required = set(planning._ids(
+        policy["eda"]["required"], planning._aliases(catalog, "eda"), "required EDA")).union(_PROTECTED_EDA)
+    if not required.issubset(selected):
+        raise ValueError("Required EDA diagnoses cannot be omitted")
+    return deepcopy(plan)

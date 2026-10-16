@@ -4,7 +4,7 @@ import json
 import sys
 import unittest
 
-from app import planning, pr1_intent
+from app import planning_eval as planning, planning_eda as pr1_intent
 from app.asset_contract import canonical_hash
 
 
