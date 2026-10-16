@@ -110,16 +110,23 @@ class CloudContractTests(unittest.TestCase):
                 "head_branch": "research/review-issue-2"})
             program = script.replace(
                 'Path("/tmp/gh-aw/research-recommendation/publication.json")', f"Path({str(meta_path)!r})")
-            push = {"type": "push_to_pull_request_branch", "branch": "research/review-issue-2"}
+            push = {"type": "push_to_pull_request_branch", "branch": "research/review-issue-2",
+                    "pull_request_number": "7"}
             refresh = {"type": "refresh_review_body", "confirmed": True, "message": "합성 변경 안내"}
             with patch.dict(os.environ, {"GH_AW_AGENT_OUTPUT": str(output_path)}):
                 for items in ([{"type": "report_incomplete"}], [], [push], [refresh],
-                              [{**push, "branch": "other"}, refresh]):
+                              [{**push, "branch": "other"}, refresh],
+                              [{**push, "pull_request_number": "8"}, refresh],
+                              [{**push, "pull_request_number": "07"}, refresh],
+                              [{**push, "pull_request_number": 7.0}, refresh],
+                              [{**push, "pull_request_number": True}, refresh]):
                     with self.subTest(items=items):
                         write_json(output_path, {"items": items})
                         with self.assertRaises(SystemExit):
                             exec(compile(program, "<publication-audit>", "exec"), {})
                 write_json(output_path, {"items": [push, refresh]})
+                exec(compile(program, "<publication-audit>", "exec"), {})
+                write_json(output_path, {"items": [{**push, "pull_request_number": 7}, refresh]})
                 exec(compile(program, "<publication-audit>", "exec"), {})
 
     def test_completed_workflow_triggers_keep_default_human_roles(self):

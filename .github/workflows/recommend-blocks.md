@@ -353,7 +353,7 @@ post-steps:
       if (len(pushes) != int(requires_push)
               or len(refreshes) != int(meta["body_refresh_required"])
               or any(item.get("branch") != meta["head_branch"]
-                     or item.get("pull_request_number", meta["pull_request"]) != meta["pull_request"]
+                     or str(item.get("pull_request_number", meta["pull_request"])) != str(meta["pull_request"])
                      or item.get("repo", meta["repository"]) != meta["repository"] for item in pushes)
               or any(item.get("confirmed") is not True or not isinstance(item.get("message"), str)
                      or not item["message"].strip() for item in refreshes)):
