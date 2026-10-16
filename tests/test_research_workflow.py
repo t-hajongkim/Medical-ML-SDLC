@@ -314,6 +314,16 @@ class AssetAndReportTests(unittest.TestCase):
         self.assertNotIn("decision_curve", plan["selected_ids"])
         self.assertTrue(all(entry["reason"] and entry["requires"] for entry in plan["items"]))
 
+    def test_generated_report_describes_natural_feedback_and_legacy_commands(self):
+        context, _ = context_and_source()
+        plans = planning.build_plans(report(context), context["data_manifest"],
+                                     planning.default_selection(), None)
+        text = "\n".join(research.plan_report_lines(plans))
+        self.assertIn("자연어 피드백", text)
+        self.assertIn("Python 검증", text)
+        self.assertIn("기존 `/plan`도 지원", text)
+        self.assertNotIn("일반 댓글·인용·코드블록은 선택을 바꾸지 않습니다", text)
+
     def test_gh_failure_is_explicit_and_sensitive_output_not_echoed(self):
         result = subprocess.CompletedProcess(["gh"], 1, stdout="sensitive body", stderr="secret-token")
         with patch("subprocess.run", return_value=result):

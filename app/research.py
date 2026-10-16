@@ -344,13 +344,16 @@ def plan_report_lines(plans):
         "", "## 사용자 선택과 승인",
         f"교육용 계획 승인 준비: **{'완료' if readiness['ready'] else '미완료'}**.",
         *(f"- {reason}" for reason in readiness["reasons"]),
-        "", "PR의 Conversation에 `/plan` 명령만 별도 댓글로 작성합니다. 아래는 사용법 예시입니다.",
+        "", "PR의 Conversation에 자연어 피드백을 작성할 수 있습니다. "
+        "현재 write/maintain/admin 권한이 있는 사람의 요청만 AI 조율과 Python 검증을 거쳐 같은 PR에 반영합니다.",
+        "기존 `/plan`도 지원합니다. 명령을 사용할 때는 명령만 별도 댓글로 작성합니다. 아래는 사용법 예시입니다.",
         "", "```text", "/plan add eda prediction_timing", "/plan add evaluation f1",
         "/plan primary average_precision", "/plan threshold 0.3", "```",
         "", "제외는 `/plan remove eda|evaluation ID`, 매개변수는 "
         "`/plan parameter top_fraction 0.1`, AI 재추천은 `/plan recommend`를 사용합니다.",
         "카탈로그에 등록된 ID만 처리하며 필수 schema/patient_overlap은 제외할 수 없습니다.",
-        "일반 댓글·인용·코드블록은 선택을 바꾸지 않습니다. 처리된 댓글을 고치지 말고 새 명령 댓글을 작성하세요.",
+        "자연어는 실행 코드가 아닌 수정 요청입니다. 처리된 댓글 편집은 재적용하지 않으므로 새 댓글로 요청하세요.",
+        "반영할 피드백이 남아 있거나 준비 이후 본문·권한·연구 요청이 바뀌면 게시/승인 기록을 중단합니다.",
         "AI 추천 provided, 주지표 선택, blocked 평가 항목 없음 상태를 확인한 뒤 "
         "Ready for review → Merge합니다. 실패·대기 상태로 병합하면 승인 기록을 만들지 않습니다.",
         "사람이 Merge한 시점의 선택·계획·자산·해시를 `research/approved/`에 새 불변 기록으로 보존합니다.",
