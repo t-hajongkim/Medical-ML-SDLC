@@ -1,10 +1,10 @@
-"""등록된 이진분류 준비 자산을 표준 EDA 문맥으로 연결합니다.
+"""GHCR manifest의 이진분류 입력 메타데이터를 표준 EDA 문맥으로 연결합니다.
 
 공개 API는 load_profile, inspect_inputs, apply_mapping, validate_saved_binding입니다.
 AI에는 bundle 전체가
 아닌 schema_request만 전달합니다. 추천 bindings는 역할별 원본 컬럼명이며 reasons는
 같은 역할별 한국어 설명, evidence는 요청의 column:<순번>:<역할> 근거 ID 목록입니다.
-새 데이터는 운영자의 profile/data_id/대응 이미지 등록이 선행되어야 합니다.
+새 데이터는 digest로 고정된 이미지 안에 운영자가 명시한 입력 의미 사전이 필요합니다.
 원자료 다운로드, 전처리 fit, 모델 실행 또는 임의 코드 실행은 수행하지 않습니다.
 """
 
@@ -18,10 +18,8 @@ import re
 
 from app import prepared
 from app.asset_contract import canonical_hash, file_hash
-from app.dataset import ROOT
 
 
-CONFIG = ROOT / "config" / "input-profiles.json"
 REQUIRED_ROLES = ("row_key", "patient_key", "split", "target")
 OPTIONAL_ROLES = ("race", "gender", "age_group", "race_original", "race_was_missing")
 ROLES = REQUIRED_ROLES + OPTIONAL_ROLES
@@ -33,7 +31,7 @@ PROFILE_FIELDS = {
 OPTIONAL_PROFILE_FIELDS = {"probability_output_planned"}
 MANIFEST_FIELDS = {
     "schema_version", "kind", "data_id", "feature_columns", "split_rows", "files",
-    "training_performed", "preprocessing_performed",
+    "training_performed", "preprocessing_performed", "input_metadata",
 }
 
 
@@ -141,9 +139,39 @@ def _validate_profile(profile):
         _validate_bindings(profile["bindings"], profile)
 
 
-def load_profile(profile_id=None, *, registry=None):
-    """등록 profile을 반환합니다. registry 객체를 주면 파일 I/O 없이 조회합니다."""
-    config = _read_json(CONFIG) if registry is None else registry
+def load_profile(profile_id=None, *, manifest=None, registry=None):
+    """이미지 manifest에서 입력 계약을 만듭니다. registry는 명시적 오프라인 검증용입니다."""
+    if manifest is not None:
+        if registry is not None or not isinstance(manifest, dict):
+            _fail("이미지 manifest 하나만 입력 계약의 출처로 사용할 수 있습니다.")
+        if manifest.get("kind") == "registered-prepared-input":
+            _validate_registered_manifest(manifest)
+            metadata = manifest["input_metadata"]
+            kind = "registered_prepared_v1"
+        elif manifest.get("kind") == "prepared-data-only":
+            if (type(manifest.get("schema_version")) is not int or manifest["schema_version"] != 2
+                    or manifest.get("training_performed") is not False
+                    or manifest.get("preprocessing_performed") is not False
+                    or not isinstance(manifest.get("prepared_source"), dict)
+                    or not isinstance(manifest.get("content_files"), dict)
+                    or not _hash(manifest.get("raw_source_sha256"))
+                    or not _hash(manifest.get("data_id"))
+                    or prepared.data_identifier(manifest) != manifest["data_id"]):
+                _fail("기존 준비 이미지 manifest의 내용 식별자가 올바르지 않습니다.")
+            metadata = prepared.input_metadata(manifest["prepared_source"])
+            kind = "legacy_prepared_v2"
+        else:
+            _fail("지원하는 준비 이미지 manifest와 명시적 입력 메타데이터가 필요합니다.")
+        if (not isinstance(metadata, dict) or not _text(metadata.get("profile_id"))
+                or "data_id" in metadata or metadata.get("source_kind") != kind):
+            _fail("이미지 입력 메타데이터의 식별자 또는 종류가 올바르지 않습니다.")
+        identifier = metadata["profile_id"]
+        entry = {key: deepcopy(value) for key, value in metadata.items() if key != "profile_id"}
+        entry["data_id"] = manifest["data_id"]
+        registry = {"schema_version": 1, "active_profile": identifier, "profiles": {identifier: entry}}
+    if registry is None:
+        _fail("저장소 기본 profile 대신 선택한 GHCR 이미지 manifest가 필요합니다.")
+    config = registry
     if (not isinstance(config, dict)
             or set(config) != {"schema_version", "active_profile", "profiles"}
             or type(config["schema_version"]) is not int or config["schema_version"] != 1
@@ -163,33 +191,19 @@ def load_profile(profile_id=None, *, registry=None):
     return profile
 
 
-def profile_for_data(data_id, *, registry=None):
-    """Select an explicitly registered startup dataset, never guess its meaning."""
-    if not _hash(data_id):
-        _fail("시작 데이터에는 검증 가능한 data_id가 필요합니다.")
-    config = _read_json(CONFIG) if registry is None else registry
-    active = load_profile(registry=config)
-    if active["data_id"] == data_id:
-        return active
-    matches = []
-    for identifier, candidate in config["profiles"].items():
-        if not isinstance(candidate, dict):
-            _fail("입력 profile 등록 항목은 객체여야 합니다.")
-        if candidate.get("data_id") == data_id:
-            matches.append(load_profile(identifier, registry=config))
-    if len(matches) != 1:
-        _fail("시작 데이터와 일치하는 입력 profile 하나를 등록해야 합니다. 임의 매핑은 추측하지 않습니다.")
-    return matches[0]
+def profile_for_data(manifest):
+    """시작 이미지의 내용에 묶인 계약만 선택하며 저장소의 데이터 목록은 조회하지 않습니다."""
+    return load_profile(manifest=manifest)
 
 
-def _profile(value):
-    if value is None or isinstance(value, str):
-        return load_profile(value)
-    if not isinstance(value, dict):
-        _fail("등록 profile 식별자 또는 등록 profile 복사본이 필요합니다.")
-    registered = load_profile(value.get("profile_id"))
-    if value != registered:
-        _fail("메모리에서 변경한 profile은 사용할 수 없습니다. 운영자 등록이 필요합니다.")
+def _profile(assets, value):
+    registered = profile_for_data(read_manifest(assets))
+    if value is None:
+        return registered
+    if isinstance(value, str) and value == registered["profile_id"]:
+        return registered
+    if not isinstance(value, dict) or value != registered:
+        _fail("입력 계약은 선택한 GHCR 이미지의 메타데이터와 같아야 합니다.")
     return registered
 
 
@@ -205,6 +219,14 @@ def _safe_file(path):
     if (path.is_symlink() or not path.is_file() or path.stat().st_size <= 0
             or getattr(path, "is_junction", lambda: False)()):
         _fail("준비 자산 파일이 없거나 비어 있거나 안전하지 않은 경로입니다.")
+
+
+def read_manifest(assets):
+    """Read the selected image manifest with path and strict JSON checks."""
+    directory = _safe_directory(assets)
+    path = directory / "data_manifest.json"
+    _safe_file(path)
+    return _read_json(path)
 
 
 def _validate_feature_roles(manifest, profile):
@@ -445,7 +467,7 @@ def _ready(directory, records, bundle, bindings, provider, recommendation=None):
 
 def inspect_inputs(assets: Path, *, profile=None):
     """미확정 입력은 행 없는 schema_request만, 확정 입력은 표준 문맥도 반환합니다."""
-    registered = _profile(profile)
+    registered = _profile(assets, profile)
     directory, records, bundle = _inspect(assets, registered)
     if registered["bindings"] is None:
         return bundle
@@ -454,7 +476,7 @@ def inspect_inputs(assets: Path, *, profile=None):
 
 def apply_mapping(assets: Path, recommendation: dict, *, profile=None):
     """현재 요청 해시 및 역할별 등록 근거에 묶인 AI 추천만 검증 후 적용합니다."""
-    registered = _profile(profile)
+    registered = _profile(assets, profile)
     if registered["bindings"] is not None:
         _fail("설정에서 확정된 매핑은 AI로 덮어쓸 수 없습니다.")
     directory, records, bundle = _inspect(assets, registered)
@@ -546,6 +568,8 @@ def validate_saved_binding(binding, profile, schema_request):
     manifest = binding["source_manifest"]
     if not isinstance(manifest, dict) or manifest.get("data_id") != profile["data_id"]:
         _fail("저장된 원본 manifest의 data_id가 등록과 다릅니다.")
+    if load_profile(manifest=manifest) != profile:
+        _fail("저장된 입력 의미가 원본 이미지 manifest와 다릅니다.")
     _validate_feature_roles(manifest, profile)
     if profile["source_kind"] == "registered_prepared_v1":
         _validate_registered_manifest(manifest)

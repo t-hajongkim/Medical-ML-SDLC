@@ -11,8 +11,8 @@
   → safe_outputs/본문 검증 → PR1 사람 선택·승인
 ```
 
-시작 입력은 `input_contracts.profile_for_data`로 등록 profile 하나를 선택하며, 활성 profile과 다른 등록 데이터도
-코드를 하드코딩해 바꾸지 않고 선택한다. 모호한 profile·의미 사전 없는 새 데이터는 중단한다.
+시작 입력은 `input_contracts.profile_for_data(manifest)`로 선택한 GHCR manifest에서 계약을 구성한다.
+저장소의 활성 profile/data_id 등록 목록을 조회하지 않는다. 알려지지 않은 형식·의미 사전 없는 새 컬럼 구조는 중단한다.
 계획에는 실제 feature 순서/매핑 해시·data_id·데이터/모델 digest·코드 commit·Tool 계약/정책 hash·입력 참조만 저장한다.
 raw metadata·숫자 벡터는 Python context 안에 있고 AI 계획 JSON에 복제하지 않는다.
 
@@ -36,7 +36,7 @@ raw metadata·숫자 벡터는 Python context 안에 있고 AI 계획 JSON에 �
 연구 Issue / prepare-eda-pr.yml
   → default branch의 신뢰 코드와 폼 YAML 계약
   → 고정 Public 데이터 이미지의 준비파일 검증
-  → input-profiles.json: 컬럼·타입·역할·값·data_id 검증
+  → GHCR manifest + 입력 형식 계약: 컬럼·타입·역할·값·data_id 검증
   → EDA 미실행 준비 보고서 + selection.json → 연구검토 draft PR
   → PR 번호·run ID/회차·source SHA만 전달 artifact에 기록
   → 선행 workflow 성공 완료 이벤트(workflow_run)
@@ -205,7 +205,7 @@ GHCR은 실행 DB가 아니라 재현할 이미지와 파일의 저장소다.
 |---|---|
 | `.github/workflows/publish-db-image.yml` | **Establish Database Image**, 운영자 수동 게시. contents read / packages write |
 | `app/prepared.py` | 고정 자산 수입·검증·context·DB/모델 artifact runner 검사 |
-| `config/prepared-source.json` | source revision/URL/SHA/bytes/rows/schema/target/모델 버전·조건부 등록 명세 |
+| `config/prepared-source.json` | 이미지 제작·재게시 전용 source revision/URL/SHA/bytes/rows/schema/target/모델 명세. 일반 연구 실행은 이미지 manifest를 사용 |
 | `app/asset_contract.py`, `app/dataset.py`, `app/ghcr.py` | 기존 hash·UCI 명세·GHCR 이름/digest 도우미 재사용 |
 | `data/` | 출처/NOTICE와 원본 명세만. Git에 CSV·바이너리 없음 |
 | `db/` | PostgreSQL Dockerfile/init.sql/healthcheck.sh |
@@ -222,7 +222,7 @@ GHCR은 실행 DB가 아니라 재현할 이미지와 파일의 저장소다.
 | `app/executor_eda.py` | 입력/출력 계약을 검증해 등록 EDA 블록 실행·집계·정확한 캐시 재사용 |
 | `app/executor_eval.py`, `tests/test_executor_eval.py` | 기존 15개 지표의 순수 실행·명시적 매개변수·출력 검증, Actions 미연결 |
 | `app/recommendation_events.py` | 선행 실행의 정확한 대상·출처를 검증하고 추천 job에 PR 번호 전달 |
-| `app/input_contracts.py`, `config/input-profiles.json` | 등록 프로필·무결성·config/AI 매핑·표준 context·저장 매핑 검증 |
+| `app/input_contracts.py` | GHCR manifest의 입력 의미·무결성·확정/AI 매핑·표준 context·저장 매핑 검증. 저장소 profile registry 제거 |
 | `app/input_review.py` | 미확정 입력 PR·입력 역할 표시·데이터셋 중립 집계 보고서 |
 | `tests/test_input_contracts.py`, `tests/test_input_pipeline.py` | 다른 컬럼 스키마·매핑 전 EDA 금지·두 단계 AI·승인 매핑 변조 거부 |
 | `tests/test_recommendation_events.py` | 합성 이벤트·실제 ZIP 파싱·출처/대상/만료/변조/경로 침범 거부. 실제 원격 실행 아님 |
@@ -230,12 +230,18 @@ GHCR은 실행 DB가 아니라 재현할 이미지와 파일의 저장소다.
 | `config/assets.json` | 실제 게시된 data/model 두 digest 고정 참조. 두 패키지 Public·익명 조회 확인 |
 
 `app/prepared.py`는 ML 모듈을 import하지 않는다. 모델 pickle을 역직렬화하지 않으며 bytes·hash·명세만 검사한다.
-기존 `app/assets.py`의 전처리·새 모델 학습, `app/bootstrap.py`의 pair 검증/개인 패키지,
-`app/infer.py`의 예전 실행 계약은 현재 게시 경로에서 분리한 **후속 정렬 대상 초안**이다.
-`initialize-workshop.yml`은 첫 step의 명시적 오류/중단으로 초안 실행을 차단하고 쓰기 권한을 제거했다.
+이전 원본 전처리/새 학습·pair 초기화/추론 코드와 해당 테스트·중단 전용 초기화 workflow는 제거했다.
+현재 준비 데이터/모델 artifact 계약과 등록 Tool 실행만 유지하며, 구형 학습·추론 경로로 되돌아가지 않는다.
 새 model artifact는 기존 inference image와 다르므로 초기화가 완료됐다고 해석하지 않는다.
 
 ## 입력과 DB 계약
+
+입력 사실은 선택한 digest의 이미지 안에 있다. 기존 `prepared-data-only` v2의 명세·컬럼 역할 계약은 그대로 지원하며 새 필드를 강제로 추가하지 않는다.
+다른 컬럼 구조의 `registered-prepared-input` v1은 manifest의 `input_metadata`에 의미 사전과 값 매핑을 명시한다.
+의미 메타데이터도 data_id에 포함한다. 실행 중 원본/의미가 바뀌면 기존 계약과 추천을 거부하며 자동 재계획하지 않는다.
+Merge 승인 시 같은 GHCR digest에서 manifest를 독립적으로 다시 읽어 PR이 주장하는 출처와 대조한다.
+자기 일관적인 PR JSON만으로 실제 이미지 출처 검증을 대체하지 않는다.
+이 경계는 원본 재전처리·모델 로딩/학습·지표 계산을 추가하지 않는다.
 
 - 데이터: HF `auphong2707/hospital-readmission-risk-data`, revision `4a61a3591f079628c72f5edbc7494ca7dda8741d`, `splits/`만 선택.
   train 71,236 / validation 15,265 / test 15,265. 이미 표준화된 113 X + target.

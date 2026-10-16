@@ -158,7 +158,8 @@ class IntentTests(unittest.TestCase):
     def test_real_input_contract_builder_accepts_row_free_synthetic_summaries(self):
         from app import input_contracts
 
-        profile = input_contracts.load_profile()
+        from test_input_contracts import legacy_profile_fixture
+        profile = legacy_profile_fixture()
         summaries = [
             {"name": name, "description": entry["description"],
              "semantic_roles": list(entry["semantic_roles"]), "data_type": "string",

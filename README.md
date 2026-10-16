@@ -23,7 +23,8 @@ MCP의 `plan-eda`는 **계획만** 저장하며, `execute-eda(plan_hash)`가 같
 `research.py`는 공통 CLI·실행 세션·GitHub/게시 연결을 맡고, `review_eval_plan.py`는 사람의 댓글·Merge 기록을 맡습니다.
 이전 `cloud_recommendations.py`의 중간 연결은 별도 파일로 남기지 않습니다.
 
-실행 시작 시 GHCR 파일의 `data_id`와 일치하는 등록 profile을 선택합니다. 모호하거나 미등록이면 중단하며,
+실행 시작 시 선택한 GHCR manifest에서 입력 계약을 구성합니다. 저장소의 데이터셋별 profile/data_id 등록 목록은 두지 않습니다.
+알 수 없는 형식이나 의미 사전이 없는 새 컬럼 구조는 중단하며,
 AI가 의미 사전 없이 환자 키·정답 의미를 추측하거나 기존 학습 특성을 바꾸지 않습니다.
 **실행 중 데이터 교체·감시·자동 재계획 루프는 없습니다.** 사람의 새 댓글은 별도의 명시적 수정 요청입니다.
 `execution-plan.json`은 데이터/모델 digest·코드·입력 서명·Tool 참조를 고정하는 생성 결과이며 공통 config를 덮어쓰지 않습니다.
@@ -58,7 +59,6 @@ AI가 의미 사전 없이 환자 키·정답 의미를 추측하거나 기존 �
 | 파일 / Actions 표시 이름 | 역할 | 현재 상태 |
 |---|---|---|
 | [publish-db-image.yml](.github/workflows/publish-db-image.yml) / **Establish Database Image** | 고정 공개 자산 검증 → DB 이미지 빌드·스모크 → 모델 파일 이미지 빌드·무결성 검사 → 두 공통 GHCR 게시 | [2026-10-15 실제 게시 성공](https://github.com/t-hajongkim/Medical-ML-SDLC/actions/runs/38722808263). 두 패키지 Public·익명 조회 확인 |
-| [initialize-workshop.yml](.github/workflows/initialize-workshop.yml) / **Initialize Workshop** | 이전 데이터/모델 pair 기반 참가자 초기화 초안 | 현재 계약과 호환되지 않아 첫 step에서 명시적으로 중단. 쓰기 권한 제거. 실행하지 않습니다 |
 | [ci.yml](.github/workflows/ci.yml) / **Check workshop setup** | 현재 자산 계약과 이전 코드의 합성 fixture 회귀 검사 | 외부 자산 다운로드·Docker·GHCR 게시 없음 |
 | [prepare-eda-pr.yml](.github/workflows/prepare-eda-pr.yml) / **Prepare research review** | Issue·고정 이미지 스키마 검증 → EDA 미실행 draft PR → 정확한 추천 대상 전달 | Issue opened 또는 유지관리자의 수동 실행 |
 | [research-plan.md](.github/workflows/research-plan.md) / **연구 점검·평가계획** | 선행 완료 → 공개 목적·스키마 → 계획 검증 → 동일 계획 hash로 EDA 실행 → 실제 결과 기반 평가계획 → 같은 PR 게시 | `workflow_run` 또는 수동 PR 번호. 공식 생성 lock, native 인증. PAT·AI Secret 없음 |
@@ -163,7 +163,7 @@ metadata·feature 각 101,766행 및 asset_info 전체 대조, 모델 이미지 
 |---|---|
 | `.github/workflows/publish-db-image.yml` | 운영자 수동 자산 게시 YML |
 | `app/prepared.py` | 표준 라이브러리만으로 고정 다운로드·해시/행/스키마/키 연결·컨텍스트 생성·runner 검증 |
-| `config/prepared-source.json` | 신규 고정 준비 데이터/모델 URL·revision·bytes·SHA·113 변수 순서·target·한계 명세 |
+| `config/prepared-source.json` | GHCR 이미지 제작·재게시용 원본 URL·revision·bytes·SHA·변수 순서·target·모델 명세. 일반 연구 실행의 입력 기준이 아님 |
 | `data/source_manifest.json`, `data/NOTICE.txt` | UCI 원본 고정 명세·출처·라이선스·변경 및 한계 기록 |
 | `db/Dockerfile`, `db/init.sql`, `db/healthcheck.sh` | 데이터 전용 PostgreSQL 이미지·적재 계약·준비 상태 검사 |
 | `app/Dockerfile` | 재사용·정리한 모델 **artifact** 이미지 정의. 추론 실행 이미지가 아님 |
@@ -178,11 +178,10 @@ metadata·feature 각 101,766행 및 asset_info 전체 대조, 모델 이미지 
 저장소 루트나 `db/`, `app/` 자체를 그대로 빌드 컨텍스트로 넘기지 않습니다.
 원자료·CSV·모델 바이너리를 Git, Actions Artifacts, Releases에 올리지 않습니다. 외부 DB 포트 노출을 추가하지 않습니다.
 
-`app/assets.py`·`config/preparation.json`·`app/bootstrap.py`·`app/infer.py`와 기존 pair 테스트는 **이전 설계 회귀용 초안**으로 남깁니다.
-이전 `.fit()` 경로·전처리기 요구·patient-disjoint pair 계약을 현재 publisher가 호출하지 않습니다.
-기존 container 테스트 4개는 이전 pair/inference 이미지 계약용이며 새 artifact 이미지의 실제 실행 검증이 아닙니다.
+이전 원본 재전처리·새 학습·pair 초기화/추론 코드와 해당 테스트·중단 전용 초기화 workflow는 제거했습니다.
+이미 전처리·분할된 자산을 읽는 현재 경로만 유지하며, 새 `.fit()` 경로를 추가하지 않습니다.
 현재 runner의 DB 전체 대조와 모델 파일 검사는 `app.prepared smoke` / `verify-model-image`로 분리했습니다.
-후속 초기화·추론 연결 때 이 초안을 새 계약으로 정렬해야 합니다.
+참가자 데이터 초기화·모델 자동 실행이 필요하면 현재 준비 데이터/모델 artifact 계약을 기준으로 별도 구현해야 합니다.
 
 ## 2단계: 독립 EDA 블록 준비
 
@@ -401,15 +400,16 @@ AI 준비 이후 본문/권한/PR/연구 목적이 바뀌면 게시하지 않으
 
 ## 입력 프로필과 앞단 매핑
 
-입력 계약은 `config/input-profiles.json`, 읽기·검증·표준화는 `app/input_contracts.py`에서 관리합니다.
-현재 `diabetes_prepared`는 검증된 9개 컬럼 매핑을 재사용합니다.
+입력 계약의 기준은 선택한 GHCR 이미지 안의 `data_manifest.json`이며, 읽기·검증·표준화는 `app/input_contracts.py`에서 수행합니다.
+중복된 저장소 등록 목록 `config/input-profiles.json`은 제거했습니다.
+현재 `prepared-data-only` v2는 기존 manifest와 해당 형식의 정해진 9개 컬럼 역할을 그대로 읽으므로 이미지 재발행이나 새 메타데이터 필드가 필요하지 않습니다.
 **매핑을 다시 추측하지 않는다는 뜻이지 앞단 AI를 생략한다는 뜻은 아닙니다.**
 알려진 스키마도 AI가 공개 목적·입력 계약·점검 구성을 먼저 확인한 뒤 Python EDA를 요청합니다.
 
 ```text
 Issue → 고정 이미지 무결성·스키마 확인
   → EDA 미실행 draft PR → workflow_run → AI 공개 목적·스키마 조율
-  → bindings 있음: 검증된 config 재사용
+  → bindings 있음: 검증된 이미지 입력 계약 재사용
   → bindings null: AI 스키마 매핑 추천
       → Python이 등록 컬럼·의미 후보·필수 역할·근거·hash 검증
   → AI 조율안 → Python 검증·표준 context·실제 EDA
@@ -427,9 +427,10 @@ AI가 추천했다고 임의 코드·SQL·변환식을 실행하지 않습니다
 커밋하는 `recommendation-request.json`은 원문을 제외한 구조화 요청이며 조율 hash로 결합합니다.
 두 단계의 context hash는 다르며 입력 매핑 hash를 후단 요청에도 묶어 오래된 추천을 막습니다.
 `input-schema.json`은 공개 요청, `input-mapping.json`은 검증된 바인딩·원래 추천·프로필·출처 명세입니다.
-Merge 승인 기록은 이 매핑을 병합 commit의 registry와 다시 대조하고 함께 보존합니다.
+Merge 승인 시 병합 commit의 고정 GHCR digest에서 manifest를 다시 읽어 PR의 출처 manifest·입력 매핑과 대조하고 함께 보존합니다.
+PR 안에서 data_id와 hash를 일관되게 다시 계산했더라도 실제 이미지와 다르면 승인하지 않습니다.
 
-등록 프로필의 `bindings`는 표준 역할→원본 컬럼, `split_values`는 원본 분할값→train/validation/test,
+이미지 입력 계약의 `bindings`는 표준 역할→원본 컬럼, `split_values`는 원본 분할값→train/validation/test,
 `target_values`는 원본 정답값→0/1입니다. 현재 split·정답 인코딩은 변환식을 생성하지 않고 등록된 값만 사용합니다.
 새 대응 모델의 확률 출력 계획은 운영자가 `probability_output_planned: true`로 명시합니다.
 미선언 시 후단 평가 계획의 확률 입력을 존재한다고 가정하지 않습니다. 실제 모델 호환성 검증은 4단계의 별도 범위입니다.
@@ -439,11 +440,19 @@ Merge 승인 기록은 이 매핑을 병합 commit의 registry와 다시 대조�
 기존 Diabetes 이미지는 원래 `prepared-data-only` v2 무결성 검증을 그대로 사용합니다.
 다른 등록 입력은 `registered-prepared-input` v1 계약을 사용합니다:
 `metadata.csv`, `db_features.csv`, `data_manifest.json` 세 파일과 등록된 SHA256·data_id·변수 순서·분할 행수를 검증합니다.
-data_id는 manifest의 data_id 필드를 제외한 정규화 JSON hash이며 registry의 값과 일치해야 합니다.
+이 형식은 manifest 안의 `input_metadata`에 profile_id·컬럼 의미/역할·bindings·분할/정답 매핑·정답 정의·출처·한계를 명시해야 합니다.
+현재 v2 이미지에 같은 내용을 추가로 복제하라는 요구가 아니라, 알려진 역할 계약이 없는 다른 컬럼 구조에 필요한 명시적 의미 사전입니다.
+data_id는 이 메타데이터를 포함하고 data_id 필드만 제외한 정규화 JSON hash입니다. 이미지와 계획/매핑의 식별자가 일치해야 합니다.
 특성 테이블은 `row_key,split,row_position,feature_values` 형식의 준비된 유한 숫자 배열입니다.
 식별자·분할·정답 역할의 원본 컬럼이나 표준 역할명을 입력 특성에 포함하면 거부합니다. 자동으로 특성을 삭제하거나 모델을 바꾸지 않습니다.
 원본 metadata의 컬럼 이름은 달라도 되지만 의미 사전과 역할별 서로 다른 컬럼, 세 분할·이진 정답 계약은 필요합니다.
-운영자는 새 이미지·profile·data_id·대응 모델·출처/라이선스를 등록해야 합니다. profile 추가가 이미지 생성·배포를 대신하지 않습니다.
+운영자는 명시적 의미 사전을 포함한 새 이미지와 대응 모델·출처/라이선스를 준비해야 합니다.
+저장소에 데이터셋별 profile이나 data_id를 사전 등록하지 않습니다.
+
+`config/prepared-source.json`은 게시 workflow가 새 이미지를 만들거나 재게시할 때 읽는 제작 명세입니다.
+일반 실습의 첫 실행과 후속 실행은 이 파일 대신 고정 GHCR 이미지의 manifest를 사용합니다.
+제작 명세에서 EDA 중복 수·결측 수의 고정 기준값은 제거했으며, Python이 실제 자산에서 계산합니다.
+이전 이미지에 이미 포함된 출처·검증 기록은 수정하지 않습니다. 입력 매핑이 없는 과거 보고서의 호환 검증만 기존 제작 snapshot을 사용합니다.
 
 환자 중복의 집합 비교는 그대로 재사용합니다. 다른 등록 프로필에는 Diabetes의 선정조건·30일 추적·Caucasian 대치·113-feature 이력을 적용하지 않습니다.
 다른 컬럼명·분할/정답값을 가진 합성 패키지로 재사용을 검사했으며, 다른 실제 임상 데이터셋 검증을 수행했다고 주장하지 않습니다.
@@ -476,9 +485,8 @@ python -B -m unittest discover -s tests -p 'test_prepared_source.py' -v
 python -B -m unittest discover -s tests -p 'test_*.py' -v
 ```
 
-폼 계약 검사에는 `requirements-workflow.txt`, 전체 이전 ML 회귀에는 `requirements-ml.txt`가 필요합니다.
+폼 계약 검사에는 `requirements-workflow.txt`, 지표 비교 회귀에는 `requirements-ml.txt`가 필요합니다.
 새 검사는 합성 자산과 모의 Docker 호출만 사용합니다.
-기존 `WORKSHOP_DATA_IMAGE`, `WORKSHOP_MODEL_IMAGE`, `WORKSHOP_PREPARED_DIR`를 지정하지 않아 실제 container 검사 4개는 skip을 유지합니다.
 로컬 Docker/Desktop을 켜지 않습니다. 소스 검증과 실제 GitHub DB 스모크·클라우드 게시 성공은 별개입니다.
 
 ## 출처

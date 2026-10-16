@@ -114,29 +114,22 @@ class EdaExecutionPlanTests(unittest.TestCase):
 
 
 class StartupProfileTests(unittest.TestCase):
-    def registry(self):
-        root = Path(__file__).resolve().parents[1]
-        return json.loads((root / "config" / "input-profiles.json").read_text(encoding="utf-8"))
+    def test_startup_contract_comes_from_manifest_not_a_repository_active_profile(self):
+        from test_input_contracts import legacy_manifest_fixture
+        manifest = legacy_manifest_fixture()
+        chosen = input_contracts.profile_for_data(manifest)
+        self.assertEqual(chosen["profile_id"], "diabetes_prepared")
+        self.assertEqual(chosen["data_id"], manifest["data_id"])
+        chosen["bindings"].clear()
+        self.assertTrue(input_contracts.profile_for_data(manifest)["bindings"])
 
-    def test_startup_data_selects_registered_profile_without_active_override(self):
-        registry = self.registry()
-        active = registry["active_profile"]
-        source = deepcopy(registry["profiles"][active])
-        source["data_id"] = "f" * 64
-        registry["profiles"]["synthetic_startup"] = source
-        chosen = input_contracts.profile_for_data("f" * 64, registry=registry)
-        self.assertEqual(chosen["profile_id"], "synthetic_startup")
-        self.assertEqual(registry["active_profile"], active)
-
-    def test_unknown_or_ambiguous_startup_data_is_rejected(self):
-        registry = self.registry()
-        with self.assertRaises(ValueError):
-            input_contracts.profile_for_data("a" * 64, registry=registry)
-        source = deepcopy(registry["profiles"][registry["active_profile"]])
-        source["data_id"] = "f" * 64
-        registry["profiles"].update(synthetic_a=source, synthetic_b=deepcopy(source))
-        with self.assertRaises(ValueError):
-            input_contracts.profile_for_data("f" * 64, registry=registry)
+    def test_bare_data_id_unknown_format_and_changed_manifest_are_rejected(self):
+        from test_input_contracts import legacy_manifest_fixture
+        manifest = legacy_manifest_fixture()
+        for value in ("a" * 64, {}, {**manifest, "data_id": "f" * 64},
+                      {**manifest, "kind": "unknown"}):
+            with self.subTest(manifest=value), self.assertRaises(ValueError):
+                input_contracts.profile_for_data(value)
 
 
 if __name__ == "__main__":

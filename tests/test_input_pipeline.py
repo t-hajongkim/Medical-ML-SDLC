@@ -276,15 +276,18 @@ class InputPipelineTests(unittest.TestCase):
             "schema_version": 1, "data_image": IMAGE,
             "model_image": model_image,
         }).encode()
-        files["config/input-profiles.json"] = self.fixture.config_path.read_bytes()
         pull = {"number": 7, "head": {"sha": "d" * 40},
                 "merge_commit_sha": "e" * 40, "merged_by": {"login": "fixture-owner"},
                 "merged_at": "2026-10-16T01:00:00Z"}
         return files, pull
 
+    def snapshot(self, files, pull):
+        source = read_json(self.fixture.folder / "synthetic_a" / "data_manifest.json")
+        return review._snapshot(REPO, pull, 2, files, source_manifest=source)
+
     def test_generic_approval_freezes_validated_mapping_and_unknown_history(self):
         files, pull = self.approval_bundle()
-        approved = review._snapshot(REPO, pull, 2, files)
+        approved = self.snapshot(files, pull)
         self.assertEqual(approved["input_contract"]["status"], "validated")
         self.assertIsNone(approved["limitations"]["validation_development_reuse"])
         self.assertEqual(approved["limitations"]["patient_overlap"]["overlaps"]["train_test"], 1)
@@ -292,21 +295,62 @@ class InputPipelineTests(unittest.TestCase):
         self.assertNotIn("private-admission", json.dumps(approved))
         self.assertNotIn("private-shared-patient", json.dumps(approved))
 
+    def test_approval_requires_the_actual_image_manifest_not_a_self_consistent_pr_claim(self):
+        files, pull = self.approval_bundle()
+        with self.assertRaisesRegex(ValueError, "GHCR digest"):
+            review._snapshot(REPO, pull, 2, files)
+        changed = dict(files)
+        binding = json.loads(changed["input-mapping.json"])
+        manifest = binding["source_manifest"]
+        manifest["input_metadata"]["target_definition"] = "PR에서 임의로 만든 합성 정의"
+        manifest["data_id"] = canonical_hash({k: v for k, v in manifest.items() if k != "data_id"})
+        changed["input-mapping.json"] = json.dumps(binding).encode()
+        with self.assertRaisesRegex(ValueError, "GHCR digest"):
+            self.snapshot(changed, pull)
+        files["config/prepared-source.json"] = b"not a runtime source"
+        self.assertEqual(self.snapshot(files, pull)["data_id"],
+                         json.loads(files["eda.json"])["data_id"])
+
+    def test_merge_downloads_pinned_ghcr_manifest_independently_before_freezing(self):
+        files, pull = self.approval_bundle()
+        directory = "research/reports/issue-2/"
+        def file_at_tree(repository, tree, path, optional=False):
+            name = path[len(directory):] if path.startswith(directory) else path
+            if optional:
+                return files.get(name)
+            return files[name]
+        def extract_image(reference, destination):
+            self.assertEqual(reference, IMAGE)
+            shutil.copytree(self.fixture.folder / "synthetic_a", destination)
+        event = {"action": "closed", "pull_request": {
+            "merged": True, "number": 7, "merge_commit_sha": pull["merge_commit_sha"]}}
+        with patch.object(review, "_pull", return_value=(pull, 2)), \
+                patch.object(review, "_human_permission", return_value=True), \
+                patch.object(review, "_tree", return_value="f" * 40), \
+                patch.object(review, "_file", side_effect=file_at_tree), \
+                patch.object(research, "image_assets", side_effect=extract_image) as extract, \
+                patch.object(review, "_snapshot", side_effect=ValueError("anchored snapshot reached")) as snapshot:
+            with self.assertRaisesRegex(ValueError, "anchored snapshot reached"):
+                review.freeze_merge(event, REPO, "main")
+        extract.assert_called_once()
+        self.assertEqual(snapshot.call_args.kwargs["source_manifest"],
+                         read_json(self.fixture.folder / "synthetic_a" / "data_manifest.json"))
+
     def test_execution_contract_is_frozen_and_missing_or_changed_plan_is_rejected(self):
         files, pull = self.approval_bundle(execution=True)
-        approved = review._snapshot(REPO, pull, 2, files)
+        approved = self.snapshot(files, pull)
         self.assertEqual(approved["execution_plan"]["data_image"], approved["data_image"])
         self.assertEqual(approved["execution_plan"]["input_signature"]["bindings"],
                          approved["input_contract"]["bindings"])
         changed = {key: value for key, value in files.items() if key != "execution-plan.json"}
         with self.assertRaisesRegex(ValueError, "실행 계획"):
-            review._snapshot(REPO, pull, 2, changed)
+            self.snapshot(changed, pull)
         changed = dict(files)
         plan = json.loads(changed["execution-plan.json"])
         plan["calls"][0]["inputs"]["metadata"] = "other.dataset"
         changed["execution-plan.json"] = json.dumps(plan).encode()
         with self.assertRaises(ValueError):
-            review._snapshot(REPO, pull, 2, changed)
+            self.snapshot(changed, pull)
 
     def test_approval_rejects_mapping_tamper_and_stale_mapping_hash(self):
         files, pull = self.approval_bundle()
@@ -315,34 +359,34 @@ class InputPipelineTests(unittest.TestCase):
         binding["bindings"]["patient_key"] = binding["bindings"]["row_key"]
         changed["input-mapping.json"] = json.dumps(binding).encode()
         with self.assertRaises(ValueError):
-            review._snapshot(REPO, pull, 2, changed)
+            self.snapshot(changed, pull)
         changed = dict(files)
         eda = json.loads(changed["eda.json"])
         eda["input_mapping_hash"] = "f" * 64
         changed["eda.json"] = json.dumps(eda).encode()
         with self.assertRaisesRegex(ValueError, "data_id/hash"):
-            review._snapshot(REPO, pull, 2, changed)
+            self.snapshot(changed, pull)
 
     def test_approval_freezes_coordination_and_rejects_changed_goal_or_audit(self):
         files, pull = self.approval_bundle(coordinated=True)
-        approved = review._snapshot(REPO, pull, 2, files)
+        approved = self.snapshot(files, pull)
         self.assertEqual(approved["coordination"]["schema"]["model_ref"], approved["model_image"])
         for name in ("coordination-plan.json", "feedback-applied.json"):
             changed = {key: value for key, value in files.items() if key != name}
             with self.subTest(missing=name), self.assertRaises(ValueError):
-                review._snapshot(REPO, pull, 2, changed)
+                self.snapshot(changed, pull)
         changed = dict(files)
         request = json.loads(files["request.json"])
         request["research_goal"] = "조율 이후 바뀐 합성 목적"
         changed["request.json"] = json.dumps(request).encode()
         with self.assertRaises(ValueError):
-            review._snapshot(REPO, pull, 2, changed)
+            self.snapshot(changed, pull)
         changed = dict(files)
         wrapper = json.loads(files["coordination-plan.json"])
         wrapper["record"]["reason"] = "변경된 조율 기록"
         changed["coordination-plan.json"] = json.dumps(wrapper).encode()
         with self.assertRaises(ValueError):
-            review._snapshot(REPO, pull, 2, changed)
+            self.snapshot(changed, pull)
 
     def test_pending_natural_feedback_blocks_freezing_even_legacy_plan(self):
         files, pull = self.approval_bundle()
@@ -351,7 +395,7 @@ class InputPipelineTests(unittest.TestCase):
             "pull_request": 7, "issue_number": 2, "comments": [{
                 "comment_id": 17, "actor": "fixture-owner", "body_sha256": "f" * 64}]}).encode()
         with self.assertRaisesRegex(ValueError, "미반영"):
-            review._snapshot(REPO, pull, 2, files)
+            self.snapshot(files, pull)
 
 
 if __name__ == "__main__":

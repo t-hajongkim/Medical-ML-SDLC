@@ -70,6 +70,10 @@ def request_marker():
 
 def approval_files():
     source = json.loads((ROOT / "config" / "prepared-source.json").read_text(encoding="utf-8"))
+    # Historical report fixture, not the current publisher's EDA acceptance criteria.
+    source["expected_patient_overlap"] = {
+        "train_validation": 5055, "train_test": 5086, "validation_test": 1760}
+    source["expected_test_race_missing"] = 341
     catalogs = {stage: planning.load_catalog(stage) for stage in review.STAGES}
     policy = planning.load_policy()
     selected = planning.default_selection()

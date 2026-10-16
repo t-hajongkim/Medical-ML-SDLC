@@ -1,6 +1,7 @@
 """Import the frozen public splits without fitting, transforming or loading a model."""
 
 import argparse
+from copy import deepcopy
 import csv
 import io
 from itertools import zip_longest
@@ -35,6 +36,41 @@ INFO_COLUMNS = (
 )
 
 
+def input_metadata(spec: dict) -> dict:
+    """Read publisher-declared semantics; adapt only the documented pre-metadata v2 format."""
+    if "input_metadata" in spec:
+        return deepcopy(spec["input_metadata"])
+    if (spec.get("dataset") != "auphong2707/hospital-readmission-risk-data"
+            or spec.get("target_mapping") != {"<30": 1, ">30": 0, "NO": 0}):
+        raise ValueError("Prepared input semantics are missing; unknown sources cannot be inferred.")
+    descriptions = {
+        "row_key": "UCI encounter_id에 대응하는 입원 단위 고유 키입니다.",
+        "patient_key": "UCI encounter_id 조인으로 복원한 patient_nbr입니다. 동일 환자의 여러 입원을 연결하며 입원 ID가 아닙니다.",
+        "split": "공개 준비 데이터의 고정 train/validation/test 분할입니다.",
+        "target": "이미 이진 인코딩된 30일 이내 재입원 정답입니다.",
+        "race": "공개 준비 데이터의 인종 값이며 결측치 대체가 포함됩니다.",
+        "gender": "준비 데이터의 성별 값입니다.",
+        "age_group": "준비 데이터의 연령 구간입니다.",
+        "race_original": "원본 인종 값으로, 원본 결측은 빈 값으로 보존됩니다.",
+        "race_was_missing": "원본 인종 결측 여부를 나타내는 명시적 true/false 플래그입니다.",
+    }
+    return {
+        "profile_id": "diabetes_prepared", "source_kind": "legacy_prepared_v2",
+        "bindings": {name: name for name in METADATA_COLUMNS},
+        "columns": {name: {"semantic_roles": [name], "description": descriptions[name]}
+                    for name in METADATA_COLUMNS},
+        "split_values": {name: name for name in SPLITS}, "target_values": {"0": 0, "1": 1},
+        "target_definition": "UCI readmitted의 <30은 1, >30과 NO는 0으로 제공된 정답입니다. 0이 완전한 30일 무사건 추적을 입증하지는 않습니다.",
+        "source_selection": "등록된 hospital-readmission-risk-data의 고정 준비 분할과 대응 모델을 사용합니다. UCI 당뇨병 입원 자료에서 선택된 코호트이며 원자료를 새로 다운로드하거나 전처리하지 않습니다.",
+        "limitations": [
+            "환자 단위 분할 간 중복은 실제 patient_nbr로 측정하며 입원 ID로 대신하지 않습니다.",
+            "인종 결측 대체와 원본 결측은 별도 필드로 보존합니다.",
+            "등록된 준비 데이터와 대응 모델에 한정되며 임의 원자료나 모든 ML 문제의 자동 지원을 의미하지 않습니다.",
+            "새 데이터에는 운영자의 profile, data_id 및 대응 이미지 등록이 필요합니다.",
+        ],
+    }
+
+
 def validate_source_contract(spec: dict) -> None:
     base = (
         "https://huggingface.co/datasets/auphong2707/hospital-readmission-risk-data/"
@@ -67,10 +103,11 @@ def validate_source_contract(spec: dict) -> None:
                     or not re.fullmatch(r"[0-9a-f]{64}", resource.get("sha256", ""))):
                 raise ValueError("Prepared resource name, bytes or SHA256 is invalid.")
     overlap = spec.get("expected_patient_overlap", {})
-    if (set(overlap) != {"train_validation", "train_test", "validation_test"}
+    if (("expected_patient_overlap" in spec or "expected_test_race_missing" in spec)
+            and (set(overlap) != {"train_validation", "train_test", "validation_test"}
             or any(type(value) is not int or value < 0 for value in overlap.values())
             or type(spec.get("expected_test_race_missing")) is not int
-            or spec["expected_test_race_missing"] < 0):
+            or spec["expected_test_race_missing"] < 0)):
         raise ValueError("Frozen overlap or missing-race expectations are invalid.")
 
 
@@ -261,9 +298,17 @@ def validate_data_manifest(directory: Path) -> dict:
             source = spec["splits"][split][kind]
             if manifest["files"][source["name"]] != source["sha256"]:
                 raise ValueError("Packaged source differs from the frozen public asset.")
-    if manifest.get("patient_overlap") != spec["expected_patient_overlap"]:
+    overlap = manifest.get("patient_overlap")
+    pairs = (("train", "validation"), ("train", "test"), ("validation", "test"))
+    if (not isinstance(overlap, dict) or set(overlap) != {a + "_" + b for a, b in pairs}
+            or any(type(overlap[a + "_" + b]) is not int
+                   or not 0 <= overlap[a + "_" + b] <= min(manifest["split_rows"][a], manifest["split_rows"][b])
+                   for a, b in pairs)):
+        raise ValueError("Recorded patient overlap counts are invalid.")
+    if "expected_patient_overlap" in spec and overlap != spec["expected_patient_overlap"]:
         raise ValueError("Recorded overlap differs from the source contract.")
-    if manifest.get("race_missing", {}).get("test") != spec["expected_test_race_missing"]:
+    if ("expected_test_race_missing" in spec
+            and manifest.get("race_missing", {}).get("test") != spec["expected_test_race_missing"]):
         raise ValueError("Recorded original missing race differs from the source contract.")
     if (not re.fullmatch(r"[0-9a-f]{64}", manifest.get("raw_source_sha256", ""))
             or set(manifest.get("race_missing", {})) != set(SPLITS)
@@ -272,6 +317,8 @@ def validate_data_manifest(directory: Path) -> dict:
                    for split in SPLITS)):
         raise ValueError("Original source hash or missing-race counts are invalid.")
     verify_files(directory, manifest)
+    from app.input_contracts import load_profile
+    load_profile(manifest=manifest)
     if {path.name for path in directory.iterdir()} != {*files, "data_manifest.json"}:
         raise ValueError("Unexpected files in the data-only asset directory.")
     with (directory / "asset_info.csv").open(encoding="utf-8", newline="") as handle:
@@ -395,9 +442,9 @@ def prepare_data(
             left + "_" + right: len(patients[left] & patients[right])
             for left, right in (("train", "validation"), ("train", "test"), ("validation", "test"))
         }
-        if overlap != spec["expected_patient_overlap"]:
+        if "expected_patient_overlap" in spec and overlap != spec["expected_patient_overlap"]:
             raise ValueError("Patient overlap differs from the known source limitation.")
-        if missing_race["test"] != spec["expected_test_race_missing"]:
+        if "expected_test_race_missing" in spec and missing_race["test"] != spec["expected_test_race_missing"]:
             raise ValueError("Original test missing-race count differs from the known source limitation.")
         names = [path.name for path in assets.iterdir()]
         content_files = {name: file_hash(assets / name) for name in sorted(names)}

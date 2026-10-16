@@ -59,8 +59,6 @@
       "demographics": {"name": "test_demographics.csv", "bytes": 531449, "sha256": "f59d422ec50c2831ee2f0b4d768da0a9ae1d526b222f5e7d5c048f3d3ad8f8b8"}
     }
   },
-  "expected_patient_overlap": {"train_validation": 5055, "train_test": 5086, "validation_test": 1760},
-  "expected_test_race_missing": 341,
   "model": {
     "repository": "auphong2707/hospital-readmission-phase2-lr",
     "revision": "e1f7fcc0f4f8e273fc56eb35018ec70bbccbee61",

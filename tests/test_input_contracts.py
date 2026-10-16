@@ -13,6 +13,7 @@ import uuid
 from app import input_contracts as inputs
 from app.asset_contract import canonical_hash, file_hash
 from app.blocks.checks import demographics, patient_overlap, schema
+from app import prepared
 from app.prepared import FEATURE_COLUMNS, METADATA_COLUMNS, SPLITS
 
 
@@ -30,18 +31,61 @@ def write_csv(path, columns, rows):
         writer.writerows(rows)
 
 
+def legacy_manifest_fixture():
+    """Synthetic manifest identity; no real asset contents or remote access."""
+    spec = json.loads((ROOT / "config" / "prepared-source.json").read_text(encoding="utf-8"))
+    spec.pop("input_metadata", None)
+    manifest = {
+        "schema_version": 2, "kind": "prepared-data-only", "prepared_source": spec,
+        "raw_source_sha256": "0" * 64, "content_files": {},
+        "training_performed": False, "preprocessing_performed": False,
+    }
+    manifest["data_id"] = prepared.data_identifier(manifest)
+    return manifest
+
+
+def legacy_profile_fixture():
+    return inputs.load_profile(manifest=legacy_manifest_fixture())
+
+
 class InputContractTests(unittest.TestCase):
     def setUp(self):
         # 테스트 자산은 임시 시스템 경로가 아닌 저장소 내부의 독립 디렉터리에 둡니다.
         self.folder = ROOT / "tests" / (".input-contract-fixture-" + uuid.uuid4().hex)
         self.folder.mkdir()
         self.addCleanup(shutil.rmtree, self.folder)
-        self.config_path = self.folder / "input-profiles.json"
+        self.config_path = self.folder / "metadata-fixture.json"
         self.config = {"schema_version": 1, "active_profile": "synthetic_a", "profiles": {}}
+        self.manifests = {}
         self.addCleanup(patch.stopall)
-        patch.object(inputs, "CONFIG", self.config_path).start()
+        self.real_load_profile = inputs.load_profile
+        def fixture_profile(profile_id=None, *, registry=None, manifest=None):
+            if manifest is not None:
+                return self.real_load_profile(profile_id, manifest=manifest, registry=registry)
+            if registry is None:
+                registry = inputs._read_json(self.config_path)
+            return self.real_load_profile(profile_id, registry=registry)
+        patch.object(inputs, "load_profile", side_effect=fixture_profile).start()
 
     def save_config(self):
+        for identifier, profile in self.config["profiles"].items():
+            if identifier not in self.manifests or not isinstance(profile, dict):
+                continue
+            path = self.folder / identifier / "data_manifest.json"
+            manifest = inputs._read_json(path)
+            metadata = {"profile_id": identifier, **{
+                key: deepcopy(value) for key, value in profile.items() if key != "data_id"}}
+            if manifest.get("kind") == "prepared-data-only" and "prepared_source" in manifest:
+                manifest["prepared_source"]["input_metadata"] = metadata
+                manifest["data_id"] = prepared.data_identifier(manifest)
+            else:
+                manifest["input_metadata"] = metadata
+                manifest["data_id"] = canonical_hash({
+                    key: value for key, value in manifest.items() if key != "data_id"})
+            profile["data_id"] = manifest["data_id"]
+            self.manifests[identifier].clear()
+            self.manifests[identifier].update(deepcopy(manifest))
+            write_json(path, manifest)
         write_json(self.config_path, self.config)
 
     def package(self, identifier="synthetic_a", *, prefix="source_", known=True, optional=False):
@@ -93,6 +137,7 @@ class InputContractTests(unittest.TestCase):
         manifest["data_id"] = canonical_hash({k: v for k, v in manifest.items() if k != "data_id"})
         profile["data_id"] = manifest["data_id"]
         self.config["profiles"][identifier] = profile
+        self.manifests[identifier] = manifest
         write_json(directory / "data_manifest.json", manifest)
         self.save_config()
         return directory, profile, mapping, records, features, manifest
@@ -115,17 +160,16 @@ class InputContractTests(unittest.TestCase):
         }
 
     def test_default_diabetes_profile_preserves_nine_registered_names(self):
-        with patch.object(inputs, "CONFIG", ROOT / "config" / "input-profiles.json"):
-            profile = inputs.load_profile()
-            self.assertEqual(profile["profile_id"], "diabetes_prepared")
-            self.assertEqual(profile["source_kind"], "legacy_prepared_v2")
-            self.assertEqual(profile["data_id"],
-                             "c34ec224503e2038c79fd11c47e0f603c7e392ba46f4e8c14e1661bfaf5303fd")
-            self.assertEqual(profile["bindings"], {name: name for name in METADATA_COLUMNS})
-            self.assertIn("patient_nbr", profile["columns"]["patient_key"]["description"])
-            self.assertIn("encounter_id", profile["columns"]["patient_key"]["description"])
-            profile["bindings"]["patient_key"] = "row_key"
-            self.assertEqual(inputs.load_profile()["bindings"]["patient_key"], "patient_key")
+        manifest = legacy_manifest_fixture()
+        profile = self.real_load_profile(manifest=manifest)
+        self.assertEqual(profile["profile_id"], "diabetes_prepared")
+        self.assertEqual(profile["source_kind"], "legacy_prepared_v2")
+        self.assertEqual(profile["data_id"], manifest["data_id"])
+        self.assertEqual(profile["bindings"], {name: name for name in METADATA_COLUMNS})
+        self.assertIn("patient_nbr", profile["columns"]["patient_key"]["description"])
+        self.assertIn("encounter_id", profile["columns"]["patient_key"]["description"])
+        profile["bindings"]["patient_key"] = "row_key"
+        self.assertEqual(self.real_load_profile(manifest=manifest)["bindings"]["patient_key"], "patient_key")
 
     def test_identifier_label_and_split_roles_cannot_be_predictor_features(self):
         directory, profile, mapping, _, _, manifest = self.package()
@@ -176,6 +220,42 @@ class InputContractTests(unittest.TestCase):
         self.assertIs(bundle["binding"]["recommendation"], None)
         self.assertEqual(bundle["binding"]["schema_request"], bundle["schema_request"])
         self.assertEqual(bundle["binding"]["profile_hash"], canonical_hash(profile))
+
+    def test_runtime_reads_the_selected_manifest_without_a_repository_registry(self):
+        directory, _, _, _, _, manifest = self.package()
+        with self.assertRaisesRegex(ValueError, "GHCR"):
+            self.real_load_profile()
+        self.config_path.unlink()
+        bundle = inputs.inspect_inputs(directory)
+        self.assertEqual(bundle["profile"]["data_id"], manifest["data_id"])
+        self.assertEqual(bundle["status"], "ready")
+        self.assertFalse((ROOT / "config" / "input-profiles.json").exists())
+
+    def test_generic_manifest_requires_explicit_hash_bound_meaning(self):
+        directory, _, _, _, _, manifest = self.package(known=False)
+        changed = deepcopy(manifest)
+        changed.pop("input_metadata")
+        changed["data_id"] = canonical_hash({k: v for k, v in changed.items() if k != "data_id"})
+        with self.assertRaises(ValueError):
+            self.real_load_profile(manifest=changed)
+        changed = deepcopy(manifest)
+        changed["input_metadata"]["target_definition"] = "서로 다른 합성 정답 정의"
+        with self.assertRaises(ValueError):
+            self.real_load_profile(manifest=changed)
+        changed["data_id"] = canonical_hash({k: v for k, v in changed.items() if k != "data_id"})
+        previous = inputs.inspect_inputs(directory)["profile"]
+        write_json(directory / "data_manifest.json", changed)
+        current = inputs.inspect_inputs(directory)["profile"]
+        self.assertNotEqual(previous["data_id"], current["data_id"])
+        with self.assertRaises(ValueError):
+            inputs.inspect_inputs(directory, profile=previous)
+
+    def test_legacy_manifest_does_not_invent_semantics_for_an_unknown_source(self):
+        manifest = legacy_manifest_fixture()
+        manifest["prepared_source"]["dataset"] = "synthetic/unknown"
+        manifest["data_id"] = prepared.data_identifier(manifest)
+        with self.assertRaisesRegex(ValueError, "semantics"):
+            self.real_load_profile(manifest=manifest)
 
     def test_unresolved_schema_is_private_stable_and_hash_bound(self):
         directory, _, mapping, _, _, _ = self.package(known=False)
@@ -724,8 +804,8 @@ class InputContractTests(unittest.TestCase):
 
     def test_legacy_validation_is_always_called_and_original_manifest_is_preserved(self):
         directory, _, mapping, records, _, _ = self.package()
-        registry = inputs._read_json(ROOT / "config" / "input-profiles.json")
-        profile = deepcopy(registry["profiles"]["diabetes_prepared"])
+        profile = legacy_profile_fixture()
+        profile.pop("profile_id")
         canonical = []
         for record in records:
             item = {role: record[column] for role, column in mapping.items()}
@@ -753,6 +833,7 @@ class InputContractTests(unittest.TestCase):
         self.config["profiles"]["synthetic_a"] = profile
         write_json(directory / "data_manifest.json", manifest)
         self.save_config()
+        manifest = inputs._read_json(directory / "data_manifest.json")
         with patch.object(inputs.prepared, "validate_data_manifest", return_value=deepcopy(manifest)) as verify:
             bundle = inputs.inspect_inputs(directory)
         verify.assert_called_once_with(directory)

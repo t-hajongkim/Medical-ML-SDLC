@@ -13,6 +13,7 @@ import os
 from pathlib import Path
 import re
 import shutil
+import tempfile
 import uuid
 from urllib.parse import quote
 
@@ -24,7 +25,7 @@ EDIT_POLICY = "처리한 댓글의 편집은 다시 적용하지 않습니다. �
 STAGES = ("eda", "evaluation")
 REPORT_FILES = ("request.json", "eda.json", "eda-plan.json", "evaluation-plan.json",
                 "selection.json", "ai-recommendations.json", "recommendation-request.json")
-CONFIG_FILES = ("config/assets.json", "config/prepared-source.json",
+CONFIG_FILES = ("config/assets.json",
                 "config/eda-catalog.json", "config/metric-catalog.json",
                 "config/planning-policy.json")
 
@@ -463,7 +464,7 @@ def review_comments(event, repository, actor, default):
     return outcome
 
 
-def _snapshot(repository, pull, issue, files):
+def _snapshot(repository, pull, issue, files, *, source_manifest=None):
     request, eda, eda_plan, evaluation, selection, ai, recommendation = (
         _object(files[name]) for name in REPORT_FILES)
     _marker(request, repository, issue)
@@ -481,13 +482,15 @@ def _snapshot(repository, pull, issue, files):
                 "model_execution_performed", "training_performed", "preprocessing_performed"))
             or not re.fullmatch(r"[0-9a-f]{64}", eda.get("data_id") or "")):
         raise ValueError("모델 실행 없는 집계 EDA 계약이 필요합니다.")
-    source = _object(files["config/prepared-source.json"])
+    source = None
     input_binding = None
     if "input-mapping.json" in files:
-        from app.input_contracts import load_profile, validate_saved_binding
+        from app.input_contracts import profile_for_data, validate_saved_binding
         input_binding = _object(files["input-mapping.json"])
-        registry = _object(files["config/input-profiles.json"])
-        profile = load_profile(input_binding.get("profile_id"), registry=registry)
+        if source_manifest is None or input_binding.get("source_manifest") != source_manifest:
+            raise ValueError("승인 입력 manifest를 선택한 GHCR digest의 실제 manifest와 대조해야 합니다.")
+        profile = profile_for_data(source_manifest)
+        source = source_manifest.get("prepared_source")
         schema_request = (_object(files["input-schema.json"]) if "input-schema.json" in files
                           else input_binding.get("schema_request"))
         input_binding = validate_saved_binding(input_binding, profile, schema_request)
@@ -506,6 +509,9 @@ def _snapshot(repository, pull, issue, files):
         })
         if eda.get("data_id") != input_binding["data_id"] or eda.get("input_mapping_hash") != expected_mapping_hash:
             raise ValueError("병합된 EDA와 검증한 입력 매핑의 data_id/hash가 다릅니다.")
+    if input_binding is None:
+        # Historical reports without input bindings retain their original publisher snapshot.
+        source = _object(files["config/prepared-source.json"])
     research.validate_aggregate(eda, source)
     catalogs = {"eda": _object(files["config/eda-catalog.json"]),
                 "evaluation": _object(files["config/metric-catalog.json"])}
@@ -680,7 +686,6 @@ def freeze_merge(event, repository, default):
     binding = _file(repository, tree, directory + "input-mapping.json", optional=True)
     if binding is not None:
         files["input-mapping.json"] = binding
-        files["config/input-profiles.json"] = _file(repository, tree, "config/input-profiles.json")
         schema = _file(repository, tree, directory + "input-schema.json", optional=True)
         if schema is not None:
             files["input-schema.json"] = schema
@@ -691,7 +696,17 @@ def freeze_merge(event, repository, default):
         value = _file(repository, tree, directory + name, optional=True)
         if value is not None:
             files[name] = value
-    snapshot = _snapshot(repository, pull, issue, files)
+    if binding is not None:
+        reference = research.data_reference(_object(files["config/assets.json"]))
+        with tempfile.TemporaryDirectory(prefix="approval-input-") as work:
+            assets = Path(work) / "assets"
+            research.image_assets(reference, assets)
+            from app.input_contracts import read_manifest
+            source_manifest = read_manifest(assets)
+            snapshot = _snapshot(repository, pull, issue, files, source_manifest=source_manifest)
+    else:
+        files["config/prepared-source.json"] = _file(repository, tree, "config/prepared-source.json")
+        snapshot = _snapshot(repository, pull, issue, files)
     path = f"research/approved/issue-{issue}/{commit}.json"
     content = _json(snapshot).encode("utf-8")
     # Read the latest default head only for the additive write, not approval inputs.

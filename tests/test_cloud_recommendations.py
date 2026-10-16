@@ -375,7 +375,7 @@ class PublicationGitFixtureTests(unittest.TestCase):
 
     def run_controller(self, *, feedback=False):
         from app.asset_contract import read_json, write_json
-        from app.input_contracts import load_profile
+        from test_input_contracts import legacy_profile_fixture
         from test_research_workflow import context_and_source, issue
         repository = "fixture-owner/fixture-workshop"
         image = "ghcr.io/fixture-owner/fixture-db@sha256:" + "a" * 64
@@ -451,7 +451,7 @@ class PublicationGitFixtureTests(unittest.TestCase):
                 patch.object(research, "gh_json", side_effect=api), \
                 patch.object(research, "image_assets", side_effect=image_assets), \
                 patch.dict(cloud.CHECKS, {"schema": measured_schema}), \
-                patch("app.input_contracts.profile_for_data", return_value=load_profile()), \
+                patch("app.input_contracts.profile_for_data", return_value=legacy_profile_fixture()), \
                 patch.object(cloud, "load_context", return_value=context), \
                 patch.dict(os.environ, {"GITHUB_RUN_ID": "38722808263"}):
             prepared = cloud.prepare_ai(7, work)

@@ -105,12 +105,24 @@ class PreparedSourceTests(unittest.TestCase):
         self.assertEqual(len(spec["features"]), 113)
         self.assertEqual(sum(entry["rows"] for entry in spec["splits"].values()), 101766)
         self.assertEqual(spec["revision"], "4a61a3591f079628c72f5edbc7494ca7dda8741d")
-        self.assertEqual(spec["expected_patient_overlap"],
-                         {"train_validation": 5055, "train_test": 5086, "validation_test": 1760})
-        self.assertEqual(spec["expected_test_race_missing"], 341)
+        self.assertNotIn("expected_patient_overlap", spec)
+        self.assertNotIn("expected_test_race_missing", spec)
+        self.assertNotIn("input_metadata", spec)
         self.assertEqual(spec["splits"]["train"]["data"]["sha256"],
                          "71895ccb1886d8fd3d95c60542098ce59133e06fea7c372e91d770347bf5bc09")
         self.assertEqual(spec["target_mapping"], {"<30": 1, ">30": 0, "NO": 0})
+
+    def test_publisher_computes_observations_without_golden_eda_values(self):
+        self.spec.pop("expected_patient_overlap")
+        self.spec.pop("expected_test_race_missing")
+        write_json(self.config, self.spec)
+        result = self.prepare()
+        manifest = read_json(self.output / "data" / "assets" / "data_manifest.json")
+        self.assertEqual(result["patient_overlap"],
+                         {"train_validation": 1, "train_test": 1, "validation_test": 1})
+        self.assertEqual(manifest["race_missing"]["test"], 1)
+        self.assertNotIn("expected_patient_overlap", manifest["prepared_source"])
+        validate_data_manifest(self.output / "data" / "assets")
 
     def test_import_preserves_source_bytes_feature_values_and_order(self):
         result = self.prepare()
@@ -531,11 +543,13 @@ class PreparedSourceTests(unittest.TestCase):
         self.assertEqual(workflow.count("docker build"), 2)
         self.assertEqual(workflow.count("docker push"), 2)
         self.assertIn("packages: write", workflow)
-        initializer = (ROOT / ".github" / "workflows" / "initialize-workshop.yml").read_text(encoding="utf-8")
-        self.assertIn("Stop - participant initialization is a future draft", initializer)
-        self.assertLess(initializer.index("exit 1"), initializer.index("actions/checkout"))
-        self.assertNotIn("contents: write", initializer)
-        self.assertNotIn("packages: write", initializer)
+        for retired in (
+            ".github/workflows/initialize-workshop.yml",
+            "app/assets.py", "app/bootstrap.py", "app/infer.py", "config/preparation.json",
+            "tests/test_prepared_assets.py", "tests/test_database_image.py",
+        ):
+            with self.subTest(retired=retired):
+                self.assertFalse(ROOT.joinpath(*retired.split("/")).exists())
 
 
 if __name__ == "__main__":

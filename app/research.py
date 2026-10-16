@@ -307,7 +307,8 @@ def validate_aggregate(eda, source, expected_ids=None):
     if demographics is not None and not generic:
         if demographics["status"] != "completed":
             raise ValueError("Input structure or recorded prepared-data alignment is damaged.")
-        if demographics["details"]["original_race_missing"].get("test") != source["expected_test_race_missing"]:
+        if ("expected_test_race_missing" in source
+                and demographics["details"]["original_race_missing"].get("test") != source["expected_test_race_missing"]):
             raise ValueError("Original missing-race aggregate differs from the registered source.")
     if (not generic and "label_observability" in by_name and by_name["label_observability"]["details"].get(
             "target_definition", {}).get("status") != "passed"):
@@ -837,8 +838,8 @@ def run_workflow(event, event_name, repository, actor, default_branch, work, man
     work.mkdir(parents=True)
     try:
         image_assets(reference, work / "assets")
-        from app.input_contracts import profile_for_data
-        profile = profile_for_data(read_json(work / "assets" / "data_manifest.json")["data_id"])
+        from app.input_contracts import profile_for_data, read_manifest
+        profile = profile_for_data(read_manifest(work / "assets"))
         binding = None
         if profile["bindings"] is None and previous_pull is not None:
             from app.input_review import read_binding
@@ -1015,9 +1016,9 @@ def prepare_ai(pull_request, work):
                 path.unlink()
         selection = read_json(destination / "selection.json")
         flow.image_assets(reference, work / "assets")
-        from app.input_contracts import profile_for_data
-        manifest = read_json(work / "assets" / "data_manifest.json")
-        profile = profile_for_data(manifest["data_id"])
+        from app.input_contracts import profile_for_data, read_manifest
+        manifest = read_manifest(work / "assets")
+        profile = profile_for_data(manifest)
         binding = read_json(destination / "input-mapping.json") if "input-mapping.json" in content else None
         phase, context, schema_request = "coordination", None, None
         try:

@@ -57,6 +57,17 @@ def context_and_source(overlap=False):
     return context, source
 
 
+class ManifestObservationTests(unittest.TestCase):
+    def test_legacy_aggregate_can_use_computed_observations_without_golden_values(self):
+        context, source = context_and_source(overlap=True)
+        source.pop("expected_patient_overlap")
+        source.pop("expected_test_race_missing")
+        aggregate = report(context)
+        research.validate_aggregate(aggregate, source)
+        by_name = {result["block"]: result for result in aggregate["results"]}
+        self.assertEqual(by_name["patient_overlap"]["details"]["overlaps"]["train_validation"], 1)
+
+
 def opened_event(candidate=None):
     return {"action": "opened", "issue": candidate or issue(),
             "repository": {"full_name": REPOSITORY, "default_branch": "main"}}
@@ -523,7 +534,7 @@ class PayloadAndPublicationTests(unittest.TestCase):
         self.assertNotIn(text, json.dumps(self.calls))
 
     def test_pipeline_uses_only_data_image_and_cleans_owned_runtime(self):
-        from app.input_contracts import load_profile
+        from test_input_contracts import legacy_profile_fixture
         (self.root / "config").mkdir()
         write_json(self.root / "config" / "assets.json",
                    {"schema_version": 1, "data_image": DATA_IMAGE, "model_image": "never-pull-model"})
@@ -536,7 +547,7 @@ class PayloadAndPublicationTests(unittest.TestCase):
                 patch("app.research.existing_pull", return_value=(None, None)), \
                 patch("app.research.command", side_effect=self.fake_command), \
                 patch("app.research.image_assets", side_effect=image_assets) as assets, \
-                patch("app.input_contracts.profile_for_data", return_value=load_profile()), \
+                patch("app.input_contracts.profile_for_data", return_value=legacy_profile_fixture()), \
                 patch("app.research.load_context", return_value=self.context), \
                 patch("app.research.publish_payload", return_value={"status": "created"}) as publish, \
                 patch("app.research.report", side_effect=AssertionError("EDA before AI coordination")), \
@@ -551,7 +562,7 @@ class PayloadAndPublicationTests(unittest.TestCase):
         self.assertFalse(work.exists())
 
     def test_pipeline_input_corruption_blocks_pr_and_cleans_runtime(self):
-        from app.input_contracts import load_profile
+        from test_input_contracts import legacy_profile_fixture
         (self.root / "config").mkdir()
         write_json(self.root / "config" / "assets.json", {"schema_version": 1, "data_image": DATA_IMAGE})
         work = self.folder / "runtime"
@@ -563,7 +574,7 @@ class PayloadAndPublicationTests(unittest.TestCase):
                 patch("app.research.existing_pull", return_value=(None, None)), \
                 patch("app.research.command", side_effect=self.fake_command), \
                 patch("app.research.image_assets", side_effect=image_assets), \
-                patch("app.input_contracts.profile_for_data", return_value=load_profile()), \
+                patch("app.input_contracts.profile_for_data", return_value=legacy_profile_fixture()), \
                 patch("app.research.load_context", side_effect=ValueError("damaged input package")), \
                 patch("app.research.publish_payload") as publish, \
                 patch.dict(os.environ, {"GITHUB_RUN_ID": "12"}):
