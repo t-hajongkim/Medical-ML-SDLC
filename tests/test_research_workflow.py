@@ -722,20 +722,19 @@ class PayloadAndPublicationTests(unittest.TestCase):
                                               "pull_url": f"https://github.com/{REPOSITORY}/pull/19"},
                                              REPOSITORY, "main")
             self.assertEqual(result["status"], "requested")
-            self.assertIn("recommend-blocks.lock.yml", execute.call_args.args[0])
-            self.assertIn("pull_request=19", execute.call_args.args[0])
-            self.assertIn("main", execute.call_args.args[0])
+            self.assertEqual(result["workflow"], "recommend-blocks.lock.yml")
+            self.assertEqual(result["pull_request"], 19)
+            self.assertEqual(result["default_branch"], "main")
+            self.assertEqual(result["trigger"], "workflow_run")
+            execute.assert_not_called()
 
-    def test_ai_dispatch_failure_is_explicit(self):
-        summary = self.folder / "dispatch-summary.json"
-        with patch("app.research.command", side_effect=RuntimeError("gh dispatch failed")), \
-                patch.dict(os.environ, {"GITHUB_STEP_SUMMARY": str(summary)}):
-            with self.assertRaisesRegex(RuntimeError, "dispatch failed"):
+    def test_ai_handoff_rejects_other_repositories(self):
+        with patch("app.research.command") as execute:
+            with self.assertRaisesRegex(ValueError, "current repository"):
                 research.dispatch_ai({"status": "created", "ai_status": "pending",
-                                      "pull_url": f"https://github.com/{REPOSITORY}/pull/19"},
+                                      "pull_url": "https://github.com/another/repository/pull/19"},
                                      REPOSITORY, "main")
-        self.assertIn('"status": "failed"', summary.read_text(encoding="utf-8"))
-        self.assertIn('"ai_dispatch"', summary.read_text(encoding="utf-8"))
+        execute.assert_not_called()
 
     def test_provided_ai_does_not_dispatch_again(self):
         with patch("app.research.command") as execute:
@@ -747,8 +746,10 @@ class PayloadAndPublicationTests(unittest.TestCase):
         module = types.ModuleType("app.cloud_recommendations")
         module.prepare_ai = unittest.mock.Mock(return_value={"status": "prepared_mock"})
         module.apply_ai = unittest.mock.Mock(return_value={"status": "applied_mock"})
+        module.apply_input_mapping = unittest.mock.Mock(return_value={"status": "mapping_mock"})
         import app
-        for mode, handler in (("prepare-ai", module.prepare_ai), ("apply-ai", module.apply_ai)):
+        for mode, handler in (("prepare-ai", module.prepare_ai), ("apply-ai", module.apply_ai),
+                              ("apply-input-mapping", module.apply_input_mapping)):
             with patch.dict(sys.modules, {"app.cloud_recommendations": module}), \
                     patch.object(app, "cloud_recommendations", module, create=True), \
                     patch.object(sys, "argv", ["research", mode, "--pull-request", "19", "--work", str(self.folder)]), \

@@ -3,18 +3,20 @@
 import argparse
 import copy
 import html
+import importlib
 import json
 import os
 from pathlib import Path
 import re
 import shutil
 import subprocess
+import sys
 import uuid
 
 from app.asset_contract import read_json, validate_image_reference, write_json
 from app.blocks.catalog import CHECKS
 from app.dataset import ROOT
-from app.eda import load_context, report
+from app.eda import InputMappingRequired, load_context, report
 from app.prepared import CONFIG, SPLITS, docker
 from app import planning
 
@@ -24,6 +26,13 @@ OUTPUT_NAMES = ("request.json", "eda.json", "report.md", "evaluation-plan.json",
 AUTO_START = "<!-- research-review:auto:start -->"
 AUTO_END = "<!-- research-review:auto:end -->"
 TRUSTED_ASSOCIATIONS = {"OWNER", "COLLABORATOR"}
+
+
+def pin_review_code():
+    """Cache trusted helpers/checks before selecting a report-only PR tree."""
+    # CHECKS already holds eagerly imported functions from the trusted catalog.
+    for name in ("app.input_review", "app.recommendation_events"):
+        importlib.import_module(name)
 
 
 def form_contract(path=None):
@@ -273,11 +282,19 @@ def validate_aggregate(eda, source, expected_ids=None):
     schema = by_name["schema"]["details"]
     demographics = by_name.get("demographics")
     cohort = by_name.get("cohort", {}).get("details")
+    generic = "source_profile" in source
+    overlaps = by_name["patient_overlap"]["details"].get("overlaps")
+    expected_pairs = {left + "_" + right: min(source["splits"][left]["rows"], source["splits"][right]["rows"])
+                      for left, right in (("train", "validation"), ("train", "test"), ("validation", "test"))}
+    if (not isinstance(overlaps, dict) or set(overlaps) != set(expected_pairs)
+            or any(type(count) is not int or not 0 <= count <= expected_pairs[pair]
+                   for pair, count in overlaps.items())):
+        raise ValueError("환자 중복 집계의 분할·건수 계약이 손상되었습니다.")
     if (schema.get("numeric_contract") != "passed"
             or schema.get("actual_count") != len(source["features"])
             or schema.get("rows") != sum(entry["rows"] for entry in source["splits"].values())
             or schema.get("split_rows") != {key: entry["rows"] for key, entry in source["splits"].items()}
-            or by_name["patient_overlap"]["details"].get("overlaps") != source["expected_patient_overlap"]):
+            or ("expected_patient_overlap" in source and overlaps != source["expected_patient_overlap"])):
         raise ValueError("Input structure or recorded prepared-data alignment is damaged.")
     if cohort is not None:
         if cohort.get("duplicate_admission_keys") != 0:
@@ -285,12 +302,12 @@ def validate_aggregate(eda, source, expected_ids=None):
         for split in SPLITS:
             if cohort["counts"][split]["admissions"] != source["splits"][split]["rows"]:
                 raise ValueError("Aggregate split count is damaged.")
-    if demographics is not None:
+    if demographics is not None and not generic:
         if demographics["status"] != "completed":
             raise ValueError("Input structure or recorded prepared-data alignment is damaged.")
         if demographics["details"]["original_race_missing"].get("test") != source["expected_test_race_missing"]:
             raise ValueError("Original missing-race aggregate differs from the registered source.")
-    if ("label_observability" in by_name and by_name["label_observability"]["details"].get(
+    if (not generic and "label_observability" in by_name and by_name["label_observability"]["details"].get(
             "target_definition", {}).get("status") != "passed"):
         raise ValueError("Input structure or recorded prepared-data alignment is damaged.")
     def aggregate_only(value):
@@ -311,7 +328,44 @@ def cell(value):
     return html.escape(str(value)).replace("|", "\\|").replace("\r", "").replace("\n", "<br>")
 
 
+def plan_report_lines(plans):
+    lines = []
+    for stage in ("eda", "evaluation"):
+        current = plans[stage]
+        lines += ["", f"### {stage}: 기본 정책 + 실제 AI 추천 + 사용자 선택",
+                  f"AI: `{current['ai_status']}`; planning_complete: `{current['planning_complete']}`.",
+                  "", "| 선택 ID | 출처 | 상태 | 이유 / 차단 근거 |", "|---|---|---|---|"]
+        for item in current["items"]:
+            lines.append(f"| `{item['id']}` | {cell(', '.join(item['sources']))} | "
+                         f"`{item['state']}` | {cell(item['reason'])} |")
+        lines.append("사용자 제외: " + (", ".join(current["user_excluded_ids"]) or "없음"))
+    readiness = planning.approval_readiness(plans)
+    lines += [
+        "", "## 사용자 선택과 승인",
+        f"교육용 계획 승인 준비: **{'완료' if readiness['ready'] else '미완료'}**.",
+        *(f"- {reason}" for reason in readiness["reasons"]),
+        "", "PR의 Conversation에 `/plan` 명령만 별도 댓글로 작성합니다. 아래는 사용법 예시입니다.",
+        "", "```text", "/plan add eda prediction_timing", "/plan add evaluation f1",
+        "/plan primary average_precision", "/plan threshold 0.3", "```",
+        "", "제외는 `/plan remove eda|evaluation ID`, 매개변수는 "
+        "`/plan parameter top_fraction 0.1`, AI 재추천은 `/plan recommend`를 사용합니다.",
+        "카탈로그에 등록된 ID만 처리하며 필수 schema/patient_overlap은 제외할 수 없습니다.",
+        "일반 댓글·인용·코드블록은 선택을 바꾸지 않습니다. 처리된 댓글을 고치지 말고 새 명령 댓글을 작성하세요.",
+        "AI 추천 provided, 주지표 선택, blocked 평가 항목 없음 상태를 확인한 뒤 "
+        "Ready for review → Merge합니다. 실패·대기 상태로 병합하면 승인 기록을 만들지 않습니다.",
+        "사람이 Merge한 시점의 선택·계획·자산·해시를 `research/approved/`에 새 불변 기록으로 보존합니다.",
+        "이 승인은 교육용 계획 확정이며 모델 실행·최종 평가·임상 사용 승인이 아닙니다.",
+        "", "DCA는 임상 행동·threshold 범위가 정해지기 전 보류합니다. 비교모델 없는 NRI는 적용하지 않습니다.",
+        "계획은 독립·누수 없는 임상 평가셋 인증이 아닙니다.",
+        "검토용 초안이며 자동 merge·후속 모델 실행을 하지 않습니다.", "",
+    ]
+    return lines
+
+
 def markdown_report(request, eda, provenance, plans):
+    if eda.get("dataset_context", {}).get("legacy") is False:
+        from app.input_review import generic_report
+        return generic_report(request, eda, provenance, plans)
     by_name = {item["block"]: item for item in eda["results"]}
     cohort = by_name.get("cohort", {}).get("details")
     plan = plans["evaluation"]
@@ -410,45 +464,7 @@ def markdown_report(request, eda, provenance, plans):
         "", f"사용자 선택 primary_metric: `{plan['primary_metric']}`, threshold: `{plan['threshold']}`. "
         "자동 승인·계산 결과가 아니며 임상 사용은 미승인입니다.",
     ]
-    for stage in ("eda", "evaluation"):
-        current = plans[stage]
-        lines += ["", f"### {stage}: 기본 정책 + 실제 AI 추천 + 사용자 선택",
-                  f"AI: `{current['ai_status']}`; planning_complete: `{current['planning_complete']}`.",
-                  "", "| 선택 ID | 출처 | 상태 | 이유 / 차단 근거 |", "|---|---|---|---|"]
-        for item in current["items"]:
-            lines.append(
-                f"| `{item['id']}` | {cell(', '.join(item['sources']))} | `{item['state']}` | "
-                f"{cell(item['reason'])} |")
-        lines.append("사용자 제외: " + (", ".join(current["user_excluded_ids"]) or "없음"))
-    readiness = planning.approval_readiness(plans)
-    lines += [
-        "", "## 사용자 선택과 승인",
-        f"교육용 계획 승인 준비: **{'완료' if readiness['ready'] else '미완료'}**.",
-        *(f"- {reason}" for reason in readiness["reasons"]),
-        "",
-        "PR의 Conversation에 아래와 같이 `/plan` 명령만 별도 댓글로 작성합니다. "
-        "다음 값은 사용법 예시이며 자동 적용되지 않습니다.",
-        "",
-        "```text",
-        "/plan add eda prediction_timing",
-        "/plan add evaluation f1",
-        "/plan primary average_precision",
-        "/plan threshold 0.3",
-        "```",
-        "",
-        "제외는 `/plan remove eda|evaluation ID`, 매개변수는 "
-        "`/plan parameter top_fraction 0.1`, AI 재추천은 `/plan recommend`를 사용합니다.",
-        "카탈로그에 등록된 ID만 처리하며 필수 schema/patient_overlap은 제외할 수 없습니다.",
-        "일반 댓글·인용·코드블록은 선택을 바꾸지 않습니다. 처리된 댓글을 고치지 말고 새 명령 댓글을 작성하세요.",
-        "AI 추천 provided, 주지표 선택, blocked 평가 항목 없음 상태를 확인한 뒤 "
-        "Ready for review → Merge합니다. 실패·대기 상태로 병합하면 승인 기록을 만들지 않습니다.",
-        "사람이 Merge한 시점의 선택·계획·자산·해시를 `research/approved/`에 새 불변 기록으로 보존합니다.",
-        "이 승인은 교육용 계획 확정이며 모델 실행·최종 평가·임상 사용 승인이 아닙니다.",
-        "", "DCA는 임상 행동·threshold 범위가 정해지기 전 보류합니다. 비교모델 없는 NRI는 적용하지 않습니다.",
-        "현재 공개 분할을 독립·누수 없는 임상 평가셋으로 인증하지 않습니다.",
-        "검토용 초안이며 자동 merge·후속 모델 실행을 하지 않습니다.",
-        "",
-    ]
+    lines.extend(plan_report_lines(plans))
     return "\n".join(lines)
 
 
@@ -562,6 +578,9 @@ def payload_plans(directory, eda, context, catalogs, policy):
             item["reason"] = " ".join(fragments)
         if stage == "evaluation":
             plans[stage]["interpretation"] = (
+                "계산 계획은 임상 사용 승인이나 독립 검증 성능 주장이 아닙니다. "
+                "등록된 데이터셋의 관측·누수·전처리 이력 제한을 유지합니다."
+                if "source_profile" in manifest["prepared_source"] else
                 "계산 계획은 임상 사용 승인이나 독립 검증 성능 주장이 아닙니다. 환자 중복과 validation 개발 사용의 한계를 유지합니다.")
     chosen = selected_report(eda, plans["eda"]["selected_ids"], context)
     validate_aggregate(chosen, manifest["prepared_source"], plans["eda"]["selected_ids"])
@@ -571,7 +590,7 @@ def payload_plans(directory, eda, context, catalogs, policy):
 def write_payload(root, request, eda, provenance, *, context=None, catalogs=None, policy=None):
     directory = report_directory(root, request["issue_number"])
     directory.mkdir(parents=True, exist_ok=True)
-    for name in (*OUTPUT_NAMES, "ai-recommendations.json"):
+    for name in (*OUTPUT_NAMES, "ai-recommendations.json", "input-schema.json", "input-mapping.json"):
         if (directory / name).is_symlink():
             raise ValueError("Generated report files must not be symlinks.")
     catalogs = catalogs if catalogs is not None else {
@@ -608,10 +627,15 @@ def write_payload(root, request, eda, provenance, *, context=None, catalogs=None
     write_json(directory / "recommendation-request.json", plans["recommendation_request"])
     if not (directory / "selection.json").exists():
         write_json(directory / "selection.json", selection)
-    (directory / "report.md").write_text(
-        markdown_report(request, enriched, enriched["provenance"], plans), encoding="utf-8",
-    )
+    markdown = markdown_report(request, enriched, enriched["provenance"], plans)
     names = [*OUTPUT_NAMES]
+    if context is not None and context.get("input_contract") is not None:
+        from app.input_review import mapping_lines
+        write_json(directory / "input-mapping.json", context["input_contract"])
+        write_json(directory / "input-schema.json", context["_input_schema_request"])
+        markdown += "\n" + "\n".join(mapping_lines(context["input_contract"]))
+        names.extend(("input-mapping.json", "input-schema.json"))
+    (directory / "report.md").write_text(markdown, encoding="utf-8")
     if (directory / "ai-recommendations.json").is_file():
         names.append("ai-recommendations.json")
     return [str((directory / name).relative_to(root)).replace("\\", "/") for name in names]
@@ -658,7 +682,8 @@ def merge_review_body(existing_body, generated_report):
 
 
 def publish_payload(root, request, eda, provenance, default_branch, *,
-                    context=None, catalogs=None, policy=None):
+                    context=None, catalogs=None, policy=None, input_request=None):
+    pin_review_code()
     repository = request["repository"]
     branch = f"research/review-issue-{request['issue_number']}"
     command(["git", "check-ref-format", "--branch", default_branch], cwd=root)
@@ -686,9 +711,16 @@ def publish_payload(root, request, eda, provenance, default_branch, *,
     legacy = previous_report.read_text(encoding="utf-8") if previous_report.is_file() else None
     if pull:
         merge_auto_body(pull.get("body"), "", legacy)
-    paths = write_payload(root, request, eda, provenance, context=context, catalogs=catalogs, policy=policy)
-    published = read_json(directory / "eda.json")
-    evaluation = read_json(directory / "evaluation-plan.json")
+    if input_request is not None:
+        from app.input_review import write_pending
+        paths = write_pending(root, request, input_request, provenance,
+                              context["_initial_selection"])
+        published = {"assessment_status": "not_run"}
+        evaluation = {"ai_status": "pending_input_mapping", "planning_complete": False}
+    else:
+        paths = write_payload(root, request, eda, provenance, context=context, catalogs=catalogs, policy=policy)
+        published = read_json(directory / "eda.json")
+        evaluation = read_json(directory / "evaluation-plan.json")
     generated = (directory / "report.md").read_text(encoding="utf-8")
     body = merge_auto_body(pull.get("body") if pull else "", generated, legacy)
     command(["git", "add", "--", *paths], cwd=root)
@@ -743,35 +775,25 @@ def publish_payload(root, request, eda, provenance, default_branch, *,
 def dispatch_ai(outcome, repository, default_branch):
     if outcome.get("status") not in ("created", "updated", "unchanged"):
         return {"status": "not_applicable"}
-    if outcome.get("ai_status") not in ("pending", "stale"):
+    if outcome.get("ai_status") not in ("pending", "stale", "pending_input_mapping"):
         return {"status": "not_needed", "ai_status": outcome.get("ai_status")}
     prefix = f"https://github.com/{repository}/pull/"
     url = outcome.get("pull_url", "")
     if not url.startswith(prefix):
         raise ValueError("AI dispatch requires the current repository's review PR.")
     number = issue_number(url[len(prefix):])
-    try:
-        command(["gh", "workflow", "run", "recommend-blocks.lock.yml", "--repo", repository,
-                 "--ref", default_branch, "-f", f"pull_request={number}"])
-    except RuntimeError:
-        summary = os.environ.get("GITHUB_STEP_SUMMARY")
-        if summary:
-            with Path(summary).open("a", encoding="utf-8") as handle:
-                handle.write("\n## AI 추천 요청 실패\n\n```json\n" + json.dumps({
-                    "ai_dispatch": {"status": "failed", "workflow": "recommend-blocks.lock.yml",
-                                    "pull_request": number},
-                    "review_pr_preserved": True,
-                }, ensure_ascii=False, indent=2) + "\n```\n")
-        raise RuntimeError("AI workflow dispatch failed; the review PR is preserved for retry.") from None
-    return {"status": "requested", "workflow": "recommend-blocks.lock.yml", "pull_request": number}
+    # The completed workflow event starts Copilot without changing actor to a bot.
+    return {"status": "requested", "workflow": "recommend-blocks.lock.yml",
+            "pull_request": number, "trigger": "workflow_run", "default_branch": default_branch}
 
 
 def run_workflow(event, event_name, repository, actor, default_branch, work, manual_number=None):
+    pin_review_code()
     request, decision = intake(event, event_name, repository, actor, manual_number)
     if decision:
         return decision
     branch = f"research/review-issue-{request['issue_number']}"
-    _, deferred = existing_pull(repository, branch, default_branch)
+    previous_pull, deferred = existing_pull(repository, branch, default_branch)
     if deferred:
         return deferred
     if (work.exists() or work.resolve().is_relative_to(ROOT.resolve())
@@ -793,7 +815,21 @@ def run_workflow(event, event_name, repository, actor, default_branch, work, man
     work.mkdir(parents=True)
     try:
         image_assets(reference, work / "assets")
-        context = load_context(work / "assets")
+        from app.input_contracts import load_profile
+        profile = load_profile()
+        binding = None
+        if profile["bindings"] is None and previous_pull is not None:
+            from app.input_review import read_binding
+            binding = read_binding(repository, previous_pull)
+        try:
+            context = load_context(work / "assets", input_profile=profile, input_mapping=binding)
+        except InputMappingRequired as pending:
+            context = {"_initial_selection": initial_selection, "_review_work": work}
+            outcome = publish_payload(
+                ROOT, request, None, provenance, default_branch, context=context,
+                catalogs=catalogs, policy=policy, input_request=pending.schema_request)
+            return {**outcome, "workflow_run_url": provenance["workflow_run_url"],
+                    "ai_dispatch": dispatch_ai(outcome, repository, default_branch)}
         context["_initial_selection"] = initial_selection
         context["_review_work"] = work
         eda = report(context, identifiers=["schema", "patient_overlap"])
@@ -807,10 +843,12 @@ def run_workflow(event, event_name, repository, actor, default_branch, work, man
 
 
 def main():
+    pin_review_code()
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="mode", required=True)
     commands.add_parser("workflow")
-    for name in ("prepare-ai", "apply-ai"):
+    commands.add_parser("resolve-ai-target")
+    for name in ("prepare-ai", "apply-ai", "apply-input-mapping"):
         cloud = commands.add_parser(name)
         cloud.add_argument("--pull-request", required=True, type=issue_number)
         cloud.add_argument("--work", required=True, type=Path)
@@ -823,11 +861,26 @@ def main():
     dry.add_argument("--run-url", required=True)
     args = parser.parse_args()
     try:
-        if args.mode in ("prepare-ai", "apply-ai"):
+        if args.mode == "resolve-ai-target":
+            if os.environ.get("GITHUB_ACTIONS") != "true":
+                raise ValueError("Remote mode is restricted to the GitHub Actions runner.")
+            from app.recommendation_events import resolve_target, write_outputs
+            outcome = resolve_target(
+                read_json(Path(os.environ["GITHUB_EVENT_PATH"])),
+                os.environ["GITHUB_EVENT_NAME"], os.environ["GITHUB_REPOSITORY"],
+                os.environ.get("REQUESTED_PR"),
+            )
+            write_outputs(outcome)
+        elif args.mode in ("prepare-ai", "apply-ai", "apply-input-mapping"):
             if os.environ.get("GITHUB_ACTIONS") != "true":
                 raise ValueError("Remote mode is restricted to the GitHub Actions runner.")
             from app import cloud_recommendations
-            handler = cloud_recommendations.prepare_ai if args.mode == "prepare-ai" else cloud_recommendations.apply_ai
+            if args.mode == "prepare-ai":
+                handler = cloud_recommendations.prepare_ai
+            elif args.mode == "apply-ai":
+                handler = cloud_recommendations.apply_ai
+            else:
+                handler = cloud_recommendations.apply_input_mapping
             outcome = handler(args.pull_request, args.work)
         elif args.mode == "workflow":
             if os.environ.get("GITHUB_ACTIONS") != "true":
@@ -839,6 +892,8 @@ def main():
                 os.environ["GITHUB_ACTOR"], default_branch,
                 Path(os.environ["RESEARCH_WORK_DIRECTORY"]), os.environ.get("RESEARCH_ISSUE_NUMBER"),
             )
+            from app.recommendation_events import write_target
+            write_target(outcome, os.environ["GITHUB_REPOSITORY"])
             summary = os.environ.get("GITHUB_STEP_SUMMARY")
             if summary:
                 with Path(summary).open("a", encoding="utf-8") as handle:
@@ -870,4 +925,6 @@ def main():
 
 
 if __name__ == "__main__":
+    # Helper imports must reuse this trusted entrypoint after report checkout.
+    sys.modules["app.research"] = sys.modules[__name__]
     main()

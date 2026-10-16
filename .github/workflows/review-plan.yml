@@ -27,7 +27,6 @@ jobs:
       contents: write
       pull-requests: write
       issues: read
-      actions: write
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -47,3 +46,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: python -B -m app.review
+      - name: Hand off exact recommendation target to workflow_run
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: research-ai-target-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/research-ai-target.json
+          if-no-files-found: error
+          retention-days: 1

@@ -715,11 +715,14 @@ class IsolationAndWorkflowTests(unittest.TestCase):
                       workflow["concurrency"]["group"])
         job = workflow["jobs"]["review-plan"]
         self.assertEqual(job["permissions"],
-                         {"contents": "write", "pull-requests": "write", "issues": "read", "actions": "write"})
+                         {"contents": "write", "pull-requests": "write", "issues": "read"})
         checkout = job["steps"][0]
         self.assertEqual(checkout["with"]["ref"], "${{ github.event.repository.default_branch }}")
         self.assertFalse(checkout["with"]["persist-credentials"])
-        self.assertEqual(job["steps"][-1]["env"]["GH_TOKEN"], "${{ github.token }}")
+        execution = next(step for step in job["steps"] if step.get("run") == "python -B -m app.review")
+        self.assertEqual(execution["env"]["GH_TOKEN"], "${{ github.token }}")
+        self.assertEqual(job["steps"][-1]["with"]["if-no-files-found"], "error")
+        self.assertIn("research-ai-target", job["steps"][-1]["with"]["name"])
         for step in job["steps"]:
             if "run" in step:
                 self.assertNotIn("${{ github.event.comment", step["run"])

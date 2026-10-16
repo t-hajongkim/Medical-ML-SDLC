@@ -305,6 +305,10 @@ def _planned_inputs(manifest, selection):
         and isinstance(checkpoint.get("sha256"), str)
         and re.fullmatch(r"[a-f0-9]{64}", checkpoint["sha256"]) is not None
     )
+    if "source_profile" in source:
+        probability = (isinstance(features, list) and bool(features)
+                       and features == source.get("features")
+                       and source.get("probability_output_planned") is True)
     files = manifest.get("files", {})
     aligned_ids = isinstance(files, dict) and "metadata.csv" in files
     comparison = selection["evaluation"]["comparison_model"] is not None
@@ -324,6 +328,11 @@ def _request(eda, manifest, selection, catalogs):
     if eda.get("data_id") is not None and eda["data_id"] != data_id:
         raise ValueError("Required EDA facts and data manifest refer to different data_id values")
     facts["data_id"] = data_id
+    if "input_mapping_hash" in eda:
+        mapping_hash = eda["input_mapping_hash"]
+        if not isinstance(mapping_hash, str) or re.fullmatch(r"[0-9a-f]{64}", mapping_hash) is None:
+            raise ValueError("Input mapping must have a SHA256 identifier.")
+        facts["input_mapping_hash"] = mapping_hash
     source = manifest.get("prepared_source", {})
     source = source if isinstance(source, dict) else {}
     target = source.get("target")

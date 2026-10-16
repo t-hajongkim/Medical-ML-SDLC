@@ -17,7 +17,7 @@ import uuid
 from urllib.parse import quote
 
 from app import planning, research
-from app.asset_contract import validate_image_reference
+from app.asset_contract import canonical_hash, validate_image_reference
 
 
 EDIT_POLICY = "처리한 댓글의 편집은 다시 적용하지 않습니다. 변경하려면 새 /plan 댓글을 작성하세요."
@@ -427,13 +427,38 @@ def _snapshot(repository, pull, issue, files):
             or not re.fullmatch(r"[0-9a-f]{64}", eda.get("data_id") or "")):
         raise ValueError("모델 실행 없는 집계 EDA 계약이 필요합니다.")
     source = _object(files["config/prepared-source.json"])
+    input_binding = None
+    if "input-mapping.json" in files:
+        from app.input_contracts import load_profile, validate_saved_binding
+        input_binding = _object(files["input-mapping.json"])
+        registry = _object(files["config/input-profiles.json"])
+        profile = load_profile(input_binding.get("profile_id"), registry=registry)
+        schema_request = (_object(files["input-schema.json"]) if "input-schema.json" in files
+                          else input_binding.get("schema_request"))
+        input_binding = validate_saved_binding(input_binding, profile, schema_request)
+        if profile["source_kind"] == "registered_prepared_v1":
+            original = input_binding["source_manifest"]
+            source = {
+                "source_profile": profile["profile_id"], "target": "target",
+                "features": original["feature_columns"],
+                "splits": {name: {"rows": count} for name, count in original["split_rows"].items()},
+                "target_mapping": profile["target_values"], "limitations": profile["limitations"],
+                "probability_output_planned": profile.get("probability_output_planned") is True,
+            }
+        expected_mapping_hash = canonical_hash({
+            name: input_binding[name] for name in
+            ("profile_id", "data_id", "bindings", "split_values", "target_values", "profile_snapshot")
+        })
+        if eda.get("data_id") != input_binding["data_id"] or eda.get("input_mapping_hash") != expected_mapping_hash:
+            raise ValueError("병합된 EDA와 검증한 입력 매핑의 data_id/hash가 다릅니다.")
     research.validate_aggregate(eda, source)
     catalogs = {"eda": _object(files["config/eda-catalog.json"]),
                 "evaluation": _object(files["config/metric-catalog.json"])}
     policy = _object(files["config/planning-policy.json"])
     manifest = {
         "data_id": eda["data_id"], "prepared_source": source,
-        "feature_columns": source["features"], "files": {"metadata.csv": None},
+        "feature_columns": source["features"],
+        "files": input_binding["source_manifest"]["files"] if input_binding else {"metadata.csv": None},
         "split_rows": {name: source["splits"][name]["rows"]
                        for name in ("train", "validation", "test")}}
     plans = planning.build_plans(eda, manifest, selection, ai, catalogs=catalogs, policy=policy)
@@ -484,6 +509,7 @@ def _snapshot(repository, pull, issue, files):
         "merger": pull["merged_by"]["login"], "merged_at": merged_at,
         "file_hashes": {name: _hash(content) for name, content in sorted(files.items())},
         "data_id": eda["data_id"], "data_image": reference, "model_image": model_reference,
+        "input_contract": input_binding,
         "model": copy.deepcopy(source.get("model", {})),
         "selection": selection, "primary_metric": primary,
         "threshold": evaluation.get("threshold"), "parameters": evaluation.get("parameters"),
@@ -497,10 +523,12 @@ def _snapshot(repository, pull, issue, files):
         "limitations": {"data": source.get("limitations", []),
                         "model": source.get("model", {}).get("limitations", []),
                         "patient_overlap": {
-                            "overlaps": copy.deepcopy(source["expected_patient_overlap"]),
+                            "overlaps": copy.deepcopy(next(
+                                item["details"]["overlaps"] for item in results
+                                if item["block"] == "patient_overlap")),
                             "status": next(item["status"] for item in results
                                            if item["block"] == "patient_overlap")},
-                        "validation_development_reuse": True,
+                        "validation_development_reuse": True if "source_profile" not in source else None,
                         "independent_clinical_validation": False,
                         "uncertain_blocks": [item["block"] for item in results
                                              if item["status"] == "unverifiable"],
@@ -524,6 +552,13 @@ def freeze_merge(event, repository, default):
     directory = f"research/reports/issue-{issue}/"
     files = {name: _file(repository, tree, directory + name) for name in REPORT_FILES}
     files.update({name: _file(repository, tree, name) for name in CONFIG_FILES})
+    binding = _file(repository, tree, directory + "input-mapping.json", optional=True)
+    if binding is not None:
+        files["input-mapping.json"] = binding
+        files["config/input-profiles.json"] = _file(repository, tree, "config/input-profiles.json")
+        schema = _file(repository, tree, directory + "input-schema.json", optional=True)
+        if schema is not None:
+            files["input-schema.json"] = schema
     snapshot = _snapshot(repository, pull, issue, files)
     path = f"research/approved/issue-{issue}/{commit}.json"
     content = _json(snapshot).encode("utf-8")
@@ -571,6 +606,8 @@ def main():
         event = _object(Path(os.environ["GITHUB_EVENT_PATH"]).read_bytes())
         outcome = run_event(event, os.environ["GITHUB_EVENT_NAME"],
                             os.environ["GITHUB_REPOSITORY"], os.environ["GITHUB_ACTOR"])
+        from app.recommendation_events import write_target
+        write_target(outcome, os.environ["GITHUB_REPOSITORY"])
         _summary(outcome)
     except (ValueError, RuntimeError, OSError, KeyError, TypeError) as error:
         _summary({"status": "failed", "approval_record_created": False,

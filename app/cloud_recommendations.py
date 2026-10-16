@@ -9,7 +9,7 @@ import subprocess
 
 from app.asset_contract import canonical_hash, read_json, write_json
 from app.dataset import ROOT
-from app.eda import load_context, report
+from app.eda import InputMappingRequired, load_context, report
 from app import planning
 
 
@@ -17,11 +17,18 @@ INPUT_FILES = (
     "request.json", "eda.json", "report.md", "evaluation-plan.json",
     "eda-plan.json", "recommendation-request.json", "selection.json",
     "ai-recommendations.json",
+    "input-schema.json", "input-mapping.json",
 )
 OUTPUT_FILES = (
     "ai-recommendations.json", "eda-plan.json", "evaluation-plan.json",
     "eda.json", "report.md", "recommendation-request.json",
 )
+MAPPING_OUTPUTS = ("input-schema.json", "input-mapping.json")
+
+
+def _outputs(session):
+    names = (*OUTPUT_FILES, *MAPPING_OUTPUTS) if session.get("has_input_mapping") else OUTPUT_FILES
+    return [session["report_dir"] + "/" + name for name in names]
 
 
 def _runtime():
@@ -87,7 +94,7 @@ def prepare_ai(pull_request, work):
     content = {}
     for name in INPUT_FILES:
         value = _read_branch_file(
-            flow, head, report_dir + "/" + name, optional=name == "ai-recommendations.json")
+            flow, head, report_dir + "/" + name, optional=name not in ("request.json", "selection.json"))
         if value is not None:
             content[name] = value
     request = json.loads(content["request.json"])
@@ -105,31 +112,85 @@ def prepare_ai(pull_request, work):
             path.write_text(value, encoding="utf-8")
         selection = read_json(destination / "selection.json")
         flow.image_assets(reference, work / "assets")
-        context = load_context(work / "assets")
-        required = policy["eda"]["required"]
-        baseline = report(context, required)
-        plans = planning.build_plans(
-            baseline, context["data_manifest"], selection, None,
-            catalogs=catalogs, policy=policy,
-        )
-        ai_request = plans["recommendation_request"]
-        write_json(destination / "recommendation-request.json", ai_request)
-        write_json(work / "AI_REQUEST.json", ai_request)
+        from app.input_contracts import load_profile
+        profile = load_profile()
+        binding = read_json(destination / "input-mapping.json") if "input-mapping.json" in content else None
+        phase, context, schema_request = "recommendation", None, None
+        try:
+            context = load_context(work / "assets", input_profile=profile, input_mapping=binding)
+        except InputMappingRequired as pending:
+            phase, schema_request = "input_mapping", pending.schema_request
         session = {
             "schema_version": 1, "repository": repository, "pull_request": number,
             "issue_number": issue, "head_sha": head, "head_branch": branch,
             "default_branch": default, "report_dir": report_dir,
-            "allowed_outputs": [report_dir + "/" + name for name in OUTPUT_FILES],
             "data_image": reference, "code_commit": code_commit,
-            "context_hash": ai_request["context_hash"], "catalogs": catalogs, "policy": policy,
+            "catalogs": catalogs, "policy": policy, "phase": phase, "input_profile": profile,
             "selection_hash": canonical_hash(selection), "request_hash": canonical_hash(request),
+            "has_input_mapping": phase == "input_mapping" or context.get("input_contract") is not None,
         }
+        session["allowed_outputs"] = _outputs(session)
+        if context is not None:
+            ai_request = _prepare_block_request(flow, destination, work, session, context, selection)
+            schema_request = context.get("_input_schema_request")
+            session["context_hash"] = ai_request["context_hash"]
+        else:
+            session["context_hash"] = schema_request["context_hash"]
+        write_json(work / "INPUT_SCHEMA_REQUEST.json", {"status": phase, "request": schema_request})
         write_json(work / "session.json", session)
-        return {"status": "ready_for_copilot", "pull_request": number,
-                "context_hash": ai_request["context_hash"], "request_path": str(work / "AI_REQUEST.json")}
+        return {"status": "ready_for_input_mapping" if phase == "input_mapping" else "ready_for_copilot",
+                "phase": phase, "pull_request": number, "context_hash": session["context_hash"],
+                "request_path": str(work / ("INPUT_SCHEMA_REQUEST.json" if phase == "input_mapping"
+                                           else "AI_REQUEST.json"))}
     except Exception:
         shutil.rmtree(work)
         raise
+
+
+def _prepare_block_request(flow, folder, work, session, context, selection):
+    baseline = report(context, session["policy"]["eda"]["required"])
+    flow.validate_aggregate(baseline, context["data_manifest"]["prepared_source"],
+                            session["policy"]["eda"]["required"])
+    plans = planning.build_plans(
+        baseline, context["data_manifest"], selection, None,
+        catalogs=session["catalogs"], policy=session["policy"])
+    request = plans["recommendation_request"]
+    write_json(folder / "recommendation-request.json", request)
+    write_json(work / "AI_REQUEST.json", request)
+    if context.get("input_contract") is not None:
+        write_json(folder / "input-mapping.json", context["input_contract"])
+        write_json(folder / "input-schema.json", context["_input_schema_request"])
+    return request
+
+
+def apply_input_mapping(pull_request, work):
+    flow, repository = _runtime()
+    number, work = flow.issue_number(pull_request), Path(work)
+    session = read_json(work / "session.json")
+    if (session.get("repository") != repository or session.get("pull_request") != number
+            or session.get("phase") != "input_mapping"):
+        raise ValueError("현재 입력 매핑 단계의 세션만 처리합니다.")
+    pull, _, _, _ = _pull(flow, repository, number)
+    if pull["head"]["sha"] != session["head_sha"]:
+        raise ValueError("입력 매핑 중 PR이 변경되었습니다. 최신 입력으로 다시 시작하세요.")
+    folder = flow.report_directory(ROOT, session["issue_number"])
+    selection = read_json(folder / "selection.json")
+    if canonical_hash(selection) != session["selection_hash"]:
+        raise ValueError("입력 매핑 단계에서 사람의 선택을 바꿀 수 없습니다.")
+    from app.input_contracts import _read_json, apply_mapping
+    proposal = _read_json(work / "input-mapping-proposal.json")
+    bundle = apply_mapping(work / "assets", proposal, profile=session["input_profile"])
+    context = bundle["context"]
+    context["_input_schema_request"] = bundle["schema_request"]
+    request = _prepare_block_request(flow, folder, work, session, context, selection)
+    session.update(phase="recommendation", has_input_mapping=True,
+                   context_hash=request["context_hash"])
+    session["allowed_outputs"] = _outputs(session)
+    write_json(work / "session.json", session)
+    write_json(work / "INPUT_SCHEMA_REQUEST.json",
+               {"status": "recommendation", "request": bundle["schema_request"]})
+    return {"status": "input_mapping_validated", "next_tool": "read-recommendation-context",
+            "context_hash": request["context_hash"], "model_execution_performed": False}
 
 
 def _git_tree_commit(flow, root, work, session):
@@ -181,12 +242,14 @@ def apply_ai(pull_request, work):
     if (session.get("schema_version") != 1 or session.get("repository") != repository
             or session.get("pull_request") != number):
         raise ValueError("Recommendation session does not match this repository and PR.")
+    if session.get("phase", "recommendation") != "recommendation":
+        raise ValueError("먼저 입력 매핑을 검증한 뒤 EDA·블록 추천을 처리해야 합니다.")
     pull, branch, issue, default = _pull(flow, repository, number)
     if (session.get("head_sha") != pull["head"]["sha"] or session.get("head_branch") != branch
             or session.get("issue_number") != issue or session.get("default_branch") != default
             or session.get("report_dir") != f"research/reports/issue-{issue}"):
         raise ValueError("The review PR changed; rerun recommendations on its current head.")
-    expected_outputs = [session["report_dir"] + "/" + name for name in OUTPUT_FILES]
+    expected_outputs = _outputs(session)
     if session.get("allowed_outputs") != expected_outputs:
         raise ValueError("Recommendation output allowlist changed.")
     folder = flow.report_directory(ROOT, issue)
@@ -196,7 +259,13 @@ def apply_ai(pull_request, work):
     ai = read_json(folder / "ai-recommendations.json")
     if ai.get("context_hash") != session["context_hash"]:
         raise ValueError("Copilot recommendations belong to a different context.")
-    context = load_context(work / "assets")
+    if "input_profile" in session:
+        binding_path = folder / "input-mapping.json"
+        context = load_context(
+            work / "assets", input_profile=session["input_profile"],
+            input_mapping=read_json(binding_path) if binding_path.is_file() else None)
+    else:
+        context = load_context(work / "assets")
     baseline = report(context, session["policy"]["eda"]["required"])
     plans = planning.build_plans(
         baseline, context["data_manifest"], selection, ai,

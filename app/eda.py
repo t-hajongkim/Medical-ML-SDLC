@@ -6,7 +6,7 @@ import csv
 import json
 from pathlib import Path
 
-from app.asset_contract import write_json
+from app.asset_contract import canonical_hash, write_json
 from app.blocks.catalog import CHECKS, run_checks
 from app.blocks.checks._shared import split_name, target_value
 from app.blocks.checks.label_observability import MAPPING
@@ -22,6 +22,12 @@ STATUS_MEANINGS = {
     "unverifiable": "Required input or evidence is missing; measured subchecks may still be available.",
     "completed": "Descriptive aggregation succeeded; not research suitability or leakage certification.",
 }
+
+
+class InputMappingRequired(ValueError):
+    def __init__(self, schema_request):
+        super().__init__("입력 매핑이 없거나 오래되었습니다. AI 추천과 검증 후에 데이터 점검을 실행합니다.")
+        self.schema_request = schema_request
 
 
 def feature_rows(directory):
@@ -103,7 +109,28 @@ def raw_evidence(raw_csv, records, manifest):
     }
 
 
-def load_context(assets: Path, raw_csv: Path | None = None) -> dict:
+def load_context(assets: Path, raw_csv: Path | None = None, *,
+                 input_profile=None, input_mapping=None) -> dict:
+    if input_profile is not None:
+        from app.input_contracts import inspect_inputs, apply_mapping
+        bundle = inspect_inputs(assets, profile=input_profile)
+        if bundle["status"] == "needs_mapping":
+            if (input_mapping is None or input_mapping.get("context_hash")
+                    != bundle["schema_request"]["context_hash"]):
+                raise InputMappingRequired(bundle["schema_request"])
+            recommendation = input_mapping.get("recommendation")
+            if not isinstance(recommendation, dict):
+                raise ValueError("검증된 입력 매핑의 원래 추천 기록이 없습니다.")
+            bundle = apply_mapping(assets, recommendation, profile=input_profile)
+        context = bundle["context"]
+        context["_input_schema_request"] = bundle["schema_request"]
+        if context.get("dataset_context", {}).get("legacy") is True:
+            context["target_mapping"] = context["data_manifest"]["prepared_source"]["target_mapping"]
+        if raw_csv is not None:
+            if context.get("dataset_context", {}).get("legacy") is not True:
+                raise ValueError("등록 입력의 raw 검사는 별도 출처 어댑터가 필요합니다.")
+            context["raw_evidence"] = raw_evidence(raw_csv, context["metadata"], context["data_manifest"])
+        return context
     manifest = validate_data_manifest(assets)
     with (assets / "metadata.csv").open(encoding="utf-8", newline="") as handle:
         records = []
@@ -131,7 +158,7 @@ def report(context: dict, identifiers: list[str] | None = None) -> dict:
     status = "failed" if "failed" in statuses else (
         "unverifiable" if "unverifiable" in statuses else "completed")
     manifest = context.get("data_manifest") or {}
-    return {
+    output = {
         "schema_version": 1, "kind": "aggregate-eda", "report_generated": True,
         "assessment_status": status, "status_meanings": STATUS_MEANINGS,
         "interpretation": "Report success is not a research suitability or leakage-free certification.",
@@ -141,6 +168,15 @@ def report(context: dict, identifiers: list[str] | None = None) -> dict:
         "model_execution_performed": False, "training_performed": False,
         "preprocessing_performed": False, "results": results,
     }
+    binding = context.get("input_contract")
+    if binding is not None:
+        output["input_profile"] = binding["profile_id"]
+        output["input_mapping_hash"] = canonical_hash({
+            name: binding[name] for name in
+            ("profile_id", "data_id", "bindings", "split_values", "target_values", "profile_snapshot")
+        })
+        output["dataset_context"] = context["dataset_context"]
+    return output
 
 
 def main():

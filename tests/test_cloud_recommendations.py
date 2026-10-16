@@ -14,6 +14,39 @@ from app import research
 
 
 class CloudContractTests(unittest.TestCase):
+    def test_completed_workflow_triggers_keep_default_human_roles(self):
+        import yaml
+        root = Path(__file__).resolve().parents[1]
+        text = (root / ".github" / "workflows" / "recommend-blocks.md").read_text(encoding="utf-8")
+        frontmatter = text.split("---", 2)[1]
+        config = yaml.load(frontmatter, Loader=yaml.BaseLoader)
+        trigger = config["on"]
+        self.assertNotIn("bots", trigger)
+        self.assertNotIn("roles", trigger)
+        self.assertIn("workflow_dispatch", trigger)
+        self.assertEqual(trigger["workflow_run"]["workflows"],
+                         ["Prepare research review", "Review selections and freeze approved plan"])
+        self.assertEqual(trigger["workflow_run"]["types"], ["completed"])
+        self.assertNotIn("pull_request_target", trigger)
+        self.assertNotIn("repository_dispatch", trigger)
+        self.assertEqual(config["checkout"]["ref"], "${{ github.event.repository.default_branch }}")
+        self.assertEqual(config["permissions"]["contents"], "read")
+
+    def test_compiled_workflow_keeps_default_roles_and_exact_target_dependencies(self):
+        import yaml
+        root = Path(__file__).resolve().parents[1]
+        path = root / ".github" / "workflows" / "recommend-blocks.lock.yml"
+        config = yaml.load(path.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
+        pre = config["jobs"]["pre_activation"]
+        membership = next(step for step in pre["steps"] if step.get("id") == "check_membership")
+        self.assertNotIn("GH_AW_ALLOWED_BOTS", membership["env"])
+        self.assertEqual(membership["env"]["GH_AW_REQUIRED_ROLES"], "admin,maintainer,write")
+        self.assertIn("is_team_member", pre["outputs"]["activated"])
+        self.assertIn("resolve_review", config["jobs"]["agent"]["needs"])
+        self.assertIn("resolve_review", config["jobs"]["safe_outputs"]["needs"])
+        self.assertIn("needs.resolve_review.outputs.ready", config["jobs"]["activation"]["if"])
+        self.assertNotIn("resolve_review", config["jobs"]["refresh_review_body"]["needs"])
+
     def test_runtime_rejects_local_execution(self):
         with patch.dict(os.environ, {"GITHUB_ACTIONS": "false"}):
             with self.assertRaisesRegex(ValueError, "restricted"):

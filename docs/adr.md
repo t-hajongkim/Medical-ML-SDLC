@@ -1,5 +1,43 @@
 # 현재 결정 기록
 
+## 2026-10-16: 앞단 config/AI 입력 매핑을 이번 수정에 포함
+
+- 사용자 요구: "데이터 범용성 확장을 위해 config로 input들 빼거나 ai가 schema input에 맞는 parameter들로 콜".
+  "응 그렇게 진행하고" 승인에 따라 후속으로 미루던 입력 어댑터를 이번 수정에 포함한다.
+- 선택: 등록된 준비 데이터는 확정 config를 재사용하고, 등록 프로필의 bindings가 null인 새 스키마만 AI로 추천한다.
+  임의 원본 수입·새 fit·임의 함수 실행은 추가하지 않는다. 세 분할·이진 정답·준비 숫자 특성 계약을 유지한다.
+- 역할: AI는 승인된 스키마·타입·설명·의미 후보·코드북을 받아 bindings/reasons/evidence를 추천한다.
+  Python은 등록 의미·컬럼·형식·hash를 검증하고 표준 context를 만든 뒤에만 EDA를 호출한다.
+  환자 키를 입원 ID로 대체하거나 없는 식별자를 생성하지 않는다.
+- 현재 Diabetes는 등록된 환자 연결·원본 결측 정보를 유지하며 추가 입력 AI 호출 없이 config를 사용한다.
+  매핑 없는 입력은 EDA 미실행 PR을 만들고 같은 workflow_run 체인에서 먼저 입력 AI를 처리한다.
+- 후단 블록 추천은 별도의 새 hash를 사용하며 입력 매핑 hash도 포함한다.
+  검증된 매핑·원래 추천·profile/source 스냅샷을 보존하고 Merge 시 registry와 다시 대조한다.
+- generic 보고서·블록은 Diabetes 전용 cohort/30일 추적/Caucasian 대치/113-feature 주장을 적용하지 않는다.
+- 검증 범위: 다른 이름/분할값/정답값의 합성 준비 패키지와 실제 집합 비교·ZIP·Git fixture를 사용한다.
+  다른 실제 임상 데이터·실제 원격 AI 성공으로 표현하지 않는다. 모호한 입력은 확인/등록 보완이 필요하다.
+- 다시 볼 조건: 임의 CSV, 다중분류, 새로운 분할 종류, 원문 목적의 AI 해석, 모델 실행·Pages가 필요할 때다.
+
+## 2026-10-16: 사수님 workflow_run 패턴으로 AI 연결 수정
+
+- 관측: Test2 PR #3의 추천 run 38770216543은 pre_activation만 success이고 agent는 skipped였다.
+  GITHUB_TOKEN 호출자 github-actions[bot]의 협업자 역할 none이 기본 사람 역할 검사에 걸렸다.
+- 질문: 호출 이벤트 전환, 역할 검사 완화, 명시적 봇 허용 중 무엇을 사용할까?
+- 검토 이력: repository_dispatch·명시적 봇 허용안을 검토했지만 배포하지 않았다.
+  사용자 요청 "사수님이랑 다른 방식으로 구현하기 싫어서"에 따라 원본의 이벤트 연결을 다시 확인했다.
+- 선택: 원본 analysis-verification.md처럼 workflow_run을 사용한다. 기존 결정론적 EDA는 유지하고
+  준비·검토 성공 완료 후 AI가 이어받는다. 토큰으로 새 workflow_dispatch를 호출하지 않는다.
+- 대상 전달: 원본의 최신 PR 선택을 복제하지 않고 PR 번호·run ID/회차·source SHA만 담은 작은 artifact로 연결한다.
+  동시 Issue를 섞지 않고 같은 저장소·기본 브랜치·등록된 선행 경로와 일치할 때만 AI를 실행한다.
+  부정·만료·모호한 입력은 실패로 드러내며 요청하지 않은 실행과 Merge 확정은 AI를 시작하지 않는다.
+- 권한: 기본 사람 admin/maintainer/write와 기존 same-repo PR·파일 제한을 유지한다.
+  on.bots·roles: all·새 PAT·compiler 업그레이드는 없다. 준비·검토의 actions: write는 제거한다.
+- 검증: source run·회차·정확한 PR·실제 ZIP 파싱·변조/만료/잘못된 경로를 합성 API로 검증한다.
+  기본 브랜치 이름을 고정하지 않아 정적 branch-filter 경고는 남지만, agent 전 source branch 검증으로 제한한다.
+- 결정자: 사수님과 같은 이벤트 방식을 요구한 사용자. 구체적 전달 계약·기존 블록 보존은 assistant가 구현한다.
+- 반영: 템플릿만 수정·push한다. Test2와 실제 Copilot/PR 실행은 사용자가 관리한다.
+  당시 제외했던 입력 어댑터는 위 추가 승인으로 포함한다. 임의 분할 종류의 일반화는 여전히 제외한다.
+
 ## 2026-10-16: 조합형 복구·PR1 승인 구현과 템플릿만 반영
 
 - 질문: 고정 평가 후보 대신 원래의 기본 + 실제 AI 추천 + 사용자 추가/제외를 어떻게 복구할까?

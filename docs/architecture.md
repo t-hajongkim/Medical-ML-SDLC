@@ -6,13 +6,20 @@
 연구 Issue / prepare-eda-pr.yml
   → default branch의 신뢰 코드와 폼 YAML 계약
   → 고정 Public 데이터 이미지의 준비파일 검증
+  → input-profiles.json: 등록한 컬럼·역할·값 매핑·data_id 검증
+      확정 bindings: config 재사용 후 표준 context
+      미확정 bindings: EDA 미실행 PR + 공개 schema 요청 → workflow_run → AI 입력 매핑
+        → 등록 의미·근거·hash 검증 후에만 표준 context / EDA
   → EDA 카탈로그: 필수 + 기본 + AI + 사용자 추가 - 사용자 제외
   → 별도 Evaluation 카탈로그: 결과 지표 실행 계획만 조합
   → 집계·두 계획·사람 소유 selection.json → 연구검토 draft PR
+  → PR 번호·run ID/회차·source SHA만 전달 artifact에 기록
+  → 선행 workflow 성공 완료 이벤트(workflow_run)
+  → resolve_review: 동일 저장소·기본 브랜치·등록된 선행 경로·전달 출처 검증
   → recommend-blocks.lock.yml의 Copilot 엔진
       공개 집계·구조화 목적·카탈로그만 제공
       등록 ID·한국어 이유·허용 evidence를 검증
-      생성파일 6개와 자동 PR 본문 영역만 갱신
+      기본 생성파일 6개·입력 메타데이터 2개와 자동 PR 본문 영역만 갱신
   → review-plan.yml의 명령 전용 /plan 댓글
       사람 write/maintain/admin 권한 확인
       선택·감사 기록의 원자적 저장 → 신뢰 소스 clone에서 보고서 재생성
@@ -24,18 +31,35 @@ EDA는 데이터 점검, Evaluation은 예측 결과 지표다. 서로 다른 �
 15개 지표 계산 모듈은 준비했지만 이 연결에서는 모델 추론·지표 계산을 호출하지 않는다.
 기본/필수 선택은 `planning-policy.json`, 연구별 선택은 `selection.json`, 실제 AI 입력은
 `ai-recommendations.json`으로 분리한다. AI는 사람의 주지표·threshold를 결정하지 않는다.
+앞단 입력 AI와 후단 블록 AI는 서로 다른 context hash를 사용한다.
+입력 AI는 공개 스키마·의미 사전으로 bindings만 추천하며 후단은 검증된 매핑 hash와 EDA 집계를 받는다.
+매핑이 없으면 EDA를 먼저 실행하거나 환자 중복 0명으로 통과시키지 않는다.
 `planning_complete`는 추천 조합 완료이지 사람의 승인 완료가 아니다.
 보고서의 별도 승인 준비 조건은 AI provided·명시적 주지표·선택 평가항목 blocked 없음이다.
 
 AI pending/stale은 미완료로 남기며 가짜 빈 추천을 성공으로 만들지 않는다.
 Copilot native 인증은 github.token과 copilot-requests: write이며 PAT/AI Secret을 요구하지 않는다.
-일반 연결의 actions: write는 추천 워크플로 요청에만 필요하다.
+준비·검토 단계는 토큰으로 새 워크플로를 dispatch하지 않으므로 actions: write를 제거했다.
+사수님 analysis-verification.md와 같은 workflow_run 연결을 사용하며 기본 사람 역할 검사를 유지한다.
+on.bots 예외나 roles: all은 추가하지 않는다. 대상 해석 job의 actions: read는 전달 artifact 조회용이다.
+대상은 해당 실행이 기록한 PR 한 개이며 최신 PR 추측·다른 저장소·다른 브랜치·변조/만료 전달 파일은 거부한다.
+서로 다른 실행은 run ID/회차로 구분하고 Merge 승인 기록은 AI를 다시 요청하지 않는다.
+정적 branch 제한 대신 source run의 실제 default branch와 경로를 코드에서 검증하므로 compiler 경고 1개는 남는다.
 사람 선택 파일·요청 원문은 AI 게시 대상에서 제외하며 PR의 사람 본문·제목·댓글을 보존한다.
+댓글 감사 기록 review-state.json도 AI가 변경하지 않으며 전송 제외한다.
+
+입력 확장 범위는 등록된 준비 이진분류 자산이다. 기존 v2 Diabetes 검증은 유지한다.
+등록형 v1은 source file hash·data_id·feature schema·3분할을 검사하고 원본 컬럼을 표준 역할로 연결한다.
+단순한 이름 추정으로 환자 의미를 승인하지 않으며 등록 의미 근거가 없는 후보를 허용하지 않는다.
+generic 경로의 코호트/정답/인구집단/전처리 해석은 데이터셋 문맥을 사용하고 Diabetes 전용 가정은 적용하지 않는다.
+환자 중복 계산 자체는 같은 patient_key 집합의 교집합이다. 지원된 합성 스키마 두 개로 동일 결과를 확인한다.
 
 명령 댓글은 등록된 ID와 검증된 매개변수만 변경한다. 일반 문장·인용·코드블록을 명령으로 해석하지 않는다.
 연속 댓글은 미처리 ID 순서로 처리하고, 이미 처리한 댓글 편집은 새 요청으로 보지 않는다.
 선택 저장 뒤 보고서 갱신이 실패해도 기존 선택을 보존하며 재실행으로 갱신을 복구한다.
 PR 코드·사용자 셸·SQL은 실행하지 않는다. 원래 checkout의 HEAD/index/origin도 변경하지 않는다.
+보고서 브랜치 checkout 전에 도우미 모듈을 신뢰 코드에서 고정하고, CLI의 __main__/app.research 참조를 같은 모듈로 유지한다.
+CHECKS는 기존 catalog의 미리 import된 함수 참조를 사용한다. 보고서 브랜치에 Python 파일이 바뀌어 있어도 새로 불러오지 않는다.
 
 Merge 후 `research/approved/issue-N/{merge-SHA}.json`은 현재 main의 보고서가 아니라
 실제로 병합한 commit의 입력을 검증해 기록한다. 최신 main에는 그 승인 파일만 추가하고 force push하지 않는다.
@@ -96,7 +120,7 @@ prepare-eda-pr.yml: issues.opened / workflow_dispatch(issue_number)
 ```
 
 모델 이미지·raw 원본은 받지 않고 DB 서비스를 실행하지 않는다. 임의 ref/image/path/SQL/Python을 입력받지 않는다.
-권한은 contents write / pull-requests write / issues read / actions write다.
+권한은 contents write / pull-requests write / issues read다.
 Public data pull에는 packages write·새 자격증명이 필요 없다.
 OWNER/COLLABORATOR Issue만 자동 진행하고 다른 작성자는 수동 dispatch를 요구한다.
 수동 실행자는 API write/maintain/admin 권한을 확인한다.
@@ -158,6 +182,11 @@ GHCR은 실행 DB가 아니라 재현할 이미지와 파일의 저장소다.
 | `app/blocks/metrics/` | 독립 결과 지표 15개와 입력 검증. 3단계에서는 계산하지 않음 |
 | `recommend-blocks.md`, `recommend-blocks.lock.yml`, `app/cloud_recommendations.py` | 실제 gh-aw Copilot 엔진·공개 집계·추천 검증·기존 PR 안전 갱신 |
 | `review-plan.yml`, `app/review.py` | 사람의 명령 댓글과 Merge 기반 불변 승인 기록 |
+| `app/recommendation_events.py` | 선행 실행의 정확한 대상·출처를 검증하고 추천 job에 PR 번호 전달 |
+| `app/input_contracts.py`, `config/input-profiles.json` | 등록 프로필·무결성·config/AI 매핑·표준 context·저장 매핑 검증 |
+| `app/input_review.py` | 미확정 입력 PR·입력 역할 표시·데이터셋 중립 집계 보고서 |
+| `tests/test_input_contracts.py`, `tests/test_input_pipeline.py` | 다른 컬럼 스키마·매핑 전 EDA 금지·두 단계 AI·승인 매핑 변조 거부 |
+| `tests/test_recommendation_events.py` | 합성 이벤트·실제 ZIP 파싱·출처/대상/만료/변조/경로 침범 거부. 실제 원격 실행 아님 |
 | `tests/test_research_workflow.py` | 입력/권한/이미지·GH 모의/멱등 갱신/closed PR/집계·추천 계약 회귀 |
 | `config/assets.json` | 실제 게시된 data/model 두 digest 고정 참조. 두 패키지 Public·익명 조회 확인 |
 

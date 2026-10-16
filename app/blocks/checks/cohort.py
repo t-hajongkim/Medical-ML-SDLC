@@ -33,6 +33,15 @@ def run(context: dict) -> dict:
                                  "reason": "Free text is neither executed nor echoed; no approved structured selection is implemented."},
         "repeated_admissions": "Retained; not duplicate patients or a first-admission cohort.",
     }
+    if context.get("dataset_context", {}).get("legacy") is False:
+        registered = context["dataset_context"]
+        details["data_unit"] = "registered row; clinical unit requires source documentation"
+        details["count_unit"] = "rows"
+        details["source_selection_description"] = {
+            "registered": registered.get("source_selection"),
+            "scope": "Registered source description only; not row-level certification.",
+        }
+        details["repeated_admissions"] = "Rows retained; no first-event filtering performed."
     if details["research_unit"] not in ("admission", "patient", "not declared"):
         return result("cohort", "failed", {**details, "reason": "Unknown research unit."}, context)
     failed = unique != len(records) or details["row_level_selection"]["status"] == "failed"
