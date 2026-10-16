@@ -1,0 +1,137 @@
+{
+  "schema_version": 1,
+  "stage": "evaluation",
+  "selected_ids": [
+    "roc_auc",
+    "average_precision",
+    "brier_score",
+    "calibration_curve"
+  ],
+  "items": [
+    {
+      "id": "roc_auc",
+      "sources": [
+        "default",
+        "ai"
+      ],
+      "state": "eligible_planned_inputs",
+      "reason": "기본 정책에 포함된 블록입니다. 확률 출력 계획이 있고 양성·음성 클래스가 모두 존재해 임계값 없이 순위 구분력을 볼 수 있습니다. 환자 중복과 개발 중 검증 재사용으로 낙관적일 수 있어 독립 임상 검증 결과로 해석하지 않습니다. 주지표는 사람이 확정합니다. 향후 계산 계획이며 아직 지표를 계산하거나 임상 사용을 승인하지 않았습니다.",
+      "blocked_reasons": [],
+      "requires": [
+        "y_true",
+        "y_probability"
+      ],
+      "requires_parameters": [],
+      "requires_context": [],
+      "required": false,
+      "evidence": [
+        "probability_output_planned",
+        "labels_planned",
+        "required.patient_overlap.overlaps"
+      ]
+    },
+    {
+      "id": "average_precision",
+      "sources": [
+        "default",
+        "ai"
+      ],
+      "state": "eligible_planned_inputs",
+      "reason": "기본 정책에 포함된 블록입니다. 양성 비율이 약 11%로 불균형이라 AP가 보완 정보를 줍니다. 임계값이 필요 없지만 환자 중복 한계가 있으며 임상 기준 성능으로 확정하지 않습니다. 향후 계산 계획이며 아직 지표를 계산하거나 임상 사용을 승인하지 않았습니다.",
+      "blocked_reasons": [],
+      "requires": [
+        "y_true",
+        "y_probability"
+      ],
+      "requires_parameters": [],
+      "requires_context": [],
+      "required": false,
+      "evidence": [
+        "coordinated.cohort",
+        "probability_output_planned",
+        "labels_planned"
+      ]
+    },
+    {
+      "id": "brier_score",
+      "sources": [
+        "default",
+        "ai"
+      ],
+      "state": "eligible_planned_inputs",
+      "reason": "기본 정책에 포함된 블록입니다. 확률 품질 목적에 따라 예측 확률의 제곱오차를 점검합니다. 임계값·매개변수가 필요 없으나 라벨 추적 한계와 환자 중복으로 절대 수치 해석은 제한적입니다. 향후 계산 계획이며 아직 지표를 계산하거나 임상 사용을 승인하지 않았습니다.",
+      "blocked_reasons": [],
+      "requires": [
+        "y_true",
+        "y_probability"
+      ],
+      "requires_parameters": [],
+      "requires_context": [],
+      "required": false,
+      "evidence": [
+        "objectives.evaluation",
+        "probability_output_planned",
+        "coordinated.label_observability"
+      ]
+    },
+    {
+      "id": "calibration_curve",
+      "sources": [
+        "default",
+        "ai"
+      ],
+      "state": "eligible_planned_inputs",
+      "reason": "기본 정책에 포함된 블록입니다. 확률 품질 목적을 위해 예측 평균과 관찰 재발생률을 구간별로 확인합니다. n_bins는 미정이라 기본값을 쓰며, 소집단·희소 구간은 해석에 주의하고 임상 행동 기준은 확정하지 않습니다. 향후 계산 계획이며 아직 지표를 계산하거나 임상 사용을 승인하지 않았습니다.",
+      "blocked_reasons": [],
+      "requires": [
+        "y_true",
+        "y_probability"
+      ],
+      "requires_parameters": [],
+      "requires_context": [],
+      "required": false,
+      "evidence": [
+        "objectives.evaluation",
+        "parameters.n_bins_defined",
+        "probability_output_planned"
+      ]
+    }
+  ],
+  "defaults": [
+    "roc_auc",
+    "average_precision",
+    "brier_score",
+    "calibration_curve"
+  ],
+  "required_ids": [],
+  "ai_recommended_ids": [
+    "roc_auc",
+    "average_precision",
+    "brier_score",
+    "calibration_curve"
+  ],
+  "user_added_ids": [],
+  "user_excluded_ids": [],
+  "objectives": [
+    "discrimination",
+    "probability_quality"
+  ],
+  "ai_status": "provided",
+  "approval_required": true,
+  "planning_complete": true,
+  "draft": false,
+  "clinical_use_approved": false,
+  "primary_metric": null,
+  "threshold": null,
+  "parameters": {},
+  "clinical_action": null,
+  "comparison_model": null,
+  "planned_inputs": {
+    "y_true": true,
+    "y_probability": true,
+    "sample_ids": true,
+    "reference_sample_ids": false,
+    "reference_probabilities": false
+  },
+  "interpretation": "계산 계획은 임상 사용 승인이나 독립 검증 성능 주장이 아닙니다. 환자 중복과 validation 개발 사용의 한계를 유지합니다."
+}

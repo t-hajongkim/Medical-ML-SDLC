@@ -1,0 +1,1691 @@
+{
+  "schema_version": 1,
+  "provider": "github-copilot-cloud-agent",
+  "context_hash": "41346b59ca98e91fac1fba426190be9e5cdf8f42c0a9197afb830ca6dddb35a4",
+  "context": {
+    "facts": {
+      "data_id": "c34ec224503e2038c79fd11c47e0f603c7e392ba46f4e8c14e1661bfaf5303fd",
+      "input_mapping_hash": "efb2726a5496829ff0cd9425b5741ff12309f4be74444728754ea7371c21837e",
+      "coordination_hash": "ad2e31028284a55b69a1fd64ebd61fe6bcf9ab0ad4ecf6fefd64ab47efab94be",
+      "research_request_hash": "2cad89531aae76c60e6ec039733a519d1c6376e99b585f8af81030d11b707b1a",
+      "initial_execution_plan_hash": "708fc5393d8ae1147c53a8438ae3d69d580e769d71de741b58e4ee1456aaddce",
+      "coordinated.demographics": {
+        "status": "completed",
+        "details": {
+          "distributions": {
+            "train": {
+              "race": {
+                "Caucasian": {
+                  "admissions": 54834,
+                  "target_0": 48675,
+                  "target_1": 6159,
+                  "patients": 41922,
+                  "patients_with_target_1": 5104,
+                  "patients_with_target_0": 39848,
+                  "event_rate": 0.11232082284713864,
+                  "target_0_rate": 0.8876791771528614
+                },
+                "AfricanAmerican": {
+                  "admissions": 13404,
+                  "target_0": 11918,
+                  "target_1": 1486,
+                  "patients": 9781,
+                  "patients_with_target_1": 1166,
+                  "patients_with_target_0": 9417,
+                  "event_rate": 0.11086242912563414,
+                  "target_0_rate": 0.8891375708743658
+                },
+                "Other": {
+                  "admissions": 1094,
+                  "target_0": 979,
+                  "target_1": 115,
+                  "patients": 922,
+                  "patients_with_target_1": 101,
+                  "patients_with_target_0": 876,
+                  "event_rate": 0.10511882998171847,
+                  "target_0_rate": 0.8948811700182815
+                },
+                "Hispanic": {
+                  "admissions": 1443,
+                  "target_0": 1300,
+                  "target_1": 143,
+                  "patients": 1142,
+                  "patients_with_target_1": 122,
+                  "patients_with_target_0": 1091,
+                  "event_rate": 0.0990990990990991,
+                  "target_0_rate": 0.9009009009009009
+                },
+                "Asian": {
+                  "admissions": 461,
+                  "target_0": 414,
+                  "target_1": 47,
+                  "patients": 384,
+                  "patients_with_target_1": 39,
+                  "patients_with_target_0": 364,
+                  "event_rate": 0.1019522776572668,
+                  "target_0_rate": 0.8980477223427332
+                }
+              },
+              "gender": {
+                "Female": {
+                  "admissions": 38282,
+                  "target_0": 33974,
+                  "target_1": 4308,
+                  "patients": 28792,
+                  "patients_with_target_1": 3514,
+                  "patients_with_target_0": 27432,
+                  "event_rate": 0.11253330546993365,
+                  "target_0_rate": 0.8874666945300663
+                },
+                "Male": {
+                  "admissions": 32951,
+                  "target_0": 29309,
+                  "target_1": 3642,
+                  "patients": 25264,
+                  "patients_with_target_1": 3013,
+                  "patients_with_target_0": 24082,
+                  "event_rate": 0.11052775333070317,
+                  "target_0_rate": 0.8894722466692968
+                },
+                "Unknown/Invalid": {
+                  "admissions": 3,
+                  "target_0": 3,
+                  "target_1": 0,
+                  "patients": 3,
+                  "patients_with_target_1": 0,
+                  "patients_with_target_0": 3,
+                  "event_rate": 0.0,
+                  "target_0_rate": 1.0
+                }
+              },
+              "age_group": {
+                "[70-80)": {
+                  "admissions": 18218,
+                  "target_0": 16112,
+                  "target_1": 2106,
+                  "patients": 14089,
+                  "patients_with_target_1": 1814,
+                  "patients_with_target_0": 13298,
+                  "event_rate": 0.1155999560873861,
+                  "target_0_rate": 0.884400043912614
+                },
+                "[40-50)": {
+                  "admissions": 6826,
+                  "target_0": 6082,
+                  "target_1": 744,
+                  "patients": 5200,
+                  "patients_with_target_1": 559,
+                  "patients_with_target_0": 5019,
+                  "event_rate": 0.1089950190448286,
+                  "target_0_rate": 0.8910049809551714
+                },
+                "[80-90)": {
+                  "admissions": 12034,
+                  "target_0": 10566,
+                  "target_1": 1468,
+                  "patients": 9153,
+                  "patients_with_target_1": 1291,
+                  "patients_with_target_0": 8632,
+                  "event_rate": 0.12198770151238159,
+                  "target_0_rate": 0.8780122984876184
+                },
+                "[60-70)": {
+                  "admissions": 15734,
+                  "target_0": 14010,
+                  "target_1": 1724,
+                  "patients": 12245,
+                  "patients_with_target_1": 1431,
+                  "patients_with_target_0": 11653,
+                  "event_rate": 0.10957162832083386,
+                  "target_0_rate": 0.8904283716791661
+                },
+                "[50-60)": {
+                  "admissions": 12049,
+                  "target_0": 10851,
+                  "target_1": 1198,
+                  "patients": 9439,
+                  "patients_with_target_1": 957,
+                  "patients_with_target_0": 9069,
+                  "event_rate": 0.09942733836832932,
+                  "target_0_rate": 0.9005726616316707
+                },
+                "[30-40)": {
+                  "admissions": 2686,
+                  "target_0": 2381,
+                  "target_1": 305,
+                  "patients": 2039,
+                  "patients_with_target_1": 219,
+                  "patients_with_target_0": 1966,
+                  "event_rate": 0.11355174981384959,
+                  "target_0_rate": 0.8864482501861504
+                },
+                "[90-100)": {
+                  "admissions": 1934,
+                  "target_0": 1733,
+                  "target_1": 201,
+                  "patients": 1536,
+                  "patients_with_target_1": 178,
+                  "patients_with_target_0": 1473,
+                  "event_rate": 0.10392967942088935,
+                  "target_0_rate": 0.8960703205791106
+                },
+                "[10-20)": {
+                  "admissions": 483,
+                  "target_0": 453,
+                  "target_1": 30,
+                  "patients": 381,
+                  "patients_with_target_1": 27,
+                  "patients_with_target_0": 371,
+                  "event_rate": 0.062111801242236024,
+                  "target_0_rate": 0.937888198757764
+                },
+                "[20-30)": {
+                  "admissions": 1161,
+                  "target_0": 990,
+                  "target_1": 171,
+                  "patients": 843,
+                  "patients_with_target_1": 93,
+                  "patients_with_target_0": 812,
+                  "event_rate": 0.14728682170542637,
+                  "target_0_rate": 0.8527131782945736
+                },
+                "[0-10)": {
+                  "admissions": 111,
+                  "target_0": 108,
+                  "target_1": 3,
+                  "patients": 105,
+                  "patients_with_target_1": 3,
+                  "patients_with_target_0": 104,
+                  "event_rate": 0.02702702702702703,
+                  "target_0_rate": 0.972972972972973
+                }
+              },
+              "race_original": {
+                "Caucasian": {
+                  "admissions": 53238,
+                  "target_0": 47223,
+                  "target_1": 6015,
+                  "patients": 40544,
+                  "patients_with_target_1": 4972,
+                  "patients_with_target_0": 38531,
+                  "event_rate": 0.11298320748337654,
+                  "target_0_rate": 0.8870167925166235
+                },
+                "AfricanAmerican": {
+                  "admissions": 13404,
+                  "target_0": 11918,
+                  "target_1": 1486,
+                  "patients": 9781,
+                  "patients_with_target_1": 1166,
+                  "patients_with_target_0": 9417,
+                  "event_rate": 0.11086242912563414,
+                  "target_0_rate": 0.8891375708743658
+                },
+                "MISSING_ORIGINAL": {
+                  "admissions": 1596,
+                  "target_0": 1452,
+                  "target_1": 144,
+                  "patients": 1437,
+                  "patients_with_target_1": 134,
+                  "patients_with_target_0": 1363,
+                  "event_rate": 0.09022556390977443,
+                  "target_0_rate": 0.9097744360902256
+                },
+                "Other": {
+                  "admissions": 1094,
+                  "target_0": 979,
+                  "target_1": 115,
+                  "patients": 922,
+                  "patients_with_target_1": 101,
+                  "patients_with_target_0": 876,
+                  "event_rate": 0.10511882998171847,
+                  "target_0_rate": 0.8948811700182815
+                },
+                "Hispanic": {
+                  "admissions": 1443,
+                  "target_0": 1300,
+                  "target_1": 143,
+                  "patients": 1142,
+                  "patients_with_target_1": 122,
+                  "patients_with_target_0": 1091,
+                  "event_rate": 0.0990990990990991,
+                  "target_0_rate": 0.9009009009009009
+                },
+                "Asian": {
+                  "admissions": 461,
+                  "target_0": 414,
+                  "target_1": 47,
+                  "patients": 384,
+                  "patients_with_target_1": 39,
+                  "patients_with_target_0": 364,
+                  "event_rate": 0.1019522776572668,
+                  "target_0_rate": 0.8980477223427332
+                }
+              }
+            },
+            "validation": {
+              "race": {
+                "AfricanAmerican": {
+                  "admissions": 2905,
+                  "target_0": 2563,
+                  "target_1": 342,
+                  "patients": 2666,
+                  "patients_with_target_1": 321,
+                  "patients_with_target_0": 2424,
+                  "event_rate": 0.11772805507745267,
+                  "target_0_rate": 0.8822719449225473
+                },
+                "Caucasian": {
+                  "admissions": 11787,
+                  "target_0": 10481,
+                  "target_1": 1306,
+                  "patients": 10861,
+                  "patients_with_target_1": 1244,
+                  "patients_with_target_0": 9891,
+                  "event_rate": 0.11080003393569186,
+                  "target_0_rate": 0.8891999660643082
+                },
+                "Asian": {
+                  "admissions": 89,
+                  "target_0": 78,
+                  "target_1": 11,
+                  "patients": 89,
+                  "patients_with_target_1": 11,
+                  "patients_with_target_0": 78,
+                  "event_rate": 0.12359550561797752,
+                  "target_0_rate": 0.8764044943820225
+                },
+                "Hispanic": {
+                  "admissions": 274,
+                  "target_0": 245,
+                  "target_1": 29,
+                  "patients": 260,
+                  "patients_with_target_1": 26,
+                  "patients_with_target_0": 240,
+                  "event_rate": 0.10583941605839416,
+                  "target_0_rate": 0.8941605839416058
+                },
+                "Other": {
+                  "admissions": 210,
+                  "target_0": 195,
+                  "target_1": 15,
+                  "patients": 199,
+                  "patients_with_target_1": 15,
+                  "patients_with_target_0": 187,
+                  "event_rate": 0.07142857142857142,
+                  "target_0_rate": 0.9285714285714286
+                }
+              },
+              "gender": {
+                "Female": {
+                  "admissions": 8239,
+                  "target_0": 7332,
+                  "target_1": 907,
+                  "patients": 7606,
+                  "patients_with_target_1": 872,
+                  "patients_with_target_0": 6931,
+                  "event_rate": 0.11008617550673626,
+                  "target_0_rate": 0.8899138244932637
+                },
+                "Male": {
+                  "admissions": 7026,
+                  "target_0": 6230,
+                  "target_1": 796,
+                  "patients": 6464,
+                  "patients_with_target_1": 745,
+                  "patients_with_target_0": 5886,
+                  "event_rate": 0.11329348135496727,
+                  "target_0_rate": 0.8867065186450327
+                }
+              },
+              "age_group": {
+                "[70-80)": {
+                  "admissions": 3961,
+                  "target_0": 3474,
+                  "target_1": 487,
+                  "patients": 3659,
+                  "patients_with_target_1": 469,
+                  "patients_with_target_0": 3287,
+                  "event_rate": 0.12294875031557688,
+                  "target_0_rate": 0.8770512496844232
+                },
+                "[80-90)": {
+                  "admissions": 2602,
+                  "target_0": 2298,
+                  "target_1": 304,
+                  "patients": 2405,
+                  "patients_with_target_1": 292,
+                  "patients_with_target_0": 2171,
+                  "event_rate": 0.11683320522674866,
+                  "target_0_rate": 0.8831667947732513
+                },
+                "[50-60)": {
+                  "admissions": 2617,
+                  "target_0": 2368,
+                  "target_1": 249,
+                  "patients": 2446,
+                  "patients_with_target_1": 234,
+                  "patients_with_target_0": 2268,
+                  "event_rate": 0.09514711501719526,
+                  "target_0_rate": 0.9048528849828047
+                },
+                "[60-70)": {
+                  "admissions": 3326,
+                  "target_0": 2942,
+                  "target_1": 384,
+                  "patients": 3084,
+                  "patients_with_target_1": 369,
+                  "patients_with_target_0": 2795,
+                  "event_rate": 0.11545399879735418,
+                  "target_0_rate": 0.8845460012026458
+                },
+                "[40-50)": {
+                  "admissions": 1421,
+                  "target_0": 1284,
+                  "target_1": 137,
+                  "patients": 1303,
+                  "patients_with_target_1": 124,
+                  "patients_with_target_0": 1215,
+                  "event_rate": 0.0964109781843772,
+                  "target_0_rate": 0.9035890218156228
+                },
+                "[20-30)": {
+                  "admissions": 242,
+                  "target_0": 211,
+                  "target_1": 31,
+                  "patients": 219,
+                  "patients_with_target_1": 29,
+                  "patients_with_target_0": 196,
+                  "event_rate": 0.128099173553719,
+                  "target_0_rate": 0.871900826446281
+                },
+                "[90-100)": {
+                  "admissions": 420,
+                  "target_0": 370,
+                  "target_1": 50,
+                  "patients": 392,
+                  "patients_with_target_1": 47,
+                  "patients_with_target_0": 353,
+                  "event_rate": 0.11904761904761904,
+                  "target_0_rate": 0.8809523809523809
+                },
+                "[10-20)": {
+                  "admissions": 109,
+                  "target_0": 102,
+                  "target_1": 7,
+                  "patients": 101,
+                  "patients_with_target_1": 6,
+                  "patients_with_target_0": 96,
+                  "event_rate": 0.06422018348623854,
+                  "target_0_rate": 0.9357798165137615
+                },
+                "[30-40)": {
+                  "admissions": 546,
+                  "target_0": 492,
+                  "target_1": 54,
+                  "patients": 510,
+                  "patients_with_target_1": 48,
+                  "patients_with_target_0": 472,
+                  "event_rate": 0.0989010989010989,
+                  "target_0_rate": 0.9010989010989011
+                },
+                "[0-10)": {
+                  "admissions": 21,
+                  "target_0": 21,
+                  "target_1": 0,
+                  "patients": 21,
+                  "patients_with_target_1": 0,
+                  "patients_with_target_0": 21,
+                  "event_rate": 0.0,
+                  "target_0_rate": 1.0
+                }
+              },
+              "race_original": {
+                "AfricanAmerican": {
+                  "admissions": 2905,
+                  "target_0": 2563,
+                  "target_1": 342,
+                  "patients": 2666,
+                  "patients_with_target_1": 321,
+                  "patients_with_target_0": 2424,
+                  "event_rate": 0.11772805507745267,
+                  "target_0_rate": 0.8822719449225473
+                },
+                "Caucasian": {
+                  "admissions": 11451,
+                  "target_0": 10162,
+                  "target_1": 1289,
+                  "patients": 10536,
+                  "patients_with_target_1": 1228,
+                  "patients_with_target_0": 9578,
+                  "event_rate": 0.11256658807091084,
+                  "target_0_rate": 0.8874334119290892
+                },
+                "Asian": {
+                  "admissions": 89,
+                  "target_0": 78,
+                  "target_1": 11,
+                  "patients": 89,
+                  "patients_with_target_1": 11,
+                  "patients_with_target_0": 78,
+                  "event_rate": 0.12359550561797752,
+                  "target_0_rate": 0.8764044943820225
+                },
+                "Hispanic": {
+                  "admissions": 274,
+                  "target_0": 245,
+                  "target_1": 29,
+                  "patients": 260,
+                  "patients_with_target_1": 26,
+                  "patients_with_target_0": 240,
+                  "event_rate": 0.10583941605839416,
+                  "target_0_rate": 0.8941605839416058
+                },
+                "Other": {
+                  "admissions": 210,
+                  "target_0": 195,
+                  "target_1": 15,
+                  "patients": 199,
+                  "patients_with_target_1": 15,
+                  "patients_with_target_0": 187,
+                  "event_rate": 0.07142857142857142,
+                  "target_0_rate": 0.9285714285714286
+                },
+                "MISSING_ORIGINAL": {
+                  "admissions": 336,
+                  "target_0": 319,
+                  "target_1": 17,
+                  "patients": 330,
+                  "patients_with_target_1": 16,
+                  "patients_with_target_0": 316,
+                  "event_rate": 0.050595238095238096,
+                  "target_0_rate": 0.9494047619047619
+                }
+              }
+            },
+            "test": {
+              "race": {
+                "AfricanAmerican": {
+                  "admissions": 2901,
+                  "target_0": 2574,
+                  "target_1": 327,
+                  "patients": 2656,
+                  "patients_with_target_1": 308,
+                  "patients_with_target_0": 2435,
+                  "event_rate": 0.11271975180972078,
+                  "target_0_rate": 0.8872802481902792
+                },
+                "Caucasian": {
+                  "admissions": 11751,
+                  "target_0": 10436,
+                  "target_1": 1315,
+                  "patients": 10882,
+                  "patients_with_target_1": 1241,
+                  "patients_with_target_0": 9914,
+                  "event_rate": 0.11190536975576547,
+                  "target_0_rate": 0.8880946302442345
+                },
+                "Hispanic": {
+                  "admissions": 320,
+                  "target_0": 280,
+                  "target_1": 40,
+                  "patients": 295,
+                  "patients_with_target_1": 36,
+                  "patients_with_target_0": 265,
+                  "event_rate": 0.125,
+                  "target_0_rate": 0.875
+                },
+                "Other": {
+                  "admissions": 202,
+                  "target_0": 187,
+                  "target_1": 15,
+                  "patients": 195,
+                  "patients_with_target_1": 14,
+                  "patients_with_target_0": 184,
+                  "event_rate": 0.07425742574257425,
+                  "target_0_rate": 0.9257425742574258
+                },
+                "Asian": {
+                  "admissions": 91,
+                  "target_0": 84,
+                  "target_1": 7,
+                  "patients": 88,
+                  "patients_with_target_1": 7,
+                  "patients_with_target_0": 82,
+                  "event_rate": 0.07692307692307693,
+                  "target_0_rate": 0.9230769230769231
+                }
+              },
+              "gender": {
+                "Male": {
+                  "admissions": 7078,
+                  "target_0": 6311,
+                  "target_1": 767,
+                  "patients": 6582,
+                  "patients_with_target_1": 735,
+                  "patients_with_target_0": 6018,
+                  "event_rate": 0.10836394461712348,
+                  "target_0_rate": 0.8916360553828765
+                },
+                "Female": {
+                  "admissions": 8187,
+                  "target_0": 7250,
+                  "target_1": 937,
+                  "patients": 7529,
+                  "patients_with_target_1": 869,
+                  "patients_with_target_0": 6858,
+                  "event_rate": 0.1144497373885428,
+                  "target_0_rate": 0.8855502626114572
+                }
+              },
+              "age_group": {
+                "[50-60)": {
+                  "admissions": 2590,
+                  "target_0": 2369,
+                  "target_1": 221,
+                  "patients": 2415,
+                  "patients_with_target_1": 206,
+                  "patients_with_target_0": 2261,
+                  "event_rate": 0.08532818532818533,
+                  "target_0_rate": 0.9146718146718147
+                },
+                "[20-30)": {
+                  "admissions": 254,
+                  "target_0": 220,
+                  "target_1": 34,
+                  "patients": 229,
+                  "patients_with_target_1": 24,
+                  "patients_with_target_0": 214,
+                  "event_rate": 0.13385826771653545,
+                  "target_0_rate": 0.8661417322834646
+                },
+                "[40-50)": {
+                  "admissions": 1438,
+                  "target_0": 1292,
+                  "target_1": 146,
+                  "patients": 1314,
+                  "patients_with_target_1": 128,
+                  "patients_with_target_0": 1224,
+                  "event_rate": 0.10152990264255911,
+                  "target_0_rate": 0.8984700973574409
+                },
+                "[70-80)": {
+                  "admissions": 3889,
+                  "target_0": 3413,
+                  "target_1": 476,
+                  "patients": 3633,
+                  "patients_with_target_1": 461,
+                  "patients_with_target_0": 3250,
+                  "event_rate": 0.12239650295705837,
+                  "target_0_rate": 0.8776034970429416
+                },
+                "[60-70)": {
+                  "admissions": 3423,
+                  "target_0": 3029,
+                  "target_1": 394,
+                  "patients": 3180,
+                  "patients_with_target_1": 381,
+                  "patients_with_target_0": 2888,
+                  "event_rate": 0.11510371019573473,
+                  "target_0_rate": 0.8848962898042653
+                },
+                "[80-90)": {
+                  "admissions": 2561,
+                  "target_0": 2255,
+                  "target_1": 306,
+                  "patients": 2392,
+                  "patients_with_target_1": 290,
+                  "patients_with_target_0": 2152,
+                  "event_rate": 0.11948457633736821,
+                  "target_0_rate": 0.8805154236626318
+                },
+                "[90-100)": {
+                  "admissions": 439,
+                  "target_0": 380,
+                  "target_1": 59,
+                  "patients": 401,
+                  "patients_with_target_1": 55,
+                  "patients_with_target_0": 366,
+                  "event_rate": 0.13439635535307518,
+                  "target_0_rate": 0.8656036446469249
+                },
+                "[30-40)": {
+                  "admissions": 543,
+                  "target_0": 478,
+                  "target_1": 65,
+                  "patients": 500,
+                  "patients_with_target_1": 59,
+                  "patients_with_target_0": 457,
+                  "event_rate": 0.11970534069981584,
+                  "target_0_rate": 0.8802946593001841
+                },
+                "[10-20)": {
+                  "admissions": 99,
+                  "target_0": 96,
+                  "target_1": 3,
+                  "patients": 97,
+                  "patients_with_target_1": 3,
+                  "patients_with_target_0": 95,
+                  "event_rate": 0.030303030303030304,
+                  "target_0_rate": 0.9696969696969697
+                },
+                "[0-10)": {
+                  "admissions": 29,
+                  "target_0": 29,
+                  "target_1": 0,
+                  "patients": 29,
+                  "patients_with_target_1": 0,
+                  "patients_with_target_0": 29,
+                  "event_rate": 0.0,
+                  "target_0_rate": 1.0
+                }
+              },
+              "race_original": {
+                "AfricanAmerican": {
+                  "admissions": 2901,
+                  "target_0": 2574,
+                  "target_1": 327,
+                  "patients": 2656,
+                  "patients_with_target_1": 308,
+                  "patients_with_target_0": 2435,
+                  "event_rate": 0.11271975180972078,
+                  "target_0_rate": 0.8872802481902792
+                },
+                "MISSING_ORIGINAL": {
+                  "admissions": 341,
+                  "target_0": 314,
+                  "target_1": 27,
+                  "patients": 318,
+                  "patients_with_target_1": 24,
+                  "patients_with_target_0": 301,
+                  "event_rate": 0.07917888563049853,
+                  "target_0_rate": 0.9208211143695014
+                },
+                "Caucasian": {
+                  "admissions": 11410,
+                  "target_0": 10122,
+                  "target_1": 1288,
+                  "patients": 10567,
+                  "patients_with_target_1": 1218,
+                  "patients_with_target_0": 9615,
+                  "event_rate": 0.11288343558282209,
+                  "target_0_rate": 0.8871165644171779
+                },
+                "Hispanic": {
+                  "admissions": 320,
+                  "target_0": 280,
+                  "target_1": 40,
+                  "patients": 295,
+                  "patients_with_target_1": 36,
+                  "patients_with_target_0": 265,
+                  "event_rate": 0.125,
+                  "target_0_rate": 0.875
+                },
+                "Other": {
+                  "admissions": 202,
+                  "target_0": 187,
+                  "target_1": 15,
+                  "patients": 195,
+                  "patients_with_target_1": 14,
+                  "patients_with_target_0": 184,
+                  "event_rate": 0.07425742574257425,
+                  "target_0_rate": 0.9257425742574258
+                },
+                "Asian": {
+                  "admissions": 91,
+                  "target_0": 84,
+                  "target_1": 7,
+                  "patients": 88,
+                  "patients_with_target_1": 7,
+                  "patients_with_target_0": 82,
+                  "event_rate": 0.07692307692307693,
+                  "target_0_rate": 0.9230769230769231
+                }
+              }
+            }
+          },
+          "original_race_missing": {
+            "train": 1596,
+            "validation": 336,
+            "test": 341
+          },
+          "caucasian_imputed": {
+            "train": 1596,
+            "validation": 336,
+            "test": 341
+          },
+          "race_views": {
+            "race": "public metadata, includes Caucasian imputation",
+            "race_original": "observed original race; missing remains missing"
+          },
+          "event_rate_denominator": "admissions",
+          "patient_count_note": "Patients can contribute multiple admissions and both target classes; subgroup patient counts are not additive.",
+          "interpretation": "Descriptive counts only; no minimum-size threshold or significance claim.",
+          "absent_groups": "Not observed, not invented zero-count populations."
+        }
+      },
+      "coordinated.cohort": {
+        "status": "unverifiable",
+        "details": {
+          "data_unit": "admission/encounter",
+          "research_unit": "not declared",
+          "counts": {
+            "train": {
+              "admissions": 71236,
+              "patients": 54057,
+              "target_0": 63286,
+              "target_1": 7950,
+              "event_rate": 0.11160087596159245,
+              "event_rate_denominator": "admissions"
+            },
+            "validation": {
+              "admissions": 15265,
+              "patients": 14070,
+              "target_0": 13562,
+              "target_1": 1703,
+              "event_rate": 0.11156239764166394,
+              "event_rate_denominator": "admissions"
+            },
+            "test": {
+              "admissions": 15265,
+              "patients": 14111,
+              "target_0": 13561,
+              "target_1": 1704,
+              "event_rate": 0.11162790697674418,
+              "event_rate_denominator": "admissions"
+            }
+          },
+          "total_admissions": 101766,
+          "unique_admission_keys": 101766,
+          "duplicate_admission_keys": 0,
+          "unique_patients": 71518,
+          "source_selection_description": {
+            "source": "https://archive.ics.uci.edu/dataset/296/diabetes+130-us+hospitals+for+years+1999-2008",
+            "criteria": [
+              "Inpatient encounters",
+              "Diabetes entered as a diagnosis during the encounter",
+              "Length of stay between 1 and 14 days",
+              "Laboratory tests performed during the encounter",
+              "Medications administered during the encounter"
+            ],
+            "scope": "Source selection description, not row-level certification."
+          },
+          "row_level_selection": {
+            "status": "unverifiable",
+            "reason": "Raw source fields are not supplied."
+          },
+          "upstream_population": {
+            "status": "unverifiable",
+            "population": null,
+            "excluded": null,
+            "reason": "Pre-publication source population and exclusion counts are unavailable."
+          },
+          "additional_selection": {
+            "status": "unverifiable",
+            "declared": false,
+            "reason": "Free text is neither executed nor echoed; no approved structured selection is implemented."
+          },
+          "repeated_admissions": "Retained; not duplicate patients or a first-admission cohort."
+        }
+      },
+      "coordinated.label_observability": {
+        "status": "unverifiable",
+        "details": {
+          "target_definition": {
+            "status": "passed",
+            "mapping": {
+              "<30": 1,
+              ">30": 0,
+              "NO": 0
+            },
+            "expected": {
+              "<30": 1,
+              ">30": 0,
+              "NO": 0
+            }
+          },
+          "encoding": {
+            "status": "passed",
+            "classes": [
+              0,
+              1
+            ],
+            "positive_class": 1,
+            "observed_counts": {
+              "train": {
+                "admissions": 71236,
+                "patients": 54057,
+                "target_0": 63286,
+                "target_1": 7950,
+                "event_rate": 0.11160087596159245,
+                "event_rate_denominator": "admissions"
+              },
+              "validation": {
+                "admissions": 15265,
+                "patients": 14070,
+                "target_0": 13562,
+                "target_1": 1703,
+                "event_rate": 0.11156239764166394,
+                "event_rate_denominator": "admissions"
+              },
+              "test": {
+                "admissions": 15265,
+                "patients": 14111,
+                "target_0": 13561,
+                "target_1": 1704,
+                "event_rate": 0.11162790697674418,
+                "event_rate_denominator": "admissions"
+              }
+            }
+          },
+          "raw_label_alignment": {
+            "status": "unverifiable",
+            "reason": "Original readmitted values are not supplied."
+          },
+          "followup_completeness": {
+            "status": "unverifiable",
+            "reason": "No observation end dates or individual 30-day follow-up dates."
+          },
+          "outside_hospital_capture": {
+            "status": "unverifiable",
+            "reason": "No evidence that readmissions outside participating hospitals are captured."
+          },
+          "interpretation": "Encoded target 0 does not establish complete, event-free 30-day follow-up."
+        }
+      },
+      "coordinated.preprocessing_lineage": {
+        "status": "unverifiable",
+        "details": {
+          "asset_integrity": {
+            "status": "passed",
+            "scope": "File hashes and immutable source manifest only; not leakage certification."
+          },
+          "current_import": {
+            "training_performed": false,
+            "preprocessing_performed": false
+          },
+          "historical_transformations": {
+            "imputation": {
+              "status": "unverifiable",
+              "fit_scope": null,
+              "reason": "Exact historical fit rows and transform lineage are not supplied.",
+              "evidence": [
+                "Missing original race is imputed as Caucasian in public demographics; preserve the original missing flag."
+              ],
+              "documented_rule": "Original missing race is Caucasian in public metadata; fit population unknown."
+            },
+            "scaling": {
+              "status": "unverifiable",
+              "fit_scope": null,
+              "reason": "Exact historical fit rows and transform lineage are not supplied.",
+              "evidence": [
+                "Prepared 113-feature inputs are already standardized; the supplied 120-feature scaler is incompatible and excluded."
+              ]
+            },
+            "target_encoding": {
+              "status": "unverifiable",
+              "fit_scope": null,
+              "reason": "Exact historical fit rows and transform lineage are not supplied.",
+              "evidence": [
+                "Source target encoding before splitting and historical preprocessing uncertainty prevent a leakage-free holdout claim."
+              ]
+            }
+          },
+          "validation_use": {
+            "evidence": [
+              "Public validation was used in model development, not an independent holdout."
+            ],
+            "interpretation": "Development reuse is not an independent validation holdout."
+          },
+          "historical_113_pipeline": {
+            "status": "unverifiable",
+            "reason": "Exact original 113-feature pipeline has not been independently reproduced."
+          },
+          "known_limitations": [
+            "Row-stratified public splits have known cross-split patient overlap; do not repartition them.",
+            "Public validation was used in model development, not an independent holdout.",
+            "Source target encoding before splitting and historical preprocessing uncertainty prevent a leakage-free holdout claim.",
+            "Missing original race is imputed as Caucasian in public demographics; preserve the original missing flag.",
+            "Prepared 113-feature inputs are already standardized; the supplied 120-feature scaler is incompatible and excluded."
+          ],
+          "interpretation": "Do not infer train-only fit, remove suspected features, refit or modify a model."
+        }
+      },
+      "coordinated.prediction_timing": {
+        "status": "unverifiable",
+        "details": {
+          "prediction_time": "No approved prediction-time declaration.",
+          "documented_availability": {},
+          "undocumented_features": [
+            "admission_type_id",
+            "discharge_disposition_id",
+            "admission_source_id",
+            "time_in_hospital",
+            "num_lab_procedures",
+            "num_procedures",
+            "num_medications",
+            "number_outpatient",
+            "number_emergency",
+            "number_inpatient",
+            "number_diagnoses",
+            "A1Cresult_is_missing",
+            "weight_is_missing",
+            "race_is_missing",
+            "medical_specialty_is_missing",
+            "payer_code_is_missing",
+            "unique_diagnosis_categories",
+            "number_outpatient_mean",
+            "number_outpatient_max",
+            "number_outpatient_sum",
+            "number_emergency_mean",
+            "number_emergency_max",
+            "number_emergency_sum",
+            "number_inpatient_mean",
+            "number_inpatient_max",
+            "number_inpatient_sum",
+            "total_visits",
+            "medication_complexity_score",
+            "care_utilization_risk_score",
+            "age_bucket",
+            "bmi_underweight",
+            "bmi_normal",
+            "bmi_overweight",
+            "bmi_obese",
+            "los_medication_interaction",
+            "med_diagnosis_interaction",
+            "race_Asian",
+            "race_Caucasian",
+            "race_Hispanic",
+            "race_Other",
+            "gender_Male",
+            "gender_Unknown_Invalid",
+            "weight_0_25)",
+            "weight_100_125)",
+            "weight_125_150)",
+            "weight_150_175)",
+            "weight_175_200)",
+            "weight_25_50)",
+            "weight_50_75)",
+            "weight_75_100)",
+            "max_glu_serum_300",
+            "max_glu_serum_Norm",
+            "A1Cresult_8",
+            "A1Cresult_Norm",
+            "metformin_No",
+            "metformin_Steady",
+            "metformin_Up",
+            "repaglinide_No",
+            "repaglinide_Steady",
+            "repaglinide_Up",
+            "nateglinide_No",
+            "nateglinide_Steady",
+            "nateglinide_Up",
+            "chlorpropamide_No",
+            "chlorpropamide_Steady",
+            "chlorpropamide_Up",
+            "glimepiride_No",
+            "glimepiride_Steady",
+            "glimepiride_Up",
+            "acetohexamide_Steady",
+            "glipizide_No",
+            "glipizide_Steady",
+            "glipizide_Up",
+            "glyburide_No",
+            "glyburide_Steady",
+            "glyburide_Up",
+            "tolbutamide_Steady",
+            "pioglitazone_No",
+            "pioglitazone_Steady",
+            "pioglitazone_Up",
+            "rosiglitazone_No",
+            "rosiglitazone_Steady",
+            "rosiglitazone_Up",
+            "acarbose_No",
+            "acarbose_Steady",
+            "acarbose_Up",
+            "miglitol_No",
+            "miglitol_Steady",
+            "miglitol_Up",
+            "troglitazone_Steady",
+            "tolazamide_Steady",
+            "tolazamide_Up",
+            "insulin_No",
+            "insulin_Steady",
+            "insulin_Up",
+            "glyburide_metformin_No",
+            "glyburide_metformin_Steady",
+            "glyburide_metformin_Up",
+            "glipizide_metformin_Steady",
+            "glimepiride_pioglitazone_Steady",
+            "metformin_rosiglitazone_Steady",
+            "metformin_pioglitazone_Steady",
+            "change_No",
+            "diabetesMed_Yes",
+            "age_target_encoded",
+            "payer_code_target_encoded",
+            "medical_specialty_target_encoded",
+            "diag_1_target_encoded",
+            "diag_2_target_encoded",
+            "diag_3_target_encoded",
+            "diag_1_cat_target_encoded",
+            "diag_2_cat_target_encoded",
+            "diag_3_cat_target_encoded"
+          ],
+          "timing_conflicts": [],
+          "completion_information_candidates": [
+            "discharge_disposition_id",
+            "time_in_hospital",
+            "num_lab_procedures",
+            "num_procedures",
+            "num_medications",
+            "number_diagnoses",
+            "medication_complexity_score",
+            "los_medication_interaction"
+          ],
+          "candidate_scope": "Name-based screening only, not proof of leakage or safe availability.",
+          "evidence_gap": "No actual encounter timestamps or verified feature-availability dictionary in published assets.",
+          "interpretation": "Admission-time use of completed-stay or discharge information is not assumed."
+        }
+      },
+      "target": "target",
+      "split_counts": {
+        "train": 71236,
+        "validation": 15265,
+        "test": 15265
+      },
+      "required.schema.status": "unverifiable",
+      "required.schema.numeric_contract": "passed",
+      "required.schema.actual_count": 113,
+      "required.schema.expected_count": 113,
+      "required.schema.rows": 101766,
+      "required.schema.duplicate_columns": 0,
+      "required.schema.schema_match": true,
+      "required.patient_overlap.status": "failed",
+      "required.patient_overlap.overlaps": {
+        "train_validation": 5055,
+        "train_test": 5086,
+        "validation_test": 1760
+      },
+      "objectives.eda": [
+        "data_quality",
+        "population_description",
+        "prediction_readiness",
+        "cohort_definition",
+        "outcome_observability",
+        "preprocessing_provenance"
+      ],
+      "objectives.evaluation": [
+        "discrimination",
+        "probability_quality"
+      ],
+      "clinical_action_defined": false,
+      "comparison_model_defined": false,
+      "parameters.n_bins_defined": false,
+      "parameters.risk_thresholds_defined": false,
+      "parameters.threshold_defined": false,
+      "parameters.thresholds_defined": false,
+      "parameters.top_fraction_defined": false,
+      "labels_planned": true,
+      "probability_output_planned": true
+    },
+    "catalogs": {
+      "eda": {
+        "schema_version": 1,
+        "stage": "eda",
+        "checks": [
+          {
+            "id": "patient_overlap",
+            "name": "Patient overlap",
+            "description": "Measure unique-patient overlap across prepared splits without exposing patient identifiers.",
+            "module": "app.blocks.checks.patient_overlap",
+            "aliases": [],
+            "requires": [
+              "metadata"
+            ],
+            "requires_parameters": [],
+            "requires_context": [],
+            "input_contract": {
+              "metadata_roles": [
+                "row_key",
+                "patient_key",
+                "split",
+                "target"
+              ],
+              "optional_context": []
+            },
+            "output_contract": {
+              "fields": [
+                "block",
+                "status",
+                "details"
+              ],
+              "statuses": [
+                "passed",
+                "failed",
+                "unverifiable",
+                "completed"
+              ]
+            }
+          },
+          {
+            "id": "demographics",
+            "name": "Population description",
+            "description": "Describe aggregate population distributions and preserve original missing-demographic indicators.",
+            "module": "app.blocks.checks.demographics",
+            "aliases": [
+              "population_description"
+            ],
+            "requires": [
+              "metadata"
+            ],
+            "requires_parameters": [],
+            "requires_context": [],
+            "input_contract": {
+              "metadata_roles": [
+                "row_key",
+                "patient_key",
+                "split",
+                "target"
+              ],
+              "optional_context": [
+                "dataset_context"
+              ]
+            },
+            "output_contract": {
+              "fields": [
+                "block",
+                "status",
+                "details"
+              ],
+              "statuses": [
+                "passed",
+                "failed",
+                "unverifiable",
+                "completed"
+              ]
+            }
+          },
+          {
+            "id": "schema",
+            "name": "Numeric input contract",
+            "description": "Diagnose ordered feature schema, finite numeric values, missingness and row alignment; not clinical semantics.",
+            "module": "app.blocks.checks.schema",
+            "aliases": [
+              "numeric_contract"
+            ],
+            "requires": [
+              "metadata",
+              "feature_columns",
+              "expected_feature_columns",
+              "feature_rows"
+            ],
+            "requires_parameters": [],
+            "requires_context": [],
+            "input_contract": {
+              "metadata_roles": [
+                "row_key",
+                "patient_key",
+                "split",
+                "target"
+              ],
+              "optional_context": []
+            },
+            "output_contract": {
+              "fields": [
+                "block",
+                "status",
+                "details"
+              ],
+              "statuses": [
+                "passed",
+                "failed",
+                "unverifiable",
+                "completed"
+              ]
+            }
+          },
+          {
+            "id": "cohort",
+            "name": "Cohort and outcome description",
+            "description": "Describe encounter and patient counts, class balance and available source-selection evidence.",
+            "module": "app.blocks.checks.cohort",
+            "aliases": [
+              "cohort_description"
+            ],
+            "requires": [
+              "metadata"
+            ],
+            "requires_parameters": [],
+            "requires_context": [],
+            "input_contract": {
+              "metadata_roles": [
+                "row_key",
+                "patient_key",
+                "split",
+                "target"
+              ],
+              "optional_context": [
+                "dataset_context",
+                "research_unit",
+                "additional_selection",
+                "raw_evidence"
+              ]
+            },
+            "output_contract": {
+              "fields": [
+                "block",
+                "status",
+                "details"
+              ],
+              "statuses": [
+                "passed",
+                "failed",
+                "unverifiable",
+                "completed"
+              ]
+            }
+          },
+          {
+            "id": "prediction_timing",
+            "name": "Prediction-time availability",
+            "description": "Diagnose whether prediction time and feature availability are supported; missing evidence is unverifiable.",
+            "module": "app.blocks.checks.prediction_timing",
+            "aliases": [
+              "timing"
+            ],
+            "requires": [
+              "feature_columns"
+            ],
+            "requires_parameters": [],
+            "requires_context": [],
+            "input_contract": {
+              "metadata_roles": [],
+              "optional_context": [
+                "prediction_time",
+                "feature_availability"
+              ]
+            },
+            "output_contract": {
+              "fields": [
+                "block",
+                "status",
+                "details"
+              ],
+              "statuses": [
+                "passed",
+                "failed",
+                "unverifiable",
+                "completed"
+              ]
+            }
+          },
+          {
+            "id": "label_observability",
+            "name": "Outcome observability",
+            "description": "Diagnose target encoding, source-label alignment and the limits of follow-up observation.",
+            "module": "app.blocks.checks.label_observability",
+            "aliases": [],
+            "requires": [
+              "metadata",
+              "target_mapping"
+            ],
+            "requires_parameters": [],
+            "requires_context": [],
+            "input_contract": {
+              "metadata_roles": [
+                "row_key",
+                "patient_key",
+                "split",
+                "target"
+              ],
+              "optional_context": [
+                "dataset_context",
+                "data_manifest",
+                "raw_evidence"
+              ]
+            },
+            "output_contract": {
+              "fields": [
+                "block",
+                "status",
+                "details"
+              ],
+              "statuses": [
+                "passed",
+                "failed",
+                "unverifiable",
+                "completed"
+              ]
+            }
+          },
+          {
+            "id": "preprocessing_lineage",
+            "name": "Preprocessing provenance",
+            "description": "Diagnose prepared-input provenance and unsupported preprocessing or leakage-free claims.",
+            "module": "app.blocks.checks.preprocessing_lineage",
+            "aliases": [
+              "lineage"
+            ],
+            "requires": [
+              "data_manifest"
+            ],
+            "requires_parameters": [],
+            "requires_context": [],
+            "input_contract": {
+              "metadata_roles": [],
+              "optional_context": [
+                "dataset_context",
+                "asset_integrity_verified"
+              ]
+            },
+            "output_contract": {
+              "fields": [
+                "block",
+                "status",
+                "details"
+              ],
+              "statuses": [
+                "passed",
+                "failed",
+                "unverifiable",
+                "completed"
+              ]
+            }
+          }
+        ]
+      },
+      "evaluation": {
+        "schema_version": 1,
+        "stage": "evaluation",
+        "metrics": [
+          {
+            "id": "roc_auc",
+            "name": "ROC AUC",
+            "description": "Binary ranking AUC with half-credit for tied scores; both classes required.",
+            "module": "app.blocks.metrics.roc_auc",
+            "aliases": [
+              "auroc"
+            ],
+            "requires": [
+              "y_true",
+              "y_probability"
+            ],
+            "requires_parameters": [],
+            "requires_context": []
+          },
+          {
+            "id": "average_precision",
+            "name": "Average precision (AP)",
+            "description": "AP is recall-increment-weighted precision, not trapezoidal PR area; positives required.",
+            "module": "app.blocks.metrics.average_precision",
+            "aliases": [
+              "ap"
+            ],
+            "requires": [
+              "y_true",
+              "y_probability"
+            ],
+            "requires_parameters": [],
+            "requires_context": []
+          },
+          {
+            "id": "brier_score",
+            "name": "Brier score",
+            "description": "Mean squared error of binary event probabilities.",
+            "module": "app.blocks.metrics.brier_score",
+            "aliases": [
+              "brier"
+            ],
+            "requires": [
+              "y_true",
+              "y_probability"
+            ],
+            "requires_parameters": [],
+            "requires_context": []
+          },
+          {
+            "id": "calibration_curve",
+            "name": "Calibration groups",
+            "description": "Uniform bins report predicted mean, observed event rate, and count. Optional n_bins defaults to 10; empty-bin means are null.",
+            "module": "app.blocks.metrics.calibration_curve",
+            "aliases": [],
+            "requires": [
+              "y_true",
+              "y_probability"
+            ],
+            "requires_parameters": [],
+            "requires_context": []
+          },
+          {
+            "id": "confusion_matrix",
+            "name": "Confusion matrix",
+            "description": "Binary counts at an explicitly approved threshold; score >= threshold is positive.",
+            "module": "app.blocks.metrics.confusion_matrix",
+            "aliases": [],
+            "requires": [
+              "y_true",
+              "y_probability"
+            ],
+            "requires_parameters": [
+              "threshold"
+            ],
+            "requires_context": []
+          },
+          {
+            "id": "accuracy",
+            "name": "Accuracy",
+            "description": "Correct binary predictions divided by evaluated rows at an explicit threshold.",
+            "module": "app.blocks.metrics.accuracy",
+            "aliases": [],
+            "requires": [
+              "y_true",
+              "y_probability"
+            ],
+            "requires_parameters": [
+              "threshold"
+            ],
+            "requires_context": []
+          },
+          {
+            "id": "recall",
+            "name": "Recall (sensitivity)",
+            "description": "TP / (TP + FN) at an explicit threshold; undefined without positives.",
+            "module": "app.blocks.metrics.recall",
+            "aliases": [
+              "sensitivity"
+            ],
+            "requires": [
+              "y_true",
+              "y_probability"
+            ],
+            "requires_parameters": [
+              "threshold"
+            ],
+            "requires_context": []
+          },
+          {
+            "id": "specificity",
+            "name": "Specificity",
+            "description": "TN / (TN + FP) at an explicit threshold; undefined without negatives.",
+            "module": "app.blocks.metrics.specificity",
+            "aliases": [],
+            "requires": [
+              "y_true",
+              "y_probability"
+            ],
+            "requires_parameters": [
+              "threshold"
+            ],
+            "requires_context": []
+          },
+          {
+            "id": "precision",
+            "name": "Precision (positive predictive value)",
+            "description": "PPV = TP / (TP + FP) at an explicit threshold; undefined without positive predictions.",
+            "module": "app.blocks.metrics.precision",
+            "aliases": [
+              "ppv"
+            ],
+            "requires": [
+              "y_true",
+              "y_probability"
+            ],
+            "requires_parameters": [
+              "threshold"
+            ],
+            "requires_context": []
+          },
+          {
+            "id": "negative_predictive_value",
+            "name": "Negative predictive value",
+            "description": "NPV = TN / (TN + FN) at an explicit threshold; undefined without negative predictions.",
+            "module": "app.blocks.metrics.negative_predictive_value",
+            "aliases": [
+              "npv"
+            ],
+            "requires": [
+              "y_true",
+              "y_probability"
+            ],
+            "requires_parameters": [
+              "threshold"
+            ],
+            "requires_context": []
+          },
+          {
+            "id": "f1",
+            "name": "F1 score",
+            "description": "2TP / (2TP + FP + FN) at an explicit threshold; a zero denominator remains undefined.",
+            "module": "app.blocks.metrics.f1",
+            "aliases": [],
+            "requires": [
+              "y_true",
+              "y_probability"
+            ],
+            "requires_parameters": [
+              "threshold"
+            ],
+            "requires_context": []
+          },
+          {
+            "id": "decision_curve",
+            "name": "Decision curve analysis (DCA)",
+            "description": "Model, treat-all and treat-none net benefit at explicit strictly increasing thresholds in (0,1), conditional on a described clinical action.",
+            "module": "app.blocks.metrics.decision_curve",
+            "aliases": [
+              "dca"
+            ],
+            "requires": [
+              "y_true",
+              "y_probability"
+            ],
+            "requires_parameters": [
+              "thresholds"
+            ],
+            "requires_context": [
+              "clinical_action"
+            ]
+          },
+          {
+            "id": "categorical_nri",
+            "name": "Categorical net reclassification improvement",
+            "description": "New y_probability versus reference_probabilities using identically ordered unique sample IDs, both classes and pre-specified strictly increasing risk cutoffs in (0,1). Cutoff equality enters the higher category. Not proof of incremental clinical benefit.",
+            "module": "app.blocks.metrics.categorical_nri",
+            "aliases": [
+              "nri"
+            ],
+            "requires": [
+              "y_true",
+              "y_probability",
+              "reference_probabilities",
+              "sample_ids",
+              "reference_sample_ids"
+            ],
+            "requires_parameters": [
+              "risk_thresholds"
+            ],
+            "requires_context": [
+              "comparison_model"
+            ]
+          },
+          {
+            "id": "recall_at_k",
+            "name": "Recall at top fraction",
+            "description": "Captured positives / all positives for ceil(N * top_fraction) alerts; fraction must be in (0,1]. Ties preserve input order and never expand the alert budget.",
+            "module": "app.blocks.metrics.recall_at_k",
+            "aliases": [],
+            "requires": [
+              "y_true",
+              "y_probability"
+            ],
+            "requires_parameters": [
+              "top_fraction"
+            ],
+            "requires_context": []
+          },
+          {
+            "id": "precision_at_k",
+            "name": "Precision at top fraction",
+            "description": "Captured positives / ceil(N * top_fraction) alerts; fraction must be in (0,1]. Stable input-order ties, explicit alert and captured-positive counts.",
+            "module": "app.blocks.metrics.precision_at_k",
+            "aliases": [],
+            "requires": [
+              "y_true",
+              "y_probability"
+            ],
+            "requires_parameters": [
+              "top_fraction"
+            ],
+            "requires_context": []
+          }
+        ]
+      }
+    },
+    "catalog_hashes": {
+      "eda": "268605c62a9cd0f27396b0258ca51215975a02eca0bbd764c2ac47d5822143b1",
+      "evaluation": "c1a114e7154f66574321ba3bc8f79b6524fe30c320fc809668acebff5cb101be"
+    }
+  },
+  "allowed_evidence_ids": [
+    "data_id",
+    "input_mapping_hash",
+    "coordination_hash",
+    "research_request_hash",
+    "initial_execution_plan_hash",
+    "coordinated.demographics",
+    "coordinated.cohort",
+    "coordinated.label_observability",
+    "coordinated.preprocessing_lineage",
+    "coordinated.prediction_timing",
+    "target",
+    "split_counts",
+    "required.schema.status",
+    "required.schema.numeric_contract",
+    "required.schema.actual_count",
+    "required.schema.expected_count",
+    "required.schema.rows",
+    "required.schema.duplicate_columns",
+    "required.schema.schema_match",
+    "required.patient_overlap.status",
+    "required.patient_overlap.overlaps",
+    "objectives.eda",
+    "objectives.evaluation",
+    "clinical_action_defined",
+    "comparison_model_defined",
+    "parameters.n_bins_defined",
+    "parameters.risk_thresholds_defined",
+    "parameters.threshold_defined",
+    "parameters.thresholds_defined",
+    "parameters.top_fraction_defined",
+    "labels_planned",
+    "probability_output_planned"
+  ],
+  "instructions": "GitHub Agentic Workflows의 Copilot cloud agent로서 이 공개 집계와 정형 목적만 읽고, 단계별 카탈로그에 이미 구현된 블록 ID만 추천하세요. 추천 이유는 한국어로 작성하고 워크플로가 지정한 JSON 파일에 저장하세요. schema_version=1, provider=github-copilot-cloud-agent, 현재 context_hash, status=provided 및 eda와 evaluation 배열을 모두 포함하세요. 각 항목에는 id, 비어 있지 않은 reason, allowed_evidence_ids를 참조하는 evidence만 넣으세요. 한 단계의 빈 배열은 가능하지만 전체에서 최소 한 개의 근거 있는 추천이 필요합니다. 빈 placeholder는 AI 작업 완료가 아닙니다. 코드·주지표 확정·임계값·매개변수·환자 자료·임상 사용 승인을 생성하지 마세요. EDA의 근거 부족은 확인 불가를 보고할 사유이지 해당 검사를 생략할 사유가 아닙니다. 확률 출력은 이후 생성할 계획 입력이며 현재 계산한 결과가 아닙니다. 계산 가능성과 독립 임상 검증을 구분하세요. 클라우드 에이전트가 추천 파일을 자동 작성하므로 사용자에게 채팅 결과를 붙여넣으라고 요청하지 마세요. 계획 엔진은 파일을 검증·조합하며 LLM API를 호출하거나 실제 작성자의 신원을 보증하지 않습니다.\n모든 추천 이유(reason)는 한국어로 작성하세요. 코드 식별자와 근거 ID는 변경하지 마세요.",
+  "validation_scope": [
+    "registered_stage_ids",
+    "context_hash",
+    "public_evidence_ids",
+    "recommendation_schema"
+  ],
+  "authorship_verified": false
+}

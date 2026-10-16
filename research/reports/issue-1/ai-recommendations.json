@@ -1,0 +1,107 @@
+{
+  "schema_version": 1,
+  "provider": "github-copilot-cloud-agent",
+  "context_hash": "41346b59ca98e91fac1fba426190be9e5cdf8f42c0a9197afb830ca6dddb35a4",
+  "status": "provided",
+  "eda": [
+    {
+      "id": "schema",
+      "reason": "113개 특성 순서·개수·유한 수치·행 정렬은 일치했으나 상수 열이 있고 임상 의미·단위는 검증할 수 없어 전체 상태는 unverifiable입니다. 표준화된 값이라 원 임상 범위 판단은 불가합니다.",
+      "evidence": [
+        "required.schema.status",
+        "required.schema.numeric_contract",
+        "required.schema.actual_count",
+        "required.schema.schema_match"
+      ]
+    },
+    {
+      "id": "patient_overlap",
+      "reason": "train-validation 5,055명, train-test 5,086명, validation-test 1,760명의 환자 중복으로 failed입니다. 분할을 바꾸지 않고, 현재 분할이 독립 holdout이 아니라는 교육용 한계를 유지해야 합니다.",
+      "evidence": [
+        "required.patient_overlap.status",
+        "required.patient_overlap.overlaps",
+        "split_counts"
+      ]
+    },
+    {
+      "id": "demographics",
+      "reason": "연령·성별·인종별 표본 수와 재입원 비율을 기술하며, 인종 결측 대치(Caucasian)와 원본 결측(train 1,596, validation 336, test 341)을 구분해 보여줍니다. 소집단은 표본이 작아 유의성·최소 크기 판단은 하지 않습니다.",
+      "evidence": [
+        "coordinated.demographics",
+        "objectives.eda"
+      ]
+    },
+    {
+      "id": "cohort",
+      "reason": "입원 단위 행 수, 환자 수, 클래스 비율(약 11.2%)을 확인합니다. 연구 단위 미선언, 원본 선택 기준 및 상위 모집단은 확인 불가이므로 코호트 적합성 판정이 아닌 보류 사유로 해석합니다.",
+      "evidence": [
+        "coordinated.cohort",
+        "split_counts",
+        "target"
+      ]
+    },
+    {
+      "id": "label_observability",
+      "reason": "target 인코딩(<30=1, >30·NO=0)은 일치하나 원본 라벨 정렬, 추적 완전성, 외부 병원 재입원 포착은 확인 불가입니다. target 0이 30일 무사건을 입증하지 않는다는 한계를 유지합니다.",
+      "evidence": [
+        "coordinated.label_observability",
+        "target",
+        "objectives.eda"
+      ]
+    },
+    {
+      "id": "preprocessing_lineage",
+      "reason": "대치·스케일링·타깃 인코딩의 과거 적합 범위가 확인 불가이고 검증 데이터가 모델 개발에 쓰였으므로 누수 없는 독립 holdout 주장을 할 수 없습니다. 자산 무결성 통과는 누수 인증이 아닙니다.",
+      "evidence": [
+        "coordinated.preprocessing_lineage",
+        "objectives.eda"
+      ]
+    },
+    {
+      "id": "prediction_timing",
+      "reason": "예측 시점과 특성 가용성 문서가 없어 모든 특성이 확인 불가입니다. 퇴원 처분·재원일수 등 입원 완료 정보 후보가 있으나 이름 기반 선별일 뿐 누수 증명은 아니며 임상 사용 가능성은 보류합니다.",
+      "evidence": [
+        "coordinated.prediction_timing",
+        "objectives.eda"
+      ]
+    }
+  ],
+  "evaluation": [
+    {
+      "id": "roc_auc",
+      "reason": "확률 출력 계획이 있고 양성·음성 클래스가 모두 존재해 임계값 없이 순위 구분력을 볼 수 있습니다. 환자 중복과 개발 중 검증 재사용으로 낙관적일 수 있어 독립 임상 검증 결과로 해석하지 않습니다. 주지표는 사람이 확정합니다.",
+      "evidence": [
+        "probability_output_planned",
+        "labels_planned",
+        "required.patient_overlap.overlaps"
+      ]
+    },
+    {
+      "id": "average_precision",
+      "reason": "양성 비율이 약 11%로 불균형이라 AP가 보완 정보를 줍니다. 임계값이 필요 없지만 환자 중복 한계가 있으며 임상 기준 성능으로 확정하지 않습니다.",
+      "evidence": [
+        "coordinated.cohort",
+        "probability_output_planned",
+        "labels_planned"
+      ]
+    },
+    {
+      "id": "brier_score",
+      "reason": "확률 품질 목적에 따라 예측 확률의 제곱오차를 점검합니다. 임계값·매개변수가 필요 없으나 라벨 추적 한계와 환자 중복으로 절대 수치 해석은 제한적입니다.",
+      "evidence": [
+        "objectives.evaluation",
+        "probability_output_planned",
+        "coordinated.label_observability"
+      ]
+    },
+    {
+      "id": "calibration_curve",
+      "reason": "확률 품질 목적을 위해 예측 평균과 관찰 재발생률을 구간별로 확인합니다. n_bins는 미정이라 기본값을 쓰며, 소집단·희소 구간은 해석에 주의하고 임상 행동 기준은 확정하지 않습니다.",
+      "evidence": [
+        "objectives.evaluation",
+        "parameters.n_bins_defined",
+        "probability_output_planned"
+      ]
+    }
+  ]
+}

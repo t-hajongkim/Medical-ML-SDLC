@@ -1,0 +1,5268 @@
+{
+  "schema_version": 1,
+  "kind": "aggregate-eda",
+  "report_generated": true,
+  "assessment_status": "failed",
+  "status_meanings": {
+    "passed": "All checks within the explicitly stated block scope are supported and satisfied.",
+    "failed": "A measured violation or malformed input was found; report generation may still succeed.",
+    "unverifiable": "Required input or evidence is missing; measured subchecks may still be available.",
+    "completed": "Descriptive aggregation succeeded; not research suitability or leakage certification."
+  },
+  "interpretation": "Report success is not a research suitability or leakage-free certification.",
+  "data_id": "c34ec224503e2038c79fd11c47e0f603c7e392ba46f4e8c14e1661bfaf5303fd",
+  "prepared_revision": "4a61a3591f079628c72f5edbc7494ca7dda8741d",
+  "raw_source_sha256": "f792c388d9b470aac4fbf21c39b176534d55a116e7626881c30bbe7ab0341422",
+  "model_execution_performed": false,
+  "training_performed": false,
+  "preprocessing_performed": false,
+  "results": [
+    {
+      "block": "schema",
+      "status": "unverifiable",
+      "details": {
+        "actual_count": 113,
+        "expected_count": 113,
+        "feature_columns": [
+          "admission_type_id",
+          "discharge_disposition_id",
+          "admission_source_id",
+          "time_in_hospital",
+          "num_lab_procedures",
+          "num_procedures",
+          "num_medications",
+          "number_outpatient",
+          "number_emergency",
+          "number_inpatient",
+          "number_diagnoses",
+          "A1Cresult_is_missing",
+          "weight_is_missing",
+          "race_is_missing",
+          "medical_specialty_is_missing",
+          "payer_code_is_missing",
+          "unique_diagnosis_categories",
+          "number_outpatient_mean",
+          "number_outpatient_max",
+          "number_outpatient_sum",
+          "number_emergency_mean",
+          "number_emergency_max",
+          "number_emergency_sum",
+          "number_inpatient_mean",
+          "number_inpatient_max",
+          "number_inpatient_sum",
+          "total_visits",
+          "medication_complexity_score",
+          "care_utilization_risk_score",
+          "age_bucket",
+          "bmi_underweight",
+          "bmi_normal",
+          "bmi_overweight",
+          "bmi_obese",
+          "los_medication_interaction",
+          "med_diagnosis_interaction",
+          "race_Asian",
+          "race_Caucasian",
+          "race_Hispanic",
+          "race_Other",
+          "gender_Male",
+          "gender_Unknown_Invalid",
+          "weight_0_25)",
+          "weight_100_125)",
+          "weight_125_150)",
+          "weight_150_175)",
+          "weight_175_200)",
+          "weight_25_50)",
+          "weight_50_75)",
+          "weight_75_100)",
+          "max_glu_serum_300",
+          "max_glu_serum_Norm",
+          "A1Cresult_8",
+          "A1Cresult_Norm",
+          "metformin_No",
+          "metformin_Steady",
+          "metformin_Up",
+          "repaglinide_No",
+          "repaglinide_Steady",
+          "repaglinide_Up",
+          "nateglinide_No",
+          "nateglinide_Steady",
+          "nateglinide_Up",
+          "chlorpropamide_No",
+          "chlorpropamide_Steady",
+          "chlorpropamide_Up",
+          "glimepiride_No",
+          "glimepiride_Steady",
+          "glimepiride_Up",
+          "acetohexamide_Steady",
+          "glipizide_No",
+          "glipizide_Steady",
+          "glipizide_Up",
+          "glyburide_No",
+          "glyburide_Steady",
+          "glyburide_Up",
+          "tolbutamide_Steady",
+          "pioglitazone_No",
+          "pioglitazone_Steady",
+          "pioglitazone_Up",
+          "rosiglitazone_No",
+          "rosiglitazone_Steady",
+          "rosiglitazone_Up",
+          "acarbose_No",
+          "acarbose_Steady",
+          "acarbose_Up",
+          "miglitol_No",
+          "miglitol_Steady",
+          "miglitol_Up",
+          "troglitazone_Steady",
+          "tolazamide_Steady",
+          "tolazamide_Up",
+          "insulin_No",
+          "insulin_Steady",
+          "insulin_Up",
+          "glyburide_metformin_No",
+          "glyburide_metformin_Steady",
+          "glyburide_metformin_Up",
+          "glipizide_metformin_Steady",
+          "glimepiride_pioglitazone_Steady",
+          "metformin_rosiglitazone_Steady",
+          "metformin_pioglitazone_Steady",
+          "change_No",
+          "diabetesMed_Yes",
+          "age_target_encoded",
+          "payer_code_target_encoded",
+          "medical_specialty_target_encoded",
+          "diag_1_target_encoded",
+          "diag_2_target_encoded",
+          "diag_3_target_encoded",
+          "diag_1_cat_target_encoded",
+          "diag_2_cat_target_encoded",
+          "diag_3_cat_target_encoded"
+        ],
+        "schema_match": true,
+        "duplicate_columns": 0,
+        "rows": 101766,
+        "split_rows": {
+          "train": 71236,
+          "validation": 15265,
+          "test": 15265
+        },
+        "quality": {
+          "admission_type_id": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.7090829967376786,
+            "max": 4.135750722388091,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "discharge_disposition_id": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.5149446600885323,
+            "max": 4.5946057439261425,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "admission_source_id": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -1.1699880193344054,
+            "max": 4.743575152386659,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "time_in_hospital": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -1.161733421374419,
+            "max": 2.646810785899815,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "num_lab_procedures": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -2.142042601617274,
+            "max": 2.694808883474134,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "num_procedures": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.8159742588771945,
+            "max": 2.3570214126246083,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "num_medications": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -2.0102046471883948,
+            "max": 2.603088896637011,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "number_outpatient": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": 0.0,
+            "max": 0.0,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": true
+          },
+          "number_emergency": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": 0.0,
+            "max": 0.0,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": true
+          },
+          "number_inpatient": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.6324418170602,
+            "max": 2.444418894305451,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "number_diagnoses": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -3.0769197284652265,
+            "max": 3.1598079013486893,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "A1Cresult_is_missing": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -2.2337730110650416,
+            "max": 0.44767306035415355,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "weight_is_missing": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -5.604414612456562,
+            "max": 0.17843076737708957,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "race_is_missing": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.1513864699930472,
+            "max": 6.605610131776821,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "medical_specialty_is_missing": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.9833493388640232,
+            "max": 1.0169326001227719,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "payer_code_is_missing": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.807537890845078,
+            "max": 1.2383319858260926,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "unique_diagnosis_categories": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -2.085038904942341,
+            "max": 0.9890627256077321,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "number_outpatient_mean": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": 0.0,
+            "max": 0.0,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": true
+          },
+          "number_outpatient_max": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": 0.0,
+            "max": 0.0,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": true
+          },
+          "number_outpatient_sum": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": 0.0,
+            "max": 0.0,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": true
+          },
+          "number_emergency_mean": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": 0.0,
+            "max": 0.0,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": true
+          },
+          "number_emergency_max": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": 0.0,
+            "max": 0.0,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": true
+          },
+          "number_emergency_sum": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": 0.0,
+            "max": 0.0,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": true
+          },
+          "number_inpatient_mean": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.7704822758111298,
+            "max": 2.9767504075488365,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "number_inpatient_max": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.8479592835350752,
+            "max": 1.7532476547951554,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "number_inpatient_sum": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.4109739837303321,
+            "max": 17.58604641265448,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "total_visits": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.6324418170602,
+            "max": 2.444418894305451,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "medication_complexity_score": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.5902872832085753,
+            "max": 7.597757679627774,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "care_utilization_risk_score": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.6324418170602,
+            "max": 2.444418894305451,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "age_bucket": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -2.202074179281396,
+            "max": 1.4549812880753532,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "bmi_underweight": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.02086534651532753,
+            "max": 47.92635479431925,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "bmi_normal": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -10.804881051888287,
+            "max": 0.09255076434416118,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "bmi_overweight": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.087397590371595,
+            "max": 11.441963053537556,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "bmi_obese": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.02185210920149424,
+            "max": 45.76217292249391,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "los_medication_interaction": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.47226391891925673,
+            "max": 10.979964186048482,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "med_diagnosis_interaction": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -1.721097291390764,
+            "max": 5.044414845282489,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "race_Asian": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.08070687352901662,
+            "max": 12.390518381813777,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "race_Caucasian": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -1.8284225131848304,
+            "max": 0.5469195400893165,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "race_Hispanic": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.1437895194453028,
+            "max": 6.954609792547484,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "race_Other": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.12488767728670626,
+            "max": 8.007195119053154,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "gender_Male": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.9277265249838869,
+            "max": 1.0779038575159512,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "gender_Unknown_Invalid": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.0064896310930205375,
+            "max": 154.09196388304397,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "weight_0_25)": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.02086534651532753,
+            "max": 47.92635479431925,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "weight_100_125)": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.07856464577035974,
+            "max": 12.728371523788786,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "weight_125_150)": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.03805248730407951,
+            "max": 26.27949106214648,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "weight_150_175)": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.018358154870518926,
+            "max": 54.471705193308075,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "weight_175_200)": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.01059789514910904,
+            "max": 94.35835946009234,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "weight_25_50)": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.030682586663544942,
+            "max": 32.59177627250492,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "weight_50_75)": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.09392943107856921,
+            "max": 10.646290396069034,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "weight_75_100)": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -7.3490471633058805,
+            "max": 0.13607206183041604,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "max_glu_serum_300": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.11164517725035536,
+            "max": 8.95694757828706,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "max_glu_serum_Norm": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -6.049095529765767,
+            "max": 0.16531397050671529,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "A1Cresult_8": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -3.241354690459717,
+            "max": 0.30851298160713536,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "A1Cresult_Norm": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.22680025386544314,
+            "max": 4.409166140498605,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "metformin_No": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -2.0210526511451716,
+            "max": 0.4947916618764872,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "metformin_Steady": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.46957969353344825,
+            "max": 2.1295639776824586,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "metformin_Up": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.10238513357196617,
+            "max": 9.76704297892138,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "repaglinide_No": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -8.140468858665614,
+            "max": 0.12284304717110832,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "repaglinide_Steady": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.11619718385762814,
+            "max": 8.606060549843107,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "repaglinide_Up": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.033319979899032265,
+            "max": 30.01202290728404,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "nateglinide_No": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -11.942402092625063,
+            "max": 0.08373524792114823,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "nateglinide_Steady": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.08175747158395387,
+            "max": 12.231298016269193,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "nateglinide_Up": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.01451247871950638,
+            "max": 68.90621645879759,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "chlorpropamide_No": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -35.0315129069774,
+            "max": 0.02854572689039564,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "chlorpropamide_Steady": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.027797088018398267,
+            "max": 35.97499131341104,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "chlorpropamide_Up": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.005298724406159045,
+            "max": 188.7246671741667,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "glimepiride_No": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -4.321857591207054,
+            "max": 0.23138198769772728,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "glimepiride_Steady": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.21842961216386228,
+            "max": 4.578133844095352,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "glimepiride_Up": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.05740802915777504,
+            "max": 17.41916618059976,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "acetohexamide_Steady": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": 0.0,
+            "max": 1.0,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "glipizide_No": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -2.644817900800556,
+            "max": 0.3780978643925964,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "glipizide_Steady": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.35513157507167237,
+            "max": 2.81585775581397,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "glipizide_Up": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.08641371667375208,
+            "max": 11.572236891226632,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "glyburide_No": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -2.943528551080658,
+            "max": 0.33972831676216275,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "glyburide_Steady": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.3137777266399937,
+            "max": 3.1869693579217278,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "glyburide_Up": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.09138653633495068,
+            "max": 10.942530925286317,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "tolbutamide_Steady": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.014020288015325736,
+            "max": 71.32521093053784,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "pioglitazone_No": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -3.6048973455978777,
+            "max": 0.27740040953486533,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "pioglitazone_Steady": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.2702019297303165,
+            "max": 3.7009358186230616,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "pioglitazone_Up": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.047147746950289504,
+            "max": 21.209921251472643,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "rosiglitazone_No": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -3.8675425407692026,
+            "max": 0.2585621203797061,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "rosiglitazone_Steady": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.25279771830618164,
+            "max": 3.9557319057319478,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "rosiglitazone_Up": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.040560202087654325,
+            "max": 24.65470950659733,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "acarbose_No": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -18.260375531570826,
+            "max": 0.05476338634279791,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "acarbose_Steady": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.053590531242522,
+            "max": 18.66001281970011,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "acarbose_Up": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.00991335357859351,
+            "max": 100.87403743566244,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "miglitol_No": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -53.37077852158426,
+            "max": 0.018736844912158684,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "miglitol_Steady": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.017172119737290815,
+            "max": 58.23392890910312,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "miglitol_Up": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.005298724406159045,
+            "max": 188.7246671741667,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "troglitazone_Steady": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.005298724406159045,
+            "max": 188.7246671741667,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "tolazamide_Steady": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.020525905844035186,
+            "max": 48.71892171767899,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "tolazamide_Up": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.0037467376605244606,
+            "max": 266.89885724745994,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "insulin_No": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.9319518531749585,
+            "max": 1.0730168050991218,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "insulin_Steady": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.6597603261361374,
+            "max": 1.5157019305123482,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "insulin_Up": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.3542788351235436,
+            "max": 2.8226354522456343,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "glyburide_metformin_No": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -12.003478789708831,
+            "max": 0.08330918207289569,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "glyburide_metformin_Steady": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.08245062850523803,
+            "max": 12.128470311617706,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "glyburide_metformin_Up": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.00917791757401248,
+            "max": 108.95717813281817,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "glipizide_metformin_Steady": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.01059789514910904,
+            "max": 94.35835946009234,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "glimepiride_pioglitazone_Steady": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.0037467376605244606,
+            "max": 266.89885724745994,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "metformin_rosiglitazone_Steady": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.005298724406159045,
+            "max": 188.7246671741667,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "metformin_pioglitazone_Steady": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.0037467376605244606,
+            "max": 266.89885724745994,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "change_No": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -1.0773562139704602,
+            "max": 0.9281981085110433,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "diabetesMed_Yes": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -1.8324141130261526,
+            "max": 0.5457281696813299,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "age_target_encoded": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -5.805252347856898,
+            "max": 2.930592188597158,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "payer_code_target_encoded": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -4.747567030932926,
+            "max": 2.0116522118390887,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "medical_specialty_target_encoded": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -4.817298802298316,
+            "max": 6.8479306426231235,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "diag_1_target_encoded": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -2.009453240234232,
+            "max": 7.887424945197355,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "diag_2_target_encoded": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -2.3491590293369473,
+            "max": 4.152647973331705,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "diag_3_target_encoded": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -1.6102378472468426,
+            "max": 3.9736199889533537,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "diag_1_cat_target_encoded": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -1.4642644753767027,
+            "max": 4.273900291234416,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "diag_2_cat_target_encoded": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -1.5110567063743197,
+            "max": 5.163128671861478,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "diag_3_cat_target_encoded": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.9887263394660526,
+            "max": 3.199851630665341,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          }
+        },
+        "row_issues": {
+          "length": 0,
+          "alignment_or_order": 0,
+          "row_count": 0
+        },
+        "numeric_contract": "passed",
+        "clinical_semantics": {
+          "status": "unverifiable",
+          "reason": "No verified clinical variable dictionary or units supplied."
+        },
+        "range_interpretation": "Prepared standardized values; no raw clinical range judgment.",
+        "constant_interpretation": "Measured quality observation, not automatic variable removal."
+      }
+    },
+    {
+      "block": "patient_overlap",
+      "status": "failed",
+      "details": {
+        "overlaps": {
+          "train_validation": 5055,
+          "train_test": 5086,
+          "validation_test": 1760
+        },
+        "patients": {
+          "train": 54057,
+          "validation": 14070,
+          "test": 14111
+        },
+        "admissions": {
+          "train": 71236,
+          "validation": 15265,
+          "test": 15265
+        },
+        "unit": "unique patients, not duplicate admission rows"
+      }
+    },
+    {
+      "block": "demographics",
+      "status": "completed",
+      "details": {
+        "distributions": {
+          "train": {
+            "race": {
+              "Caucasian": {
+                "admissions": 54834,
+                "target_0": 48675,
+                "target_1": 6159,
+                "patients": 41922,
+                "patients_with_target_1": 5104,
+                "patients_with_target_0": 39848,
+                "event_rate": 0.11232082284713864,
+                "target_0_rate": 0.8876791771528614
+              },
+              "AfricanAmerican": {
+                "admissions": 13404,
+                "target_0": 11918,
+                "target_1": 1486,
+                "patients": 9781,
+                "patients_with_target_1": 1166,
+                "patients_with_target_0": 9417,
+                "event_rate": 0.11086242912563414,
+                "target_0_rate": 0.8891375708743658
+              },
+              "Other": {
+                "admissions": 1094,
+                "target_0": 979,
+                "target_1": 115,
+                "patients": 922,
+                "patients_with_target_1": 101,
+                "patients_with_target_0": 876,
+                "event_rate": 0.10511882998171847,
+                "target_0_rate": 0.8948811700182815
+              },
+              "Hispanic": {
+                "admissions": 1443,
+                "target_0": 1300,
+                "target_1": 143,
+                "patients": 1142,
+                "patients_with_target_1": 122,
+                "patients_with_target_0": 1091,
+                "event_rate": 0.0990990990990991,
+                "target_0_rate": 0.9009009009009009
+              },
+              "Asian": {
+                "admissions": 461,
+                "target_0": 414,
+                "target_1": 47,
+                "patients": 384,
+                "patients_with_target_1": 39,
+                "patients_with_target_0": 364,
+                "event_rate": 0.1019522776572668,
+                "target_0_rate": 0.8980477223427332
+              }
+            },
+            "gender": {
+              "Female": {
+                "admissions": 38282,
+                "target_0": 33974,
+                "target_1": 4308,
+                "patients": 28792,
+                "patients_with_target_1": 3514,
+                "patients_with_target_0": 27432,
+                "event_rate": 0.11253330546993365,
+                "target_0_rate": 0.8874666945300663
+              },
+              "Male": {
+                "admissions": 32951,
+                "target_0": 29309,
+                "target_1": 3642,
+                "patients": 25264,
+                "patients_with_target_1": 3013,
+                "patients_with_target_0": 24082,
+                "event_rate": 0.11052775333070317,
+                "target_0_rate": 0.8894722466692968
+              },
+              "Unknown/Invalid": {
+                "admissions": 3,
+                "target_0": 3,
+                "target_1": 0,
+                "patients": 3,
+                "patients_with_target_1": 0,
+                "patients_with_target_0": 3,
+                "event_rate": 0.0,
+                "target_0_rate": 1.0
+              }
+            },
+            "age_group": {
+              "[70-80)": {
+                "admissions": 18218,
+                "target_0": 16112,
+                "target_1": 2106,
+                "patients": 14089,
+                "patients_with_target_1": 1814,
+                "patients_with_target_0": 13298,
+                "event_rate": 0.1155999560873861,
+                "target_0_rate": 0.884400043912614
+              },
+              "[40-50)": {
+                "admissions": 6826,
+                "target_0": 6082,
+                "target_1": 744,
+                "patients": 5200,
+                "patients_with_target_1": 559,
+                "patients_with_target_0": 5019,
+                "event_rate": 0.1089950190448286,
+                "target_0_rate": 0.8910049809551714
+              },
+              "[80-90)": {
+                "admissions": 12034,
+                "target_0": 10566,
+                "target_1": 1468,
+                "patients": 9153,
+                "patients_with_target_1": 1291,
+                "patients_with_target_0": 8632,
+                "event_rate": 0.12198770151238159,
+                "target_0_rate": 0.8780122984876184
+              },
+              "[60-70)": {
+                "admissions": 15734,
+                "target_0": 14010,
+                "target_1": 1724,
+                "patients": 12245,
+                "patients_with_target_1": 1431,
+                "patients_with_target_0": 11653,
+                "event_rate": 0.10957162832083386,
+                "target_0_rate": 0.8904283716791661
+              },
+              "[50-60)": {
+                "admissions": 12049,
+                "target_0": 10851,
+                "target_1": 1198,
+                "patients": 9439,
+                "patients_with_target_1": 957,
+                "patients_with_target_0": 9069,
+                "event_rate": 0.09942733836832932,
+                "target_0_rate": 0.9005726616316707
+              },
+              "[30-40)": {
+                "admissions": 2686,
+                "target_0": 2381,
+                "target_1": 305,
+                "patients": 2039,
+                "patients_with_target_1": 219,
+                "patients_with_target_0": 1966,
+                "event_rate": 0.11355174981384959,
+                "target_0_rate": 0.8864482501861504
+              },
+              "[90-100)": {
+                "admissions": 1934,
+                "target_0": 1733,
+                "target_1": 201,
+                "patients": 1536,
+                "patients_with_target_1": 178,
+                "patients_with_target_0": 1473,
+                "event_rate": 0.10392967942088935,
+                "target_0_rate": 0.8960703205791106
+              },
+              "[10-20)": {
+                "admissions": 483,
+                "target_0": 453,
+                "target_1": 30,
+                "patients": 381,
+                "patients_with_target_1": 27,
+                "patients_with_target_0": 371,
+                "event_rate": 0.062111801242236024,
+                "target_0_rate": 0.937888198757764
+              },
+              "[20-30)": {
+                "admissions": 1161,
+                "target_0": 990,
+                "target_1": 171,
+                "patients": 843,
+                "patients_with_target_1": 93,
+                "patients_with_target_0": 812,
+                "event_rate": 0.14728682170542637,
+                "target_0_rate": 0.8527131782945736
+              },
+              "[0-10)": {
+                "admissions": 111,
+                "target_0": 108,
+                "target_1": 3,
+                "patients": 105,
+                "patients_with_target_1": 3,
+                "patients_with_target_0": 104,
+                "event_rate": 0.02702702702702703,
+                "target_0_rate": 0.972972972972973
+              }
+            },
+            "race_original": {
+              "Caucasian": {
+                "admissions": 53238,
+                "target_0": 47223,
+                "target_1": 6015,
+                "patients": 40544,
+                "patients_with_target_1": 4972,
+                "patients_with_target_0": 38531,
+                "event_rate": 0.11298320748337654,
+                "target_0_rate": 0.8870167925166235
+              },
+              "AfricanAmerican": {
+                "admissions": 13404,
+                "target_0": 11918,
+                "target_1": 1486,
+                "patients": 9781,
+                "patients_with_target_1": 1166,
+                "patients_with_target_0": 9417,
+                "event_rate": 0.11086242912563414,
+                "target_0_rate": 0.8891375708743658
+              },
+              "MISSING_ORIGINAL": {
+                "admissions": 1596,
+                "target_0": 1452,
+                "target_1": 144,
+                "patients": 1437,
+                "patients_with_target_1": 134,
+                "patients_with_target_0": 1363,
+                "event_rate": 0.09022556390977443,
+                "target_0_rate": 0.9097744360902256
+              },
+              "Other": {
+                "admissions": 1094,
+                "target_0": 979,
+                "target_1": 115,
+                "patients": 922,
+                "patients_with_target_1": 101,
+                "patients_with_target_0": 876,
+                "event_rate": 0.10511882998171847,
+                "target_0_rate": 0.8948811700182815
+              },
+              "Hispanic": {
+                "admissions": 1443,
+                "target_0": 1300,
+                "target_1": 143,
+                "patients": 1142,
+                "patients_with_target_1": 122,
+                "patients_with_target_0": 1091,
+                "event_rate": 0.0990990990990991,
+                "target_0_rate": 0.9009009009009009
+              },
+              "Asian": {
+                "admissions": 461,
+                "target_0": 414,
+                "target_1": 47,
+                "patients": 384,
+                "patients_with_target_1": 39,
+                "patients_with_target_0": 364,
+                "event_rate": 0.1019522776572668,
+                "target_0_rate": 0.8980477223427332
+              }
+            }
+          },
+          "validation": {
+            "race": {
+              "AfricanAmerican": {
+                "admissions": 2905,
+                "target_0": 2563,
+                "target_1": 342,
+                "patients": 2666,
+                "patients_with_target_1": 321,
+                "patients_with_target_0": 2424,
+                "event_rate": 0.11772805507745267,
+                "target_0_rate": 0.8822719449225473
+              },
+              "Caucasian": {
+                "admissions": 11787,
+                "target_0": 10481,
+                "target_1": 1306,
+                "patients": 10861,
+                "patients_with_target_1": 1244,
+                "patients_with_target_0": 9891,
+                "event_rate": 0.11080003393569186,
+                "target_0_rate": 0.8891999660643082
+              },
+              "Asian": {
+                "admissions": 89,
+                "target_0": 78,
+                "target_1": 11,
+                "patients": 89,
+                "patients_with_target_1": 11,
+                "patients_with_target_0": 78,
+                "event_rate": 0.12359550561797752,
+                "target_0_rate": 0.8764044943820225
+              },
+              "Hispanic": {
+                "admissions": 274,
+                "target_0": 245,
+                "target_1": 29,
+                "patients": 260,
+                "patients_with_target_1": 26,
+                "patients_with_target_0": 240,
+                "event_rate": 0.10583941605839416,
+                "target_0_rate": 0.8941605839416058
+              },
+              "Other": {
+                "admissions": 210,
+                "target_0": 195,
+                "target_1": 15,
+                "patients": 199,
+                "patients_with_target_1": 15,
+                "patients_with_target_0": 187,
+                "event_rate": 0.07142857142857142,
+                "target_0_rate": 0.9285714285714286
+              }
+            },
+            "gender": {
+              "Female": {
+                "admissions": 8239,
+                "target_0": 7332,
+                "target_1": 907,
+                "patients": 7606,
+                "patients_with_target_1": 872,
+                "patients_with_target_0": 6931,
+                "event_rate": 0.11008617550673626,
+                "target_0_rate": 0.8899138244932637
+              },
+              "Male": {
+                "admissions": 7026,
+                "target_0": 6230,
+                "target_1": 796,
+                "patients": 6464,
+                "patients_with_target_1": 745,
+                "patients_with_target_0": 5886,
+                "event_rate": 0.11329348135496727,
+                "target_0_rate": 0.8867065186450327
+              }
+            },
+            "age_group": {
+              "[70-80)": {
+                "admissions": 3961,
+                "target_0": 3474,
+                "target_1": 487,
+                "patients": 3659,
+                "patients_with_target_1": 469,
+                "patients_with_target_0": 3287,
+                "event_rate": 0.12294875031557688,
+                "target_0_rate": 0.8770512496844232
+              },
+              "[80-90)": {
+                "admissions": 2602,
+                "target_0": 2298,
+                "target_1": 304,
+                "patients": 2405,
+                "patients_with_target_1": 292,
+                "patients_with_target_0": 2171,
+                "event_rate": 0.11683320522674866,
+                "target_0_rate": 0.8831667947732513
+              },
+              "[50-60)": {
+                "admissions": 2617,
+                "target_0": 2368,
+                "target_1": 249,
+                "patients": 2446,
+                "patients_with_target_1": 234,
+                "patients_with_target_0": 2268,
+                "event_rate": 0.09514711501719526,
+                "target_0_rate": 0.9048528849828047
+              },
+              "[60-70)": {
+                "admissions": 3326,
+                "target_0": 2942,
+                "target_1": 384,
+                "patients": 3084,
+                "patients_with_target_1": 369,
+                "patients_with_target_0": 2795,
+                "event_rate": 0.11545399879735418,
+                "target_0_rate": 0.8845460012026458
+              },
+              "[40-50)": {
+                "admissions": 1421,
+                "target_0": 1284,
+                "target_1": 137,
+                "patients": 1303,
+                "patients_with_target_1": 124,
+                "patients_with_target_0": 1215,
+                "event_rate": 0.0964109781843772,
+                "target_0_rate": 0.9035890218156228
+              },
+              "[20-30)": {
+                "admissions": 242,
+                "target_0": 211,
+                "target_1": 31,
+                "patients": 219,
+                "patients_with_target_1": 29,
+                "patients_with_target_0": 196,
+                "event_rate": 0.128099173553719,
+                "target_0_rate": 0.871900826446281
+              },
+              "[90-100)": {
+                "admissions": 420,
+                "target_0": 370,
+                "target_1": 50,
+                "patients": 392,
+                "patients_with_target_1": 47,
+                "patients_with_target_0": 353,
+                "event_rate": 0.11904761904761904,
+                "target_0_rate": 0.8809523809523809
+              },
+              "[10-20)": {
+                "admissions": 109,
+                "target_0": 102,
+                "target_1": 7,
+                "patients": 101,
+                "patients_with_target_1": 6,
+                "patients_with_target_0": 96,
+                "event_rate": 0.06422018348623854,
+                "target_0_rate": 0.9357798165137615
+              },
+              "[30-40)": {
+                "admissions": 546,
+                "target_0": 492,
+                "target_1": 54,
+                "patients": 510,
+                "patients_with_target_1": 48,
+                "patients_with_target_0": 472,
+                "event_rate": 0.0989010989010989,
+                "target_0_rate": 0.9010989010989011
+              },
+              "[0-10)": {
+                "admissions": 21,
+                "target_0": 21,
+                "target_1": 0,
+                "patients": 21,
+                "patients_with_target_1": 0,
+                "patients_with_target_0": 21,
+                "event_rate": 0.0,
+                "target_0_rate": 1.0
+              }
+            },
+            "race_original": {
+              "AfricanAmerican": {
+                "admissions": 2905,
+                "target_0": 2563,
+                "target_1": 342,
+                "patients": 2666,
+                "patients_with_target_1": 321,
+                "patients_with_target_0": 2424,
+                "event_rate": 0.11772805507745267,
+                "target_0_rate": 0.8822719449225473
+              },
+              "Caucasian": {
+                "admissions": 11451,
+                "target_0": 10162,
+                "target_1": 1289,
+                "patients": 10536,
+                "patients_with_target_1": 1228,
+                "patients_with_target_0": 9578,
+                "event_rate": 0.11256658807091084,
+                "target_0_rate": 0.8874334119290892
+              },
+              "Asian": {
+                "admissions": 89,
+                "target_0": 78,
+                "target_1": 11,
+                "patients": 89,
+                "patients_with_target_1": 11,
+                "patients_with_target_0": 78,
+                "event_rate": 0.12359550561797752,
+                "target_0_rate": 0.8764044943820225
+              },
+              "Hispanic": {
+                "admissions": 274,
+                "target_0": 245,
+                "target_1": 29,
+                "patients": 260,
+                "patients_with_target_1": 26,
+                "patients_with_target_0": 240,
+                "event_rate": 0.10583941605839416,
+                "target_0_rate": 0.8941605839416058
+              },
+              "Other": {
+                "admissions": 210,
+                "target_0": 195,
+                "target_1": 15,
+                "patients": 199,
+                "patients_with_target_1": 15,
+                "patients_with_target_0": 187,
+                "event_rate": 0.07142857142857142,
+                "target_0_rate": 0.9285714285714286
+              },
+              "MISSING_ORIGINAL": {
+                "admissions": 336,
+                "target_0": 319,
+                "target_1": 17,
+                "patients": 330,
+                "patients_with_target_1": 16,
+                "patients_with_target_0": 316,
+                "event_rate": 0.050595238095238096,
+                "target_0_rate": 0.9494047619047619
+              }
+            }
+          },
+          "test": {
+            "race": {
+              "AfricanAmerican": {
+                "admissions": 2901,
+                "target_0": 2574,
+                "target_1": 327,
+                "patients": 2656,
+                "patients_with_target_1": 308,
+                "patients_with_target_0": 2435,
+                "event_rate": 0.11271975180972078,
+                "target_0_rate": 0.8872802481902792
+              },
+              "Caucasian": {
+                "admissions": 11751,
+                "target_0": 10436,
+                "target_1": 1315,
+                "patients": 10882,
+                "patients_with_target_1": 1241,
+                "patients_with_target_0": 9914,
+                "event_rate": 0.11190536975576547,
+                "target_0_rate": 0.8880946302442345
+              },
+              "Hispanic": {
+                "admissions": 320,
+                "target_0": 280,
+                "target_1": 40,
+                "patients": 295,
+                "patients_with_target_1": 36,
+                "patients_with_target_0": 265,
+                "event_rate": 0.125,
+                "target_0_rate": 0.875
+              },
+              "Other": {
+                "admissions": 202,
+                "target_0": 187,
+                "target_1": 15,
+                "patients": 195,
+                "patients_with_target_1": 14,
+                "patients_with_target_0": 184,
+                "event_rate": 0.07425742574257425,
+                "target_0_rate": 0.9257425742574258
+              },
+              "Asian": {
+                "admissions": 91,
+                "target_0": 84,
+                "target_1": 7,
+                "patients": 88,
+                "patients_with_target_1": 7,
+                "patients_with_target_0": 82,
+                "event_rate": 0.07692307692307693,
+                "target_0_rate": 0.9230769230769231
+              }
+            },
+            "gender": {
+              "Male": {
+                "admissions": 7078,
+                "target_0": 6311,
+                "target_1": 767,
+                "patients": 6582,
+                "patients_with_target_1": 735,
+                "patients_with_target_0": 6018,
+                "event_rate": 0.10836394461712348,
+                "target_0_rate": 0.8916360553828765
+              },
+              "Female": {
+                "admissions": 8187,
+                "target_0": 7250,
+                "target_1": 937,
+                "patients": 7529,
+                "patients_with_target_1": 869,
+                "patients_with_target_0": 6858,
+                "event_rate": 0.1144497373885428,
+                "target_0_rate": 0.8855502626114572
+              }
+            },
+            "age_group": {
+              "[50-60)": {
+                "admissions": 2590,
+                "target_0": 2369,
+                "target_1": 221,
+                "patients": 2415,
+                "patients_with_target_1": 206,
+                "patients_with_target_0": 2261,
+                "event_rate": 0.08532818532818533,
+                "target_0_rate": 0.9146718146718147
+              },
+              "[20-30)": {
+                "admissions": 254,
+                "target_0": 220,
+                "target_1": 34,
+                "patients": 229,
+                "patients_with_target_1": 24,
+                "patients_with_target_0": 214,
+                "event_rate": 0.13385826771653545,
+                "target_0_rate": 0.8661417322834646
+              },
+              "[40-50)": {
+                "admissions": 1438,
+                "target_0": 1292,
+                "target_1": 146,
+                "patients": 1314,
+                "patients_with_target_1": 128,
+                "patients_with_target_0": 1224,
+                "event_rate": 0.10152990264255911,
+                "target_0_rate": 0.8984700973574409
+              },
+              "[70-80)": {
+                "admissions": 3889,
+                "target_0": 3413,
+                "target_1": 476,
+                "patients": 3633,
+                "patients_with_target_1": 461,
+                "patients_with_target_0": 3250,
+                "event_rate": 0.12239650295705837,
+                "target_0_rate": 0.8776034970429416
+              },
+              "[60-70)": {
+                "admissions": 3423,
+                "target_0": 3029,
+                "target_1": 394,
+                "patients": 3180,
+                "patients_with_target_1": 381,
+                "patients_with_target_0": 2888,
+                "event_rate": 0.11510371019573473,
+                "target_0_rate": 0.8848962898042653
+              },
+              "[80-90)": {
+                "admissions": 2561,
+                "target_0": 2255,
+                "target_1": 306,
+                "patients": 2392,
+                "patients_with_target_1": 290,
+                "patients_with_target_0": 2152,
+                "event_rate": 0.11948457633736821,
+                "target_0_rate": 0.8805154236626318
+              },
+              "[90-100)": {
+                "admissions": 439,
+                "target_0": 380,
+                "target_1": 59,
+                "patients": 401,
+                "patients_with_target_1": 55,
+                "patients_with_target_0": 366,
+                "event_rate": 0.13439635535307518,
+                "target_0_rate": 0.8656036446469249
+              },
+              "[30-40)": {
+                "admissions": 543,
+                "target_0": 478,
+                "target_1": 65,
+                "patients": 500,
+                "patients_with_target_1": 59,
+                "patients_with_target_0": 457,
+                "event_rate": 0.11970534069981584,
+                "target_0_rate": 0.8802946593001841
+              },
+              "[10-20)": {
+                "admissions": 99,
+                "target_0": 96,
+                "target_1": 3,
+                "patients": 97,
+                "patients_with_target_1": 3,
+                "patients_with_target_0": 95,
+                "event_rate": 0.030303030303030304,
+                "target_0_rate": 0.9696969696969697
+              },
+              "[0-10)": {
+                "admissions": 29,
+                "target_0": 29,
+                "target_1": 0,
+                "patients": 29,
+                "patients_with_target_1": 0,
+                "patients_with_target_0": 29,
+                "event_rate": 0.0,
+                "target_0_rate": 1.0
+              }
+            },
+            "race_original": {
+              "AfricanAmerican": {
+                "admissions": 2901,
+                "target_0": 2574,
+                "target_1": 327,
+                "patients": 2656,
+                "patients_with_target_1": 308,
+                "patients_with_target_0": 2435,
+                "event_rate": 0.11271975180972078,
+                "target_0_rate": 0.8872802481902792
+              },
+              "MISSING_ORIGINAL": {
+                "admissions": 341,
+                "target_0": 314,
+                "target_1": 27,
+                "patients": 318,
+                "patients_with_target_1": 24,
+                "patients_with_target_0": 301,
+                "event_rate": 0.07917888563049853,
+                "target_0_rate": 0.9208211143695014
+              },
+              "Caucasian": {
+                "admissions": 11410,
+                "target_0": 10122,
+                "target_1": 1288,
+                "patients": 10567,
+                "patients_with_target_1": 1218,
+                "patients_with_target_0": 9615,
+                "event_rate": 0.11288343558282209,
+                "target_0_rate": 0.8871165644171779
+              },
+              "Hispanic": {
+                "admissions": 320,
+                "target_0": 280,
+                "target_1": 40,
+                "patients": 295,
+                "patients_with_target_1": 36,
+                "patients_with_target_0": 265,
+                "event_rate": 0.125,
+                "target_0_rate": 0.875
+              },
+              "Other": {
+                "admissions": 202,
+                "target_0": 187,
+                "target_1": 15,
+                "patients": 195,
+                "patients_with_target_1": 14,
+                "patients_with_target_0": 184,
+                "event_rate": 0.07425742574257425,
+                "target_0_rate": 0.9257425742574258
+              },
+              "Asian": {
+                "admissions": 91,
+                "target_0": 84,
+                "target_1": 7,
+                "patients": 88,
+                "patients_with_target_1": 7,
+                "patients_with_target_0": 82,
+                "event_rate": 0.07692307692307693,
+                "target_0_rate": 0.9230769230769231
+              }
+            }
+          }
+        },
+        "original_race_missing": {
+          "train": 1596,
+          "validation": 336,
+          "test": 341
+        },
+        "caucasian_imputed": {
+          "train": 1596,
+          "validation": 336,
+          "test": 341
+        },
+        "race_views": {
+          "race": "public metadata, includes Caucasian imputation",
+          "race_original": "observed original race; missing remains missing"
+        },
+        "event_rate_denominator": "admissions",
+        "patient_count_note": "Patients can contribute multiple admissions and both target classes; subgroup patient counts are not additive.",
+        "interpretation": "Descriptive counts only; no minimum-size threshold or significance claim.",
+        "absent_groups": "Not observed, not invented zero-count populations."
+      }
+    },
+    {
+      "block": "cohort",
+      "status": "unverifiable",
+      "details": {
+        "data_unit": "admission/encounter",
+        "research_unit": "not declared",
+        "counts": {
+          "train": {
+            "admissions": 71236,
+            "patients": 54057,
+            "target_0": 63286,
+            "target_1": 7950,
+            "event_rate": 0.11160087596159245,
+            "event_rate_denominator": "admissions"
+          },
+          "validation": {
+            "admissions": 15265,
+            "patients": 14070,
+            "target_0": 13562,
+            "target_1": 1703,
+            "event_rate": 0.11156239764166394,
+            "event_rate_denominator": "admissions"
+          },
+          "test": {
+            "admissions": 15265,
+            "patients": 14111,
+            "target_0": 13561,
+            "target_1": 1704,
+            "event_rate": 0.11162790697674418,
+            "event_rate_denominator": "admissions"
+          }
+        },
+        "total_admissions": 101766,
+        "unique_admission_keys": 101766,
+        "duplicate_admission_keys": 0,
+        "unique_patients": 71518,
+        "source_selection_description": {
+          "source": "https://archive.ics.uci.edu/dataset/296/diabetes+130-us+hospitals+for+years+1999-2008",
+          "criteria": [
+            "Inpatient encounters",
+            "Diabetes entered as a diagnosis during the encounter",
+            "Length of stay between 1 and 14 days",
+            "Laboratory tests performed during the encounter",
+            "Medications administered during the encounter"
+          ],
+          "scope": "Source selection description, not row-level certification."
+        },
+        "row_level_selection": {
+          "status": "unverifiable",
+          "reason": "Raw source fields are not supplied."
+        },
+        "upstream_population": {
+          "status": "unverifiable",
+          "population": null,
+          "excluded": null,
+          "reason": "Pre-publication source population and exclusion counts are unavailable."
+        },
+        "additional_selection": {
+          "status": "unverifiable",
+          "declared": false,
+          "reason": "Free text is neither executed nor echoed; no approved structured selection is implemented."
+        },
+        "repeated_admissions": "Retained; not duplicate patients or a first-admission cohort."
+      }
+    },
+    {
+      "block": "label_observability",
+      "status": "unverifiable",
+      "details": {
+        "target_definition": {
+          "status": "passed",
+          "mapping": {
+            "<30": 1,
+            ">30": 0,
+            "NO": 0
+          },
+          "expected": {
+            "<30": 1,
+            ">30": 0,
+            "NO": 0
+          }
+        },
+        "encoding": {
+          "status": "passed",
+          "classes": [
+            0,
+            1
+          ],
+          "positive_class": 1,
+          "observed_counts": {
+            "train": {
+              "admissions": 71236,
+              "patients": 54057,
+              "target_0": 63286,
+              "target_1": 7950,
+              "event_rate": 0.11160087596159245,
+              "event_rate_denominator": "admissions"
+            },
+            "validation": {
+              "admissions": 15265,
+              "patients": 14070,
+              "target_0": 13562,
+              "target_1": 1703,
+              "event_rate": 0.11156239764166394,
+              "event_rate_denominator": "admissions"
+            },
+            "test": {
+              "admissions": 15265,
+              "patients": 14111,
+              "target_0": 13561,
+              "target_1": 1704,
+              "event_rate": 0.11162790697674418,
+              "event_rate_denominator": "admissions"
+            }
+          }
+        },
+        "raw_label_alignment": {
+          "status": "unverifiable",
+          "reason": "Original readmitted values are not supplied."
+        },
+        "followup_completeness": {
+          "status": "unverifiable",
+          "reason": "No observation end dates or individual 30-day follow-up dates."
+        },
+        "outside_hospital_capture": {
+          "status": "unverifiable",
+          "reason": "No evidence that readmissions outside participating hospitals are captured."
+        },
+        "interpretation": "Encoded target 0 does not establish complete, event-free 30-day follow-up."
+      }
+    },
+    {
+      "block": "preprocessing_lineage",
+      "status": "unverifiable",
+      "details": {
+        "asset_integrity": {
+          "status": "passed",
+          "scope": "File hashes and immutable source manifest only; not leakage certification."
+        },
+        "current_import": {
+          "training_performed": false,
+          "preprocessing_performed": false
+        },
+        "historical_transformations": {
+          "imputation": {
+            "status": "unverifiable",
+            "fit_scope": null,
+            "reason": "Exact historical fit rows and transform lineage are not supplied.",
+            "evidence": [
+              "Missing original race is imputed as Caucasian in public demographics; preserve the original missing flag."
+            ],
+            "documented_rule": "Original missing race is Caucasian in public metadata; fit population unknown."
+          },
+          "scaling": {
+            "status": "unverifiable",
+            "fit_scope": null,
+            "reason": "Exact historical fit rows and transform lineage are not supplied.",
+            "evidence": [
+              "Prepared 113-feature inputs are already standardized; the supplied 120-feature scaler is incompatible and excluded."
+            ]
+          },
+          "target_encoding": {
+            "status": "unverifiable",
+            "fit_scope": null,
+            "reason": "Exact historical fit rows and transform lineage are not supplied.",
+            "evidence": [
+              "Source target encoding before splitting and historical preprocessing uncertainty prevent a leakage-free holdout claim."
+            ]
+          }
+        },
+        "validation_use": {
+          "evidence": [
+            "Public validation was used in model development, not an independent holdout."
+          ],
+          "interpretation": "Development reuse is not an independent validation holdout."
+        },
+        "historical_113_pipeline": {
+          "status": "unverifiable",
+          "reason": "Exact original 113-feature pipeline has not been independently reproduced."
+        },
+        "known_limitations": [
+          "Row-stratified public splits have known cross-split patient overlap; do not repartition them.",
+          "Public validation was used in model development, not an independent holdout.",
+          "Source target encoding before splitting and historical preprocessing uncertainty prevent a leakage-free holdout claim.",
+          "Missing original race is imputed as Caucasian in public demographics; preserve the original missing flag.",
+          "Prepared 113-feature inputs are already standardized; the supplied 120-feature scaler is incompatible and excluded."
+        ],
+        "interpretation": "Do not infer train-only fit, remove suspected features, refit or modify a model."
+      }
+    },
+    {
+      "block": "prediction_timing",
+      "status": "unverifiable",
+      "details": {
+        "prediction_time": "No approved prediction-time declaration.",
+        "documented_availability": {},
+        "undocumented_features": [
+          "admission_type_id",
+          "discharge_disposition_id",
+          "admission_source_id",
+          "time_in_hospital",
+          "num_lab_procedures",
+          "num_procedures",
+          "num_medications",
+          "number_outpatient",
+          "number_emergency",
+          "number_inpatient",
+          "number_diagnoses",
+          "A1Cresult_is_missing",
+          "weight_is_missing",
+          "race_is_missing",
+          "medical_specialty_is_missing",
+          "payer_code_is_missing",
+          "unique_diagnosis_categories",
+          "number_outpatient_mean",
+          "number_outpatient_max",
+          "number_outpatient_sum",
+          "number_emergency_mean",
+          "number_emergency_max",
+          "number_emergency_sum",
+          "number_inpatient_mean",
+          "number_inpatient_max",
+          "number_inpatient_sum",
+          "total_visits",
+          "medication_complexity_score",
+          "care_utilization_risk_score",
+          "age_bucket",
+          "bmi_underweight",
+          "bmi_normal",
+          "bmi_overweight",
+          "bmi_obese",
+          "los_medication_interaction",
+          "med_diagnosis_interaction",
+          "race_Asian",
+          "race_Caucasian",
+          "race_Hispanic",
+          "race_Other",
+          "gender_Male",
+          "gender_Unknown_Invalid",
+          "weight_0_25)",
+          "weight_100_125)",
+          "weight_125_150)",
+          "weight_150_175)",
+          "weight_175_200)",
+          "weight_25_50)",
+          "weight_50_75)",
+          "weight_75_100)",
+          "max_glu_serum_300",
+          "max_glu_serum_Norm",
+          "A1Cresult_8",
+          "A1Cresult_Norm",
+          "metformin_No",
+          "metformin_Steady",
+          "metformin_Up",
+          "repaglinide_No",
+          "repaglinide_Steady",
+          "repaglinide_Up",
+          "nateglinide_No",
+          "nateglinide_Steady",
+          "nateglinide_Up",
+          "chlorpropamide_No",
+          "chlorpropamide_Steady",
+          "chlorpropamide_Up",
+          "glimepiride_No",
+          "glimepiride_Steady",
+          "glimepiride_Up",
+          "acetohexamide_Steady",
+          "glipizide_No",
+          "glipizide_Steady",
+          "glipizide_Up",
+          "glyburide_No",
+          "glyburide_Steady",
+          "glyburide_Up",
+          "tolbutamide_Steady",
+          "pioglitazone_No",
+          "pioglitazone_Steady",
+          "pioglitazone_Up",
+          "rosiglitazone_No",
+          "rosiglitazone_Steady",
+          "rosiglitazone_Up",
+          "acarbose_No",
+          "acarbose_Steady",
+          "acarbose_Up",
+          "miglitol_No",
+          "miglitol_Steady",
+          "miglitol_Up",
+          "troglitazone_Steady",
+          "tolazamide_Steady",
+          "tolazamide_Up",
+          "insulin_No",
+          "insulin_Steady",
+          "insulin_Up",
+          "glyburide_metformin_No",
+          "glyburide_metformin_Steady",
+          "glyburide_metformin_Up",
+          "glipizide_metformin_Steady",
+          "glimepiride_pioglitazone_Steady",
+          "metformin_rosiglitazone_Steady",
+          "metformin_pioglitazone_Steady",
+          "change_No",
+          "diabetesMed_Yes",
+          "age_target_encoded",
+          "payer_code_target_encoded",
+          "medical_specialty_target_encoded",
+          "diag_1_target_encoded",
+          "diag_2_target_encoded",
+          "diag_3_target_encoded",
+          "diag_1_cat_target_encoded",
+          "diag_2_cat_target_encoded",
+          "diag_3_cat_target_encoded"
+        ],
+        "timing_conflicts": [],
+        "completion_information_candidates": [
+          "discharge_disposition_id",
+          "time_in_hospital",
+          "num_lab_procedures",
+          "num_procedures",
+          "num_medications",
+          "number_diagnoses",
+          "medication_complexity_score",
+          "los_medication_interaction"
+        ],
+        "candidate_scope": "Name-based screening only, not proof of leakage or safe availability.",
+        "evidence_gap": "No actual encounter timestamps or verified feature-availability dictionary in published assets.",
+        "interpretation": "Admission-time use of completed-stay or discharge information is not assumed."
+      }
+    }
+  ],
+  "input_profile": "diabetes_prepared",
+  "input_mapping_hash": "efb2726a5496829ff0cd9425b5741ff12309f4be74444728754ea7371c21837e",
+  "dataset_context": {
+    "id": "diabetes_prepared",
+    "profile_id": "diabetes_prepared",
+    "data_id": "c34ec224503e2038c79fd11c47e0f603c7e392ba46f4e8c14e1661bfaf5303fd",
+    "target_definition": "UCI readmitted의 <30은 1, >30과 NO는 0으로 제공된 정답입니다. 0이 완전한 30일 무사건 추적을 입증하지는 않습니다.",
+    "source_selection": "등록된 hospital-readmission-risk-data의 고정 준비 분할과 대응 모델을 사용합니다. UCI 당뇨병 입원 자료에서 선택된 코호트이며 원자료를 새로 다운로드하거나 전처리하지 않습니다.",
+    "limitations": [
+      "환자 단위 분할 간 중복은 실제 patient_nbr로 측정하며 입원 ID로 대신하지 않습니다.",
+      "인종 결측 대체와 원본 결측은 별도 필드로 보존합니다.",
+      "등록된 준비 데이터와 대응 모델에 한정되며 임의 원자료나 모든 ML 문제의 자동 지원을 의미하지 않습니다.",
+      "새 데이터에는 운영자의 profile, data_id 및 대응 이미지 등록이 필요합니다."
+    ],
+    "legacy": true
+  },
+  "coordination_hash": "ad2e31028284a55b69a1fd64ebd61fe6bcf9ab0ad4ecf6fefd64ab47efab94be",
+  "research_request_hash": "2cad89531aae76c60e6ec039733a519d1c6376e99b585f8af81030d11b707b1a",
+  "coordination_evidence": {
+    "schema": {
+      "status": "unverifiable",
+      "details": {
+        "actual_count": 113,
+        "expected_count": 113,
+        "feature_columns": [
+          "admission_type_id",
+          "discharge_disposition_id",
+          "admission_source_id",
+          "time_in_hospital",
+          "num_lab_procedures",
+          "num_procedures",
+          "num_medications",
+          "number_outpatient",
+          "number_emergency",
+          "number_inpatient",
+          "number_diagnoses",
+          "A1Cresult_is_missing",
+          "weight_is_missing",
+          "race_is_missing",
+          "medical_specialty_is_missing",
+          "payer_code_is_missing",
+          "unique_diagnosis_categories",
+          "number_outpatient_mean",
+          "number_outpatient_max",
+          "number_outpatient_sum",
+          "number_emergency_mean",
+          "number_emergency_max",
+          "number_emergency_sum",
+          "number_inpatient_mean",
+          "number_inpatient_max",
+          "number_inpatient_sum",
+          "total_visits",
+          "medication_complexity_score",
+          "care_utilization_risk_score",
+          "age_bucket",
+          "bmi_underweight",
+          "bmi_normal",
+          "bmi_overweight",
+          "bmi_obese",
+          "los_medication_interaction",
+          "med_diagnosis_interaction",
+          "race_Asian",
+          "race_Caucasian",
+          "race_Hispanic",
+          "race_Other",
+          "gender_Male",
+          "gender_Unknown_Invalid",
+          "weight_0_25)",
+          "weight_100_125)",
+          "weight_125_150)",
+          "weight_150_175)",
+          "weight_175_200)",
+          "weight_25_50)",
+          "weight_50_75)",
+          "weight_75_100)",
+          "max_glu_serum_300",
+          "max_glu_serum_Norm",
+          "A1Cresult_8",
+          "A1Cresult_Norm",
+          "metformin_No",
+          "metformin_Steady",
+          "metformin_Up",
+          "repaglinide_No",
+          "repaglinide_Steady",
+          "repaglinide_Up",
+          "nateglinide_No",
+          "nateglinide_Steady",
+          "nateglinide_Up",
+          "chlorpropamide_No",
+          "chlorpropamide_Steady",
+          "chlorpropamide_Up",
+          "glimepiride_No",
+          "glimepiride_Steady",
+          "glimepiride_Up",
+          "acetohexamide_Steady",
+          "glipizide_No",
+          "glipizide_Steady",
+          "glipizide_Up",
+          "glyburide_No",
+          "glyburide_Steady",
+          "glyburide_Up",
+          "tolbutamide_Steady",
+          "pioglitazone_No",
+          "pioglitazone_Steady",
+          "pioglitazone_Up",
+          "rosiglitazone_No",
+          "rosiglitazone_Steady",
+          "rosiglitazone_Up",
+          "acarbose_No",
+          "acarbose_Steady",
+          "acarbose_Up",
+          "miglitol_No",
+          "miglitol_Steady",
+          "miglitol_Up",
+          "troglitazone_Steady",
+          "tolazamide_Steady",
+          "tolazamide_Up",
+          "insulin_No",
+          "insulin_Steady",
+          "insulin_Up",
+          "glyburide_metformin_No",
+          "glyburide_metformin_Steady",
+          "glyburide_metformin_Up",
+          "glipizide_metformin_Steady",
+          "glimepiride_pioglitazone_Steady",
+          "metformin_rosiglitazone_Steady",
+          "metformin_pioglitazone_Steady",
+          "change_No",
+          "diabetesMed_Yes",
+          "age_target_encoded",
+          "payer_code_target_encoded",
+          "medical_specialty_target_encoded",
+          "diag_1_target_encoded",
+          "diag_2_target_encoded",
+          "diag_3_target_encoded",
+          "diag_1_cat_target_encoded",
+          "diag_2_cat_target_encoded",
+          "diag_3_cat_target_encoded"
+        ],
+        "schema_match": true,
+        "duplicate_columns": 0,
+        "rows": 101766,
+        "split_rows": {
+          "train": 71236,
+          "validation": 15265,
+          "test": 15265
+        },
+        "quality": {
+          "admission_type_id": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.7090829967376786,
+            "max": 4.135750722388091,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "discharge_disposition_id": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.5149446600885323,
+            "max": 4.5946057439261425,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "admission_source_id": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -1.1699880193344054,
+            "max": 4.743575152386659,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "time_in_hospital": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -1.161733421374419,
+            "max": 2.646810785899815,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "num_lab_procedures": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -2.142042601617274,
+            "max": 2.694808883474134,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "num_procedures": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.8159742588771945,
+            "max": 2.3570214126246083,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "num_medications": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -2.0102046471883948,
+            "max": 2.603088896637011,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "number_outpatient": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": 0.0,
+            "max": 0.0,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": true
+          },
+          "number_emergency": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": 0.0,
+            "max": 0.0,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": true
+          },
+          "number_inpatient": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.6324418170602,
+            "max": 2.444418894305451,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "number_diagnoses": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -3.0769197284652265,
+            "max": 3.1598079013486893,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "A1Cresult_is_missing": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -2.2337730110650416,
+            "max": 0.44767306035415355,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "weight_is_missing": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -5.604414612456562,
+            "max": 0.17843076737708957,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "race_is_missing": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.1513864699930472,
+            "max": 6.605610131776821,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "medical_specialty_is_missing": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.9833493388640232,
+            "max": 1.0169326001227719,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "payer_code_is_missing": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.807537890845078,
+            "max": 1.2383319858260926,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "unique_diagnosis_categories": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -2.085038904942341,
+            "max": 0.9890627256077321,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "number_outpatient_mean": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": 0.0,
+            "max": 0.0,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": true
+          },
+          "number_outpatient_max": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": 0.0,
+            "max": 0.0,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": true
+          },
+          "number_outpatient_sum": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": 0.0,
+            "max": 0.0,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": true
+          },
+          "number_emergency_mean": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": 0.0,
+            "max": 0.0,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": true
+          },
+          "number_emergency_max": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": 0.0,
+            "max": 0.0,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": true
+          },
+          "number_emergency_sum": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": 0.0,
+            "max": 0.0,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": true
+          },
+          "number_inpatient_mean": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.7704822758111298,
+            "max": 2.9767504075488365,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "number_inpatient_max": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.8479592835350752,
+            "max": 1.7532476547951554,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "number_inpatient_sum": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.4109739837303321,
+            "max": 17.58604641265448,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "total_visits": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.6324418170602,
+            "max": 2.444418894305451,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "medication_complexity_score": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.5902872832085753,
+            "max": 7.597757679627774,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "care_utilization_risk_score": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.6324418170602,
+            "max": 2.444418894305451,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "age_bucket": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -2.202074179281396,
+            "max": 1.4549812880753532,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "bmi_underweight": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.02086534651532753,
+            "max": 47.92635479431925,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "bmi_normal": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -10.804881051888287,
+            "max": 0.09255076434416118,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "bmi_overweight": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.087397590371595,
+            "max": 11.441963053537556,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "bmi_obese": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.02185210920149424,
+            "max": 45.76217292249391,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "los_medication_interaction": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.47226391891925673,
+            "max": 10.979964186048482,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "med_diagnosis_interaction": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -1.721097291390764,
+            "max": 5.044414845282489,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "race_Asian": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.08070687352901662,
+            "max": 12.390518381813777,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "race_Caucasian": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -1.8284225131848304,
+            "max": 0.5469195400893165,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "race_Hispanic": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.1437895194453028,
+            "max": 6.954609792547484,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "race_Other": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.12488767728670626,
+            "max": 8.007195119053154,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "gender_Male": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.9277265249838869,
+            "max": 1.0779038575159512,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "gender_Unknown_Invalid": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.0064896310930205375,
+            "max": 154.09196388304397,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "weight_0_25)": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.02086534651532753,
+            "max": 47.92635479431925,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "weight_100_125)": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.07856464577035974,
+            "max": 12.728371523788786,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "weight_125_150)": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.03805248730407951,
+            "max": 26.27949106214648,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "weight_150_175)": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.018358154870518926,
+            "max": 54.471705193308075,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "weight_175_200)": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.01059789514910904,
+            "max": 94.35835946009234,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "weight_25_50)": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.030682586663544942,
+            "max": 32.59177627250492,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "weight_50_75)": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.09392943107856921,
+            "max": 10.646290396069034,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "weight_75_100)": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -7.3490471633058805,
+            "max": 0.13607206183041604,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "max_glu_serum_300": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.11164517725035536,
+            "max": 8.95694757828706,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "max_glu_serum_Norm": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -6.049095529765767,
+            "max": 0.16531397050671529,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "A1Cresult_8": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -3.241354690459717,
+            "max": 0.30851298160713536,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "A1Cresult_Norm": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.22680025386544314,
+            "max": 4.409166140498605,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "metformin_No": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -2.0210526511451716,
+            "max": 0.4947916618764872,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "metformin_Steady": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.46957969353344825,
+            "max": 2.1295639776824586,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "metformin_Up": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.10238513357196617,
+            "max": 9.76704297892138,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "repaglinide_No": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -8.140468858665614,
+            "max": 0.12284304717110832,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "repaglinide_Steady": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.11619718385762814,
+            "max": 8.606060549843107,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "repaglinide_Up": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.033319979899032265,
+            "max": 30.01202290728404,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "nateglinide_No": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -11.942402092625063,
+            "max": 0.08373524792114823,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "nateglinide_Steady": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.08175747158395387,
+            "max": 12.231298016269193,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "nateglinide_Up": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.01451247871950638,
+            "max": 68.90621645879759,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "chlorpropamide_No": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -35.0315129069774,
+            "max": 0.02854572689039564,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "chlorpropamide_Steady": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.027797088018398267,
+            "max": 35.97499131341104,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "chlorpropamide_Up": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.005298724406159045,
+            "max": 188.7246671741667,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "glimepiride_No": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -4.321857591207054,
+            "max": 0.23138198769772728,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "glimepiride_Steady": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.21842961216386228,
+            "max": 4.578133844095352,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "glimepiride_Up": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.05740802915777504,
+            "max": 17.41916618059976,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "acetohexamide_Steady": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": 0.0,
+            "max": 1.0,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "glipizide_No": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -2.644817900800556,
+            "max": 0.3780978643925964,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "glipizide_Steady": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.35513157507167237,
+            "max": 2.81585775581397,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "glipizide_Up": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.08641371667375208,
+            "max": 11.572236891226632,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "glyburide_No": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -2.943528551080658,
+            "max": 0.33972831676216275,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "glyburide_Steady": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.3137777266399937,
+            "max": 3.1869693579217278,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "glyburide_Up": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.09138653633495068,
+            "max": 10.942530925286317,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "tolbutamide_Steady": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.014020288015325736,
+            "max": 71.32521093053784,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "pioglitazone_No": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -3.6048973455978777,
+            "max": 0.27740040953486533,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "pioglitazone_Steady": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.2702019297303165,
+            "max": 3.7009358186230616,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "pioglitazone_Up": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.047147746950289504,
+            "max": 21.209921251472643,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "rosiglitazone_No": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -3.8675425407692026,
+            "max": 0.2585621203797061,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "rosiglitazone_Steady": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.25279771830618164,
+            "max": 3.9557319057319478,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "rosiglitazone_Up": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.040560202087654325,
+            "max": 24.65470950659733,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "acarbose_No": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -18.260375531570826,
+            "max": 0.05476338634279791,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "acarbose_Steady": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.053590531242522,
+            "max": 18.66001281970011,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "acarbose_Up": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.00991335357859351,
+            "max": 100.87403743566244,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "miglitol_No": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -53.37077852158426,
+            "max": 0.018736844912158684,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "miglitol_Steady": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.017172119737290815,
+            "max": 58.23392890910312,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "miglitol_Up": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.005298724406159045,
+            "max": 188.7246671741667,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "troglitazone_Steady": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.005298724406159045,
+            "max": 188.7246671741667,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "tolazamide_Steady": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.020525905844035186,
+            "max": 48.71892171767899,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "tolazamide_Up": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.0037467376605244606,
+            "max": 266.89885724745994,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "insulin_No": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.9319518531749585,
+            "max": 1.0730168050991218,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "insulin_Steady": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.6597603261361374,
+            "max": 1.5157019305123482,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "insulin_Up": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.3542788351235436,
+            "max": 2.8226354522456343,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "glyburide_metformin_No": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -12.003478789708831,
+            "max": 0.08330918207289569,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "glyburide_metformin_Steady": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.08245062850523803,
+            "max": 12.128470311617706,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "glyburide_metformin_Up": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.00917791757401248,
+            "max": 108.95717813281817,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "glipizide_metformin_Steady": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.01059789514910904,
+            "max": 94.35835946009234,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "glimepiride_pioglitazone_Steady": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.0037467376605244606,
+            "max": 266.89885724745994,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "metformin_rosiglitazone_Steady": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.005298724406159045,
+            "max": 188.7246671741667,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "metformin_pioglitazone_Steady": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.0037467376605244606,
+            "max": 266.89885724745994,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "change_No": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -1.0773562139704602,
+            "max": 0.9281981085110433,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "diabetesMed_Yes": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -1.8324141130261526,
+            "max": 0.5457281696813299,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "age_target_encoded": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -5.805252347856898,
+            "max": 2.930592188597158,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "payer_code_target_encoded": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -4.747567030932926,
+            "max": 2.0116522118390887,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "medical_specialty_target_encoded": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -4.817298802298316,
+            "max": 6.8479306426231235,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "diag_1_target_encoded": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -2.009453240234232,
+            "max": 7.887424945197355,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "diag_2_target_encoded": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -2.3491590293369473,
+            "max": 4.152647973331705,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "diag_3_target_encoded": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -1.6102378472468426,
+            "max": 3.9736199889533537,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "diag_1_cat_target_encoded": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -1.4642644753767027,
+            "max": 4.273900291234416,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "diag_2_cat_target_encoded": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -1.5110567063743197,
+            "max": 5.163128671861478,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          },
+          "diag_3_cat_target_encoded": {
+            "missing": 0,
+            "non_numeric": 0,
+            "non_finite": 0,
+            "finite": 101766,
+            "min": -0.9887263394660526,
+            "max": 3.199851630665341,
+            "input_types": {
+              "float": 101766
+            },
+            "constant": false
+          }
+        },
+        "row_issues": {
+          "length": 0,
+          "alignment_or_order": 0,
+          "row_count": 0
+        },
+        "numeric_contract": "passed",
+        "clinical_semantics": {
+          "status": "unverifiable",
+          "reason": "No verified clinical variable dictionary or units supplied."
+        },
+        "range_interpretation": "Prepared standardized values; no raw clinical range judgment.",
+        "constant_interpretation": "Measured quality observation, not automatic variable removal."
+      }
+    },
+    "patient_overlap": {
+      "status": "failed",
+      "details": {
+        "overlaps": {
+          "train_validation": 5055,
+          "train_test": 5086,
+          "validation_test": 1760
+        },
+        "patients": {
+          "train": 54057,
+          "validation": 14070,
+          "test": 14111
+        },
+        "admissions": {
+          "train": 71236,
+          "validation": 15265,
+          "test": 15265
+        },
+        "unit": "unique patients, not duplicate admission rows"
+      }
+    },
+    "demographics": {
+      "status": "completed",
+      "details": {
+        "distributions": {
+          "train": {
+            "race": {
+              "Caucasian": {
+                "admissions": 54834,
+                "target_0": 48675,
+                "target_1": 6159,
+                "patients": 41922,
+                "patients_with_target_1": 5104,
+                "patients_with_target_0": 39848,
+                "event_rate": 0.11232082284713864,
+                "target_0_rate": 0.8876791771528614
+              },
+              "AfricanAmerican": {
+                "admissions": 13404,
+                "target_0": 11918,
+                "target_1": 1486,
+                "patients": 9781,
+                "patients_with_target_1": 1166,
+                "patients_with_target_0": 9417,
+                "event_rate": 0.11086242912563414,
+                "target_0_rate": 0.8891375708743658
+              },
+              "Other": {
+                "admissions": 1094,
+                "target_0": 979,
+                "target_1": 115,
+                "patients": 922,
+                "patients_with_target_1": 101,
+                "patients_with_target_0": 876,
+                "event_rate": 0.10511882998171847,
+                "target_0_rate": 0.8948811700182815
+              },
+              "Hispanic": {
+                "admissions": 1443,
+                "target_0": 1300,
+                "target_1": 143,
+                "patients": 1142,
+                "patients_with_target_1": 122,
+                "patients_with_target_0": 1091,
+                "event_rate": 0.0990990990990991,
+                "target_0_rate": 0.9009009009009009
+              },
+              "Asian": {
+                "admissions": 461,
+                "target_0": 414,
+                "target_1": 47,
+                "patients": 384,
+                "patients_with_target_1": 39,
+                "patients_with_target_0": 364,
+                "event_rate": 0.1019522776572668,
+                "target_0_rate": 0.8980477223427332
+              }
+            },
+            "gender": {
+              "Female": {
+                "admissions": 38282,
+                "target_0": 33974,
+                "target_1": 4308,
+                "patients": 28792,
+                "patients_with_target_1": 3514,
+                "patients_with_target_0": 27432,
+                "event_rate": 0.11253330546993365,
+                "target_0_rate": 0.8874666945300663
+              },
+              "Male": {
+                "admissions": 32951,
+                "target_0": 29309,
+                "target_1": 3642,
+                "patients": 25264,
+                "patients_with_target_1": 3013,
+                "patients_with_target_0": 24082,
+                "event_rate": 0.11052775333070317,
+                "target_0_rate": 0.8894722466692968
+              },
+              "Unknown/Invalid": {
+                "admissions": 3,
+                "target_0": 3,
+                "target_1": 0,
+                "patients": 3,
+                "patients_with_target_1": 0,
+                "patients_with_target_0": 3,
+                "event_rate": 0.0,
+                "target_0_rate": 1.0
+              }
+            },
+            "age_group": {
+              "[70-80)": {
+                "admissions": 18218,
+                "target_0": 16112,
+                "target_1": 2106,
+                "patients": 14089,
+                "patients_with_target_1": 1814,
+                "patients_with_target_0": 13298,
+                "event_rate": 0.1155999560873861,
+                "target_0_rate": 0.884400043912614
+              },
+              "[40-50)": {
+                "admissions": 6826,
+                "target_0": 6082,
+                "target_1": 744,
+                "patients": 5200,
+                "patients_with_target_1": 559,
+                "patients_with_target_0": 5019,
+                "event_rate": 0.1089950190448286,
+                "target_0_rate": 0.8910049809551714
+              },
+              "[80-90)": {
+                "admissions": 12034,
+                "target_0": 10566,
+                "target_1": 1468,
+                "patients": 9153,
+                "patients_with_target_1": 1291,
+                "patients_with_target_0": 8632,
+                "event_rate": 0.12198770151238159,
+                "target_0_rate": 0.8780122984876184
+              },
+              "[60-70)": {
+                "admissions": 15734,
+                "target_0": 14010,
+                "target_1": 1724,
+                "patients": 12245,
+                "patients_with_target_1": 1431,
+                "patients_with_target_0": 11653,
+                "event_rate": 0.10957162832083386,
+                "target_0_rate": 0.8904283716791661
+              },
+              "[50-60)": {
+                "admissions": 12049,
+                "target_0": 10851,
+                "target_1": 1198,
+                "patients": 9439,
+                "patients_with_target_1": 957,
+                "patients_with_target_0": 9069,
+                "event_rate": 0.09942733836832932,
+                "target_0_rate": 0.9005726616316707
+              },
+              "[30-40)": {
+                "admissions": 2686,
+                "target_0": 2381,
+                "target_1": 305,
+                "patients": 2039,
+                "patients_with_target_1": 219,
+                "patients_with_target_0": 1966,
+                "event_rate": 0.11355174981384959,
+                "target_0_rate": 0.8864482501861504
+              },
+              "[90-100)": {
+                "admissions": 1934,
+                "target_0": 1733,
+                "target_1": 201,
+                "patients": 1536,
+                "patients_with_target_1": 178,
+                "patients_with_target_0": 1473,
+                "event_rate": 0.10392967942088935,
+                "target_0_rate": 0.8960703205791106
+              },
+              "[10-20)": {
+                "admissions": 483,
+                "target_0": 453,
+                "target_1": 30,
+                "patients": 381,
+                "patients_with_target_1": 27,
+                "patients_with_target_0": 371,
+                "event_rate": 0.062111801242236024,
+                "target_0_rate": 0.937888198757764
+              },
+              "[20-30)": {
+                "admissions": 1161,
+                "target_0": 990,
+                "target_1": 171,
+                "patients": 843,
+                "patients_with_target_1": 93,
+                "patients_with_target_0": 812,
+                "event_rate": 0.14728682170542637,
+                "target_0_rate": 0.8527131782945736
+              },
+              "[0-10)": {
+                "admissions": 111,
+                "target_0": 108,
+                "target_1": 3,
+                "patients": 105,
+                "patients_with_target_1": 3,
+                "patients_with_target_0": 104,
+                "event_rate": 0.02702702702702703,
+                "target_0_rate": 0.972972972972973
+              }
+            },
+            "race_original": {
+              "Caucasian": {
+                "admissions": 53238,
+                "target_0": 47223,
+                "target_1": 6015,
+                "patients": 40544,
+                "patients_with_target_1": 4972,
+                "patients_with_target_0": 38531,
+                "event_rate": 0.11298320748337654,
+                "target_0_rate": 0.8870167925166235
+              },
+              "AfricanAmerican": {
+                "admissions": 13404,
+                "target_0": 11918,
+                "target_1": 1486,
+                "patients": 9781,
+                "patients_with_target_1": 1166,
+                "patients_with_target_0": 9417,
+                "event_rate": 0.11086242912563414,
+                "target_0_rate": 0.8891375708743658
+              },
+              "MISSING_ORIGINAL": {
+                "admissions": 1596,
+                "target_0": 1452,
+                "target_1": 144,
+                "patients": 1437,
+                "patients_with_target_1": 134,
+                "patients_with_target_0": 1363,
+                "event_rate": 0.09022556390977443,
+                "target_0_rate": 0.9097744360902256
+              },
+              "Other": {
+                "admissions": 1094,
+                "target_0": 979,
+                "target_1": 115,
+                "patients": 922,
+                "patients_with_target_1": 101,
+                "patients_with_target_0": 876,
+                "event_rate": 0.10511882998171847,
+                "target_0_rate": 0.8948811700182815
+              },
+              "Hispanic": {
+                "admissions": 1443,
+                "target_0": 1300,
+                "target_1": 143,
+                "patients": 1142,
+                "patients_with_target_1": 122,
+                "patients_with_target_0": 1091,
+                "event_rate": 0.0990990990990991,
+                "target_0_rate": 0.9009009009009009
+              },
+              "Asian": {
+                "admissions": 461,
+                "target_0": 414,
+                "target_1": 47,
+                "patients": 384,
+                "patients_with_target_1": 39,
+                "patients_with_target_0": 364,
+                "event_rate": 0.1019522776572668,
+                "target_0_rate": 0.8980477223427332
+              }
+            }
+          },
+          "validation": {
+            "race": {
+              "AfricanAmerican": {
+                "admissions": 2905,
+                "target_0": 2563,
+                "target_1": 342,
+                "patients": 2666,
+                "patients_with_target_1": 321,
+                "patients_with_target_0": 2424,
+                "event_rate": 0.11772805507745267,
+                "target_0_rate": 0.8822719449225473
+              },
+              "Caucasian": {
+                "admissions": 11787,
+                "target_0": 10481,
+                "target_1": 1306,
+                "patients": 10861,
+                "patients_with_target_1": 1244,
+                "patients_with_target_0": 9891,
+                "event_rate": 0.11080003393569186,
+                "target_0_rate": 0.8891999660643082
+              },
+              "Asian": {
+                "admissions": 89,
+                "target_0": 78,
+                "target_1": 11,
+                "patients": 89,
+                "patients_with_target_1": 11,
+                "patients_with_target_0": 78,
+                "event_rate": 0.12359550561797752,
+                "target_0_rate": 0.8764044943820225
+              },
+              "Hispanic": {
+                "admissions": 274,
+                "target_0": 245,
+                "target_1": 29,
+                "patients": 260,
+                "patients_with_target_1": 26,
+                "patients_with_target_0": 240,
+                "event_rate": 0.10583941605839416,
+                "target_0_rate": 0.8941605839416058
+              },
+              "Other": {
+                "admissions": 210,
+                "target_0": 195,
+                "target_1": 15,
+                "patients": 199,
+                "patients_with_target_1": 15,
+                "patients_with_target_0": 187,
+                "event_rate": 0.07142857142857142,
+                "target_0_rate": 0.9285714285714286
+              }
+            },
+            "gender": {
+              "Female": {
+                "admissions": 8239,
+                "target_0": 7332,
+                "target_1": 907,
+                "patients": 7606,
+                "patients_with_target_1": 872,
+                "patients_with_target_0": 6931,
+                "event_rate": 0.11008617550673626,
+                "target_0_rate": 0.8899138244932637
+              },
+              "Male": {
+                "admissions": 7026,
+                "target_0": 6230,
+                "target_1": 796,
+                "patients": 6464,
+                "patients_with_target_1": 745,
+                "patients_with_target_0": 5886,
+                "event_rate": 0.11329348135496727,
+                "target_0_rate": 0.8867065186450327
+              }
+            },
+            "age_group": {
+              "[70-80)": {
+                "admissions": 3961,
+                "target_0": 3474,
+                "target_1": 487,
+                "patients": 3659,
+                "patients_with_target_1": 469,
+                "patients_with_target_0": 3287,
+                "event_rate": 0.12294875031557688,
+                "target_0_rate": 0.8770512496844232
+              },
+              "[80-90)": {
+                "admissions": 2602,
+                "target_0": 2298,
+                "target_1": 304,
+                "patients": 2405,
+                "patients_with_target_1": 292,
+                "patients_with_target_0": 2171,
+                "event_rate": 0.11683320522674866,
+                "target_0_rate": 0.8831667947732513
+              },
+              "[50-60)": {
+                "admissions": 2617,
+                "target_0": 2368,
+                "target_1": 249,
+                "patients": 2446,
+                "patients_with_target_1": 234,
+                "patients_with_target_0": 2268,
+                "event_rate": 0.09514711501719526,
+                "target_0_rate": 0.9048528849828047
+              },
+              "[60-70)": {
+                "admissions": 3326,
+                "target_0": 2942,
+                "target_1": 384,
+                "patients": 3084,
+                "patients_with_target_1": 369,
+                "patients_with_target_0": 2795,
+                "event_rate": 0.11545399879735418,
+                "target_0_rate": 0.8845460012026458
+              },
+              "[40-50)": {
+                "admissions": 1421,
+                "target_0": 1284,
+                "target_1": 137,
+                "patients": 1303,
+                "patients_with_target_1": 124,
+                "patients_with_target_0": 1215,
+                "event_rate": 0.0964109781843772,
+                "target_0_rate": 0.9035890218156228
+              },
+              "[20-30)": {
+                "admissions": 242,
+                "target_0": 211,
+                "target_1": 31,
+                "patients": 219,
+                "patients_with_target_1": 29,
+                "patients_with_target_0": 196,
+                "event_rate": 0.128099173553719,
+                "target_0_rate": 0.871900826446281
+              },
+              "[90-100)": {
+                "admissions": 420,
+                "target_0": 370,
+                "target_1": 50,
+                "patients": 392,
+                "patients_with_target_1": 47,
+                "patients_with_target_0": 353,
+                "event_rate": 0.11904761904761904,
+                "target_0_rate": 0.8809523809523809
+              },
+              "[10-20)": {
+                "admissions": 109,
+                "target_0": 102,
+                "target_1": 7,
+                "patients": 101,
+                "patients_with_target_1": 6,
+                "patients_with_target_0": 96,
+                "event_rate": 0.06422018348623854,
+                "target_0_rate": 0.9357798165137615
+              },
+              "[30-40)": {
+                "admissions": 546,
+                "target_0": 492,
+                "target_1": 54,
+                "patients": 510,
+                "patients_with_target_1": 48,
+                "patients_with_target_0": 472,
+                "event_rate": 0.0989010989010989,
+                "target_0_rate": 0.9010989010989011
+              },
+              "[0-10)": {
+                "admissions": 21,
+                "target_0": 21,
+                "target_1": 0,
+                "patients": 21,
+                "patients_with_target_1": 0,
+                "patients_with_target_0": 21,
+                "event_rate": 0.0,
+                "target_0_rate": 1.0
+              }
+            },
+            "race_original": {
+              "AfricanAmerican": {
+                "admissions": 2905,
+                "target_0": 2563,
+                "target_1": 342,
+                "patients": 2666,
+                "patients_with_target_1": 321,
+                "patients_with_target_0": 2424,
+                "event_rate": 0.11772805507745267,
+                "target_0_rate": 0.8822719449225473
+              },
+              "Caucasian": {
+                "admissions": 11451,
+                "target_0": 10162,
+                "target_1": 1289,
+                "patients": 10536,
+                "patients_with_target_1": 1228,
+                "patients_with_target_0": 9578,
+                "event_rate": 0.11256658807091084,
+                "target_0_rate": 0.8874334119290892
+              },
+              "Asian": {
+                "admissions": 89,
+                "target_0": 78,
+                "target_1": 11,
+                "patients": 89,
+                "patients_with_target_1": 11,
+                "patients_with_target_0": 78,
+                "event_rate": 0.12359550561797752,
+                "target_0_rate": 0.8764044943820225
+              },
+              "Hispanic": {
+                "admissions": 274,
+                "target_0": 245,
+                "target_1": 29,
+                "patients": 260,
+                "patients_with_target_1": 26,
+                "patients_with_target_0": 240,
+                "event_rate": 0.10583941605839416,
+                "target_0_rate": 0.8941605839416058
+              },
+              "Other": {
+                "admissions": 210,
+                "target_0": 195,
+                "target_1": 15,
+                "patients": 199,
+                "patients_with_target_1": 15,
+                "patients_with_target_0": 187,
+                "event_rate": 0.07142857142857142,
+                "target_0_rate": 0.9285714285714286
+              },
+              "MISSING_ORIGINAL": {
+                "admissions": 336,
+                "target_0": 319,
+                "target_1": 17,
+                "patients": 330,
+                "patients_with_target_1": 16,
+                "patients_with_target_0": 316,
+                "event_rate": 0.050595238095238096,
+                "target_0_rate": 0.9494047619047619
+              }
+            }
+          },
+          "test": {
+            "race": {
+              "AfricanAmerican": {
+                "admissions": 2901,
+                "target_0": 2574,
+                "target_1": 327,
+                "patients": 2656,
+                "patients_with_target_1": 308,
+                "patients_with_target_0": 2435,
+                "event_rate": 0.11271975180972078,
+                "target_0_rate": 0.8872802481902792
+              },
+              "Caucasian": {
+                "admissions": 11751,
+                "target_0": 10436,
+                "target_1": 1315,
+                "patients": 10882,
+                "patients_with_target_1": 1241,
+                "patients_with_target_0": 9914,
+                "event_rate": 0.11190536975576547,
+                "target_0_rate": 0.8880946302442345
+              },
+              "Hispanic": {
+                "admissions": 320,
+                "target_0": 280,
+                "target_1": 40,
+                "patients": 295,
+                "patients_with_target_1": 36,
+                "patients_with_target_0": 265,
+                "event_rate": 0.125,
+                "target_0_rate": 0.875
+              },
+              "Other": {
+                "admissions": 202,
+                "target_0": 187,
+                "target_1": 15,
+                "patients": 195,
+                "patients_with_target_1": 14,
+                "patients_with_target_0": 184,
+                "event_rate": 0.07425742574257425,
+                "target_0_rate": 0.9257425742574258
+              },
+              "Asian": {
+                "admissions": 91,
+                "target_0": 84,
+                "target_1": 7,
+                "patients": 88,
+                "patients_with_target_1": 7,
+                "patients_with_target_0": 82,
+                "event_rate": 0.07692307692307693,
+                "target_0_rate": 0.9230769230769231
+              }
+            },
+            "gender": {
+              "Male": {
+                "admissions": 7078,
+                "target_0": 6311,
+                "target_1": 767,
+                "patients": 6582,
+                "patients_with_target_1": 735,
+                "patients_with_target_0": 6018,
+                "event_rate": 0.10836394461712348,
+                "target_0_rate": 0.8916360553828765
+              },
+              "Female": {
+                "admissions": 8187,
+                "target_0": 7250,
+                "target_1": 937,
+                "patients": 7529,
+                "patients_with_target_1": 869,
+                "patients_with_target_0": 6858,
+                "event_rate": 0.1144497373885428,
+                "target_0_rate": 0.8855502626114572
+              }
+            },
+            "age_group": {
+              "[50-60)": {
+                "admissions": 2590,
+                "target_0": 2369,
+                "target_1": 221,
+                "patients": 2415,
+                "patients_with_target_1": 206,
+                "patients_with_target_0": 2261,
+                "event_rate": 0.08532818532818533,
+                "target_0_rate": 0.9146718146718147
+              },
+              "[20-30)": {
+                "admissions": 254,
+                "target_0": 220,
+                "target_1": 34,
+                "patients": 229,
+                "patients_with_target_1": 24,
+                "patients_with_target_0": 214,
+                "event_rate": 0.13385826771653545,
+                "target_0_rate": 0.8661417322834646
+              },
+              "[40-50)": {
+                "admissions": 1438,
+                "target_0": 1292,
+                "target_1": 146,
+                "patients": 1314,
+                "patients_with_target_1": 128,
+                "patients_with_target_0": 1224,
+                "event_rate": 0.10152990264255911,
+                "target_0_rate": 0.8984700973574409
+              },
+              "[70-80)": {
+                "admissions": 3889,
+                "target_0": 3413,
+                "target_1": 476,
+                "patients": 3633,
+                "patients_with_target_1": 461,
+                "patients_with_target_0": 3250,
+                "event_rate": 0.12239650295705837,
+                "target_0_rate": 0.8776034970429416
+              },
+              "[60-70)": {
+                "admissions": 3423,
+                "target_0": 3029,
+                "target_1": 394,
+                "patients": 3180,
+                "patients_with_target_1": 381,
+                "patients_with_target_0": 2888,
+                "event_rate": 0.11510371019573473,
+                "target_0_rate": 0.8848962898042653
+              },
+              "[80-90)": {
+                "admissions": 2561,
+                "target_0": 2255,
+                "target_1": 306,
+                "patients": 2392,
+                "patients_with_target_1": 290,
+                "patients_with_target_0": 2152,
+                "event_rate": 0.11948457633736821,
+                "target_0_rate": 0.8805154236626318
+              },
+              "[90-100)": {
+                "admissions": 439,
+                "target_0": 380,
+                "target_1": 59,
+                "patients": 401,
+                "patients_with_target_1": 55,
+                "patients_with_target_0": 366,
+                "event_rate": 0.13439635535307518,
+                "target_0_rate": 0.8656036446469249
+              },
+              "[30-40)": {
+                "admissions": 543,
+                "target_0": 478,
+                "target_1": 65,
+                "patients": 500,
+                "patients_with_target_1": 59,
+                "patients_with_target_0": 457,
+                "event_rate": 0.11970534069981584,
+                "target_0_rate": 0.8802946593001841
+              },
+              "[10-20)": {
+                "admissions": 99,
+                "target_0": 96,
+                "target_1": 3,
+                "patients": 97,
+                "patients_with_target_1": 3,
+                "patients_with_target_0": 95,
+                "event_rate": 0.030303030303030304,
+                "target_0_rate": 0.9696969696969697
+              },
+              "[0-10)": {
+                "admissions": 29,
+                "target_0": 29,
+                "target_1": 0,
+                "patients": 29,
+                "patients_with_target_1": 0,
+                "patients_with_target_0": 29,
+                "event_rate": 0.0,
+                "target_0_rate": 1.0
+              }
+            },
+            "race_original": {
+              "AfricanAmerican": {
+                "admissions": 2901,
+                "target_0": 2574,
+                "target_1": 327,
+                "patients": 2656,
+                "patients_with_target_1": 308,
+                "patients_with_target_0": 2435,
+                "event_rate": 0.11271975180972078,
+                "target_0_rate": 0.8872802481902792
+              },
+              "MISSING_ORIGINAL": {
+                "admissions": 341,
+                "target_0": 314,
+                "target_1": 27,
+                "patients": 318,
+                "patients_with_target_1": 24,
+                "patients_with_target_0": 301,
+                "event_rate": 0.07917888563049853,
+                "target_0_rate": 0.9208211143695014
+              },
+              "Caucasian": {
+                "admissions": 11410,
+                "target_0": 10122,
+                "target_1": 1288,
+                "patients": 10567,
+                "patients_with_target_1": 1218,
+                "patients_with_target_0": 9615,
+                "event_rate": 0.11288343558282209,
+                "target_0_rate": 0.8871165644171779
+              },
+              "Hispanic": {
+                "admissions": 320,
+                "target_0": 280,
+                "target_1": 40,
+                "patients": 295,
+                "patients_with_target_1": 36,
+                "patients_with_target_0": 265,
+                "event_rate": 0.125,
+                "target_0_rate": 0.875
+              },
+              "Other": {
+                "admissions": 202,
+                "target_0": 187,
+                "target_1": 15,
+                "patients": 195,
+                "patients_with_target_1": 14,
+                "patients_with_target_0": 184,
+                "event_rate": 0.07425742574257425,
+                "target_0_rate": 0.9257425742574258
+              },
+              "Asian": {
+                "admissions": 91,
+                "target_0": 84,
+                "target_1": 7,
+                "patients": 88,
+                "patients_with_target_1": 7,
+                "patients_with_target_0": 82,
+                "event_rate": 0.07692307692307693,
+                "target_0_rate": 0.9230769230769231
+              }
+            }
+          }
+        },
+        "original_race_missing": {
+          "train": 1596,
+          "validation": 336,
+          "test": 341
+        },
+        "caucasian_imputed": {
+          "train": 1596,
+          "validation": 336,
+          "test": 341
+        },
+        "race_views": {
+          "race": "public metadata, includes Caucasian imputation",
+          "race_original": "observed original race; missing remains missing"
+        },
+        "event_rate_denominator": "admissions",
+        "patient_count_note": "Patients can contribute multiple admissions and both target classes; subgroup patient counts are not additive.",
+        "interpretation": "Descriptive counts only; no minimum-size threshold or significance claim.",
+        "absent_groups": "Not observed, not invented zero-count populations."
+      }
+    },
+    "cohort": {
+      "status": "unverifiable",
+      "details": {
+        "data_unit": "admission/encounter",
+        "research_unit": "not declared",
+        "counts": {
+          "train": {
+            "admissions": 71236,
+            "patients": 54057,
+            "target_0": 63286,
+            "target_1": 7950,
+            "event_rate": 0.11160087596159245,
+            "event_rate_denominator": "admissions"
+          },
+          "validation": {
+            "admissions": 15265,
+            "patients": 14070,
+            "target_0": 13562,
+            "target_1": 1703,
+            "event_rate": 0.11156239764166394,
+            "event_rate_denominator": "admissions"
+          },
+          "test": {
+            "admissions": 15265,
+            "patients": 14111,
+            "target_0": 13561,
+            "target_1": 1704,
+            "event_rate": 0.11162790697674418,
+            "event_rate_denominator": "admissions"
+          }
+        },
+        "total_admissions": 101766,
+        "unique_admission_keys": 101766,
+        "duplicate_admission_keys": 0,
+        "unique_patients": 71518,
+        "source_selection_description": {
+          "source": "https://archive.ics.uci.edu/dataset/296/diabetes+130-us+hospitals+for+years+1999-2008",
+          "criteria": [
+            "Inpatient encounters",
+            "Diabetes entered as a diagnosis during the encounter",
+            "Length of stay between 1 and 14 days",
+            "Laboratory tests performed during the encounter",
+            "Medications administered during the encounter"
+          ],
+          "scope": "Source selection description, not row-level certification."
+        },
+        "row_level_selection": {
+          "status": "unverifiable",
+          "reason": "Raw source fields are not supplied."
+        },
+        "upstream_population": {
+          "status": "unverifiable",
+          "population": null,
+          "excluded": null,
+          "reason": "Pre-publication source population and exclusion counts are unavailable."
+        },
+        "additional_selection": {
+          "status": "unverifiable",
+          "declared": false,
+          "reason": "Free text is neither executed nor echoed; no approved structured selection is implemented."
+        },
+        "repeated_admissions": "Retained; not duplicate patients or a first-admission cohort."
+      }
+    },
+    "label_observability": {
+      "status": "unverifiable",
+      "details": {
+        "target_definition": {
+          "status": "passed",
+          "mapping": {
+            "<30": 1,
+            ">30": 0,
+            "NO": 0
+          },
+          "expected": {
+            "<30": 1,
+            ">30": 0,
+            "NO": 0
+          }
+        },
+        "encoding": {
+          "status": "passed",
+          "classes": [
+            0,
+            1
+          ],
+          "positive_class": 1,
+          "observed_counts": {
+            "train": {
+              "admissions": 71236,
+              "patients": 54057,
+              "target_0": 63286,
+              "target_1": 7950,
+              "event_rate": 0.11160087596159245,
+              "event_rate_denominator": "admissions"
+            },
+            "validation": {
+              "admissions": 15265,
+              "patients": 14070,
+              "target_0": 13562,
+              "target_1": 1703,
+              "event_rate": 0.11156239764166394,
+              "event_rate_denominator": "admissions"
+            },
+            "test": {
+              "admissions": 15265,
+              "patients": 14111,
+              "target_0": 13561,
+              "target_1": 1704,
+              "event_rate": 0.11162790697674418,
+              "event_rate_denominator": "admissions"
+            }
+          }
+        },
+        "raw_label_alignment": {
+          "status": "unverifiable",
+          "reason": "Original readmitted values are not supplied."
+        },
+        "followup_completeness": {
+          "status": "unverifiable",
+          "reason": "No observation end dates or individual 30-day follow-up dates."
+        },
+        "outside_hospital_capture": {
+          "status": "unverifiable",
+          "reason": "No evidence that readmissions outside participating hospitals are captured."
+        },
+        "interpretation": "Encoded target 0 does not establish complete, event-free 30-day follow-up."
+      }
+    },
+    "preprocessing_lineage": {
+      "status": "unverifiable",
+      "details": {
+        "asset_integrity": {
+          "status": "passed",
+          "scope": "File hashes and immutable source manifest only; not leakage certification."
+        },
+        "current_import": {
+          "training_performed": false,
+          "preprocessing_performed": false
+        },
+        "historical_transformations": {
+          "imputation": {
+            "status": "unverifiable",
+            "fit_scope": null,
+            "reason": "Exact historical fit rows and transform lineage are not supplied.",
+            "evidence": [
+              "Missing original race is imputed as Caucasian in public demographics; preserve the original missing flag."
+            ],
+            "documented_rule": "Original missing race is Caucasian in public metadata; fit population unknown."
+          },
+          "scaling": {
+            "status": "unverifiable",
+            "fit_scope": null,
+            "reason": "Exact historical fit rows and transform lineage are not supplied.",
+            "evidence": [
+              "Prepared 113-feature inputs are already standardized; the supplied 120-feature scaler is incompatible and excluded."
+            ]
+          },
+          "target_encoding": {
+            "status": "unverifiable",
+            "fit_scope": null,
+            "reason": "Exact historical fit rows and transform lineage are not supplied.",
+            "evidence": [
+              "Source target encoding before splitting and historical preprocessing uncertainty prevent a leakage-free holdout claim."
+            ]
+          }
+        },
+        "validation_use": {
+          "evidence": [
+            "Public validation was used in model development, not an independent holdout."
+          ],
+          "interpretation": "Development reuse is not an independent validation holdout."
+        },
+        "historical_113_pipeline": {
+          "status": "unverifiable",
+          "reason": "Exact original 113-feature pipeline has not been independently reproduced."
+        },
+        "known_limitations": [
+          "Row-stratified public splits have known cross-split patient overlap; do not repartition them.",
+          "Public validation was used in model development, not an independent holdout.",
+          "Source target encoding before splitting and historical preprocessing uncertainty prevent a leakage-free holdout claim.",
+          "Missing original race is imputed as Caucasian in public demographics; preserve the original missing flag.",
+          "Prepared 113-feature inputs are already standardized; the supplied 120-feature scaler is incompatible and excluded."
+        ],
+        "interpretation": "Do not infer train-only fit, remove suspected features, refit or modify a model."
+      }
+    },
+    "prediction_timing": {
+      "status": "unverifiable",
+      "details": {
+        "prediction_time": "No approved prediction-time declaration.",
+        "documented_availability": {},
+        "undocumented_features": [
+          "admission_type_id",
+          "discharge_disposition_id",
+          "admission_source_id",
+          "time_in_hospital",
+          "num_lab_procedures",
+          "num_procedures",
+          "num_medications",
+          "number_outpatient",
+          "number_emergency",
+          "number_inpatient",
+          "number_diagnoses",
+          "A1Cresult_is_missing",
+          "weight_is_missing",
+          "race_is_missing",
+          "medical_specialty_is_missing",
+          "payer_code_is_missing",
+          "unique_diagnosis_categories",
+          "number_outpatient_mean",
+          "number_outpatient_max",
+          "number_outpatient_sum",
+          "number_emergency_mean",
+          "number_emergency_max",
+          "number_emergency_sum",
+          "number_inpatient_mean",
+          "number_inpatient_max",
+          "number_inpatient_sum",
+          "total_visits",
+          "medication_complexity_score",
+          "care_utilization_risk_score",
+          "age_bucket",
+          "bmi_underweight",
+          "bmi_normal",
+          "bmi_overweight",
+          "bmi_obese",
+          "los_medication_interaction",
+          "med_diagnosis_interaction",
+          "race_Asian",
+          "race_Caucasian",
+          "race_Hispanic",
+          "race_Other",
+          "gender_Male",
+          "gender_Unknown_Invalid",
+          "weight_0_25)",
+          "weight_100_125)",
+          "weight_125_150)",
+          "weight_150_175)",
+          "weight_175_200)",
+          "weight_25_50)",
+          "weight_50_75)",
+          "weight_75_100)",
+          "max_glu_serum_300",
+          "max_glu_serum_Norm",
+          "A1Cresult_8",
+          "A1Cresult_Norm",
+          "metformin_No",
+          "metformin_Steady",
+          "metformin_Up",
+          "repaglinide_No",
+          "repaglinide_Steady",
+          "repaglinide_Up",
+          "nateglinide_No",
+          "nateglinide_Steady",
+          "nateglinide_Up",
+          "chlorpropamide_No",
+          "chlorpropamide_Steady",
+          "chlorpropamide_Up",
+          "glimepiride_No",
+          "glimepiride_Steady",
+          "glimepiride_Up",
+          "acetohexamide_Steady",
+          "glipizide_No",
+          "glipizide_Steady",
+          "glipizide_Up",
+          "glyburide_No",
+          "glyburide_Steady",
+          "glyburide_Up",
+          "tolbutamide_Steady",
+          "pioglitazone_No",
+          "pioglitazone_Steady",
+          "pioglitazone_Up",
+          "rosiglitazone_No",
+          "rosiglitazone_Steady",
+          "rosiglitazone_Up",
+          "acarbose_No",
+          "acarbose_Steady",
+          "acarbose_Up",
+          "miglitol_No",
+          "miglitol_Steady",
+          "miglitol_Up",
+          "troglitazone_Steady",
+          "tolazamide_Steady",
+          "tolazamide_Up",
+          "insulin_No",
+          "insulin_Steady",
+          "insulin_Up",
+          "glyburide_metformin_No",
+          "glyburide_metformin_Steady",
+          "glyburide_metformin_Up",
+          "glipizide_metformin_Steady",
+          "glimepiride_pioglitazone_Steady",
+          "metformin_rosiglitazone_Steady",
+          "metformin_pioglitazone_Steady",
+          "change_No",
+          "diabetesMed_Yes",
+          "age_target_encoded",
+          "payer_code_target_encoded",
+          "medical_specialty_target_encoded",
+          "diag_1_target_encoded",
+          "diag_2_target_encoded",
+          "diag_3_target_encoded",
+          "diag_1_cat_target_encoded",
+          "diag_2_cat_target_encoded",
+          "diag_3_cat_target_encoded"
+        ],
+        "timing_conflicts": [],
+        "completion_information_candidates": [
+          "discharge_disposition_id",
+          "time_in_hospital",
+          "num_lab_procedures",
+          "num_procedures",
+          "num_medications",
+          "number_diagnoses",
+          "medication_complexity_score",
+          "los_medication_interaction"
+        ],
+        "candidate_scope": "Name-based screening only, not proof of leakage or safe availability.",
+        "evidence_gap": "No actual encounter timestamps or verified feature-availability dictionary in published assets.",
+        "interpretation": "Admission-time use of completed-stay or discharge information is not assumed."
+      }
+    }
+  },
+  "initial_execution_plan_hash": "708fc5393d8ae1147c53a8438ae3d69d580e769d71de741b58e4ee1456aaddce",
+  "execution_plan_hash": "708fc5393d8ae1147c53a8438ae3d69d580e769d71de741b58e4ee1456aaddce",
+  "execution_mode": "selected_execution",
+  "executed_ids": [],
+  "reused_ids": [
+    "schema",
+    "patient_overlap",
+    "demographics",
+    "cohort",
+    "label_observability",
+    "preprocessing_lineage",
+    "prediction_timing"
+  ],
+  "execution_result_hash": "cbee0bc906f7f5d7d1f04b96d456ad80494cc972d51566979a16f845183f2883",
+  "execution_note": "필수 점검의 집계를 재사용하고 추가로 선택된 데이터 점검만 실행했습니다.",
+  "provenance": {
+    "data_image": "ghcr.io/t-hajongkim/medical-ml-sdlc-db@sha256:a81f2187eaac6b465b3443df423ee369ab7e7cd216e71ab9c0a4aeb8a88ab947",
+    "code_commit": "f69a4e0738736945b9b57ecab312a0a2d1a17181",
+    "workflow_run_url": "https://github.com/t-hajongkim/Medical-ML-SDLC/actions/runs/38868889402",
+    "data_access": "Validated prepared files extracted from the fixed data image; no database queries.",
+    "planning_metadata_mock": false
+  }
+}

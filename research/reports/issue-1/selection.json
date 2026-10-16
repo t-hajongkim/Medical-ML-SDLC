@@ -4,7 +4,10 @@
     "objectives": [
       "data_quality",
       "population_description",
-      "prediction_readiness"
+      "prediction_readiness",
+      "cohort_definition",
+      "outcome_observability",
+      "preprocessing_provenance"
     ],
     "add": [],
     "exclude": []

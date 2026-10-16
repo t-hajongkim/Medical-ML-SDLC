@@ -1,0 +1,647 @@
+{
+  "schema_version": 1,
+  "provider": "registered-config",
+  "profile_id": "diabetes_prepared",
+  "data_id": "c34ec224503e2038c79fd11c47e0f603c7e392ba46f4e8c14e1661bfaf5303fd",
+  "context_hash": "1da8ddee19360eb49545815e2a9a8cd62f3110592fcacf8500940b260ca38aa7",
+  "status": "validated",
+  "bindings": {
+    "row_key": "row_key",
+    "patient_key": "patient_key",
+    "split": "split",
+    "target": "target",
+    "race": "race",
+    "gender": "gender",
+    "age_group": "age_group",
+    "race_original": "race_original",
+    "race_was_missing": "race_was_missing"
+  },
+  "split_values": {
+    "train": "train",
+    "validation": "validation",
+    "test": "test"
+  },
+  "target_values": {
+    "0": 0,
+    "1": 1
+  },
+  "profile_snapshot": {
+    "source_kind": "legacy_prepared_v2",
+    "data_id": "c34ec224503e2038c79fd11c47e0f603c7e392ba46f4e8c14e1661bfaf5303fd",
+    "bindings": {
+      "row_key": "row_key",
+      "patient_key": "patient_key",
+      "split": "split",
+      "target": "target",
+      "race": "race",
+      "gender": "gender",
+      "age_group": "age_group",
+      "race_original": "race_original",
+      "race_was_missing": "race_was_missing"
+    },
+    "columns": {
+      "row_key": {
+        "semantic_roles": [
+          "row_key"
+        ],
+        "description": "UCI encounter_id에 대응하는 입원 단위 고유 키입니다."
+      },
+      "patient_key": {
+        "semantic_roles": [
+          "patient_key"
+        ],
+        "description": "UCI encounter_id 조인으로 복원한 patient_nbr입니다. 동일 환자의 여러 입원을 연결하며 입원 ID가 아닙니다."
+      },
+      "split": {
+        "semantic_roles": [
+          "split"
+        ],
+        "description": "공개 준비 데이터의 고정 train/validation/test 분할입니다."
+      },
+      "target": {
+        "semantic_roles": [
+          "target"
+        ],
+        "description": "이미 이진 인코딩된 30일 이내 재입원 정답입니다."
+      },
+      "race": {
+        "semantic_roles": [
+          "race"
+        ],
+        "description": "공개 준비 데이터의 인종 값이며 결측치 대체가 포함됩니다."
+      },
+      "gender": {
+        "semantic_roles": [
+          "gender"
+        ],
+        "description": "준비 데이터의 성별 값입니다."
+      },
+      "age_group": {
+        "semantic_roles": [
+          "age_group"
+        ],
+        "description": "준비 데이터의 연령 구간입니다."
+      },
+      "race_original": {
+        "semantic_roles": [
+          "race_original"
+        ],
+        "description": "원본 인종 값으로, 원본 결측은 빈 값으로 보존됩니다."
+      },
+      "race_was_missing": {
+        "semantic_roles": [
+          "race_was_missing"
+        ],
+        "description": "원본 인종 결측 여부를 나타내는 명시적 true/false 플래그입니다."
+      }
+    },
+    "split_values": {
+      "train": "train",
+      "validation": "validation",
+      "test": "test"
+    },
+    "target_values": {
+      "0": 0,
+      "1": 1
+    },
+    "target_definition": "UCI readmitted의 <30은 1, >30과 NO는 0으로 제공된 정답입니다. 0이 완전한 30일 무사건 추적을 입증하지는 않습니다.",
+    "source_selection": "등록된 hospital-readmission-risk-data의 고정 준비 분할과 대응 모델을 사용합니다. UCI 당뇨병 입원 자료에서 선택된 코호트이며 원자료를 새로 다운로드하거나 전처리하지 않습니다.",
+    "limitations": [
+      "환자 단위 분할 간 중복은 실제 patient_nbr로 측정하며 입원 ID로 대신하지 않습니다.",
+      "인종 결측 대체와 원본 결측은 별도 필드로 보존합니다.",
+      "등록된 준비 데이터와 대응 모델에 한정되며 임의 원자료나 모든 ML 문제의 자동 지원을 의미하지 않습니다.",
+      "새 데이터에는 운영자의 profile, data_id 및 대응 이미지 등록이 필요합니다."
+    ],
+    "profile_id": "diabetes_prepared"
+  },
+  "source_manifest": {
+    "schema_version": 2,
+    "kind": "prepared-data-only",
+    "prepared_source": {
+      "schema_version": 1,
+      "dataset": "auphong2707/hospital-readmission-risk-data",
+      "revision": "4a61a3591f079628c72f5edbc7494ca7dda8741d",
+      "base_url": "https://huggingface.co/datasets/auphong2707/hospital-readmission-risk-data/resolve/4a61a3591f079628c72f5edbc7494ca7dda8741d/splits/",
+      "target": "target",
+      "target_mapping": {
+        "<30": 1,
+        ">30": 0,
+        "NO": 0
+      },
+      "demographics_columns": [
+        "race",
+        "gender",
+        "age",
+        "encounter_id"
+      ],
+      "features": [
+        "admission_type_id",
+        "discharge_disposition_id",
+        "admission_source_id",
+        "time_in_hospital",
+        "num_lab_procedures",
+        "num_procedures",
+        "num_medications",
+        "number_outpatient",
+        "number_emergency",
+        "number_inpatient",
+        "number_diagnoses",
+        "A1Cresult_is_missing",
+        "weight_is_missing",
+        "race_is_missing",
+        "medical_specialty_is_missing",
+        "payer_code_is_missing",
+        "unique_diagnosis_categories",
+        "number_outpatient_mean",
+        "number_outpatient_max",
+        "number_outpatient_sum",
+        "number_emergency_mean",
+        "number_emergency_max",
+        "number_emergency_sum",
+        "number_inpatient_mean",
+        "number_inpatient_max",
+        "number_inpatient_sum",
+        "total_visits",
+        "medication_complexity_score",
+        "care_utilization_risk_score",
+        "age_bucket",
+        "bmi_underweight",
+        "bmi_normal",
+        "bmi_overweight",
+        "bmi_obese",
+        "los_medication_interaction",
+        "med_diagnosis_interaction",
+        "race_Asian",
+        "race_Caucasian",
+        "race_Hispanic",
+        "race_Other",
+        "gender_Male",
+        "gender_Unknown_Invalid",
+        "weight_0_25)",
+        "weight_100_125)",
+        "weight_125_150)",
+        "weight_150_175)",
+        "weight_175_200)",
+        "weight_25_50)",
+        "weight_50_75)",
+        "weight_75_100)",
+        "max_glu_serum_300",
+        "max_glu_serum_Norm",
+        "A1Cresult_8",
+        "A1Cresult_Norm",
+        "metformin_No",
+        "metformin_Steady",
+        "metformin_Up",
+        "repaglinide_No",
+        "repaglinide_Steady",
+        "repaglinide_Up",
+        "nateglinide_No",
+        "nateglinide_Steady",
+        "nateglinide_Up",
+        "chlorpropamide_No",
+        "chlorpropamide_Steady",
+        "chlorpropamide_Up",
+        "glimepiride_No",
+        "glimepiride_Steady",
+        "glimepiride_Up",
+        "acetohexamide_Steady",
+        "glipizide_No",
+        "glipizide_Steady",
+        "glipizide_Up",
+        "glyburide_No",
+        "glyburide_Steady",
+        "glyburide_Up",
+        "tolbutamide_Steady",
+        "pioglitazone_No",
+        "pioglitazone_Steady",
+        "pioglitazone_Up",
+        "rosiglitazone_No",
+        "rosiglitazone_Steady",
+        "rosiglitazone_Up",
+        "acarbose_No",
+        "acarbose_Steady",
+        "acarbose_Up",
+        "miglitol_No",
+        "miglitol_Steady",
+        "miglitol_Up",
+        "troglitazone_Steady",
+        "tolazamide_Steady",
+        "tolazamide_Up",
+        "insulin_No",
+        "insulin_Steady",
+        "insulin_Up",
+        "glyburide_metformin_No",
+        "glyburide_metformin_Steady",
+        "glyburide_metformin_Up",
+        "glipizide_metformin_Steady",
+        "glimepiride_pioglitazone_Steady",
+        "metformin_rosiglitazone_Steady",
+        "metformin_pioglitazone_Steady",
+        "change_No",
+        "diabetesMed_Yes",
+        "age_target_encoded",
+        "payer_code_target_encoded",
+        "medical_specialty_target_encoded",
+        "diag_1_target_encoded",
+        "diag_2_target_encoded",
+        "diag_3_target_encoded",
+        "diag_1_cat_target_encoded",
+        "diag_2_cat_target_encoded",
+        "diag_3_cat_target_encoded"
+      ],
+      "splits": {
+        "train": {
+          "rows": 71236,
+          "data": {
+            "name": "train.csv",
+            "bytes": 153499738,
+            "sha256": "71895ccb1886d8fd3d95c60542098ce59133e06fea7c372e91d770347bf5bc09"
+          },
+          "demographics": {
+            "name": "train_demographics.csv",
+            "bytes": 2479303,
+            "sha256": "f92f23588cdc274c973c95cc20d169ec4e5820d8f1aad1b71364da1524c6dfab"
+          }
+        },
+        "validation": {
+          "rows": 15265,
+          "data": {
+            "name": "validation.csv",
+            "bytes": 32893492,
+            "sha256": "c0dedd01b0ddd12e0f6cde23a2b54c2805d4823bd50ed175d8b60b81cb85ee91"
+          },
+          "demographics": {
+            "name": "validation_demographics.csv",
+            "bytes": 531708,
+            "sha256": "9afb961d616ccf1cc61f2b414dac47a2de3fbbbb80efc37050daf59aaf235c77"
+          }
+        },
+        "test": {
+          "rows": 15265,
+          "data": {
+            "name": "test.csv",
+            "bytes": 32895556,
+            "sha256": "471badde112c24e62124c80b69d95377d898931189f6fa431ae6164005a63a3c"
+          },
+          "demographics": {
+            "name": "test_demographics.csv",
+            "bytes": 531449,
+            "sha256": "f59d422ec50c2831ee2f0b4d768da0a9ae1d526b222f5e7d5c048f3d3ad8f8b8"
+          }
+        }
+      },
+      "expected_patient_overlap": {
+        "train_validation": 5055,
+        "train_test": 5086,
+        "validation_test": 1760
+      },
+      "expected_test_race_missing": 341,
+      "model": {
+        "repository": "auphong2707/hospital-readmission-phase2-lr",
+        "revision": "e1f7fcc0f4f8e273fc56eb35018ec70bbccbee61",
+        "base_url": "https://huggingface.co/auphong2707/hospital-readmission-phase2-lr/resolve/e1f7fcc0f4f8e273fc56eb35018ec70bbccbee61/",
+        "checkpoint": {
+          "name": "logistic_regression.pkl",
+          "bytes": 4018,
+          "sha256": "f923be3373fbd958df6f1d9a0694fc4a36c6727f6c48090637be84ed56e9e823"
+        },
+        "readme": {
+          "name": "README.md",
+          "bytes": 5316,
+          "sha256": "f4630695b5fefa565fabb6e4b8d0d248fcf3d5cc5c981526e7ba9c8ba3c36403"
+        },
+        "model_class": "sklearn.linear_model.LogisticRegression",
+        "classes": [
+          0,
+          1
+        ],
+        "positive_class": 1,
+        "artifact_scikit_learn_version": "1.2.2",
+        "local_validation_scikit_learn_version": "1.6.1",
+        "license": "MIT",
+        "registration": "conditional: prepared-CSV educational inference only; no raw-input pipeline certification",
+        "limitations": [
+          "Local manual inference reproduced source test metrics under a scikit-learn 1.2.2 to 1.6.1 version warning; this publisher does not run inference.",
+          "The exact original 113-feature preprocessing pipeline has not been independently reproduced.",
+          "Public validation reuse and cross-split patient overlap prevent an independent leakage-free performance claim.",
+          "The incompatible 120-feature scaler is excluded. No raw-input inference is supported by this artifact image.",
+          "The image stores files only: no Python runtime, model loader or executable inference service."
+        ]
+      },
+      "limitations": [
+        "Row-stratified public splits have known cross-split patient overlap; do not repartition them.",
+        "Public validation was used in model development, not an independent holdout.",
+        "Source target encoding before splitting and historical preprocessing uncertainty prevent a leakage-free holdout claim.",
+        "Missing original race is imputed as Caucasian in public demographics; preserve the original missing flag.",
+        "Prepared 113-feature inputs are already standardized; the supplied 120-feature scaler is incompatible and excluded."
+      ]
+    },
+    "raw_source_sha256": "f792c388d9b470aac4fbf21c39b176534d55a116e7626881c30bbe7ab0341422",
+    "feature_columns": [
+      "admission_type_id",
+      "discharge_disposition_id",
+      "admission_source_id",
+      "time_in_hospital",
+      "num_lab_procedures",
+      "num_procedures",
+      "num_medications",
+      "number_outpatient",
+      "number_emergency",
+      "number_inpatient",
+      "number_diagnoses",
+      "A1Cresult_is_missing",
+      "weight_is_missing",
+      "race_is_missing",
+      "medical_specialty_is_missing",
+      "payer_code_is_missing",
+      "unique_diagnosis_categories",
+      "number_outpatient_mean",
+      "number_outpatient_max",
+      "number_outpatient_sum",
+      "number_emergency_mean",
+      "number_emergency_max",
+      "number_emergency_sum",
+      "number_inpatient_mean",
+      "number_inpatient_max",
+      "number_inpatient_sum",
+      "total_visits",
+      "medication_complexity_score",
+      "care_utilization_risk_score",
+      "age_bucket",
+      "bmi_underweight",
+      "bmi_normal",
+      "bmi_overweight",
+      "bmi_obese",
+      "los_medication_interaction",
+      "med_diagnosis_interaction",
+      "race_Asian",
+      "race_Caucasian",
+      "race_Hispanic",
+      "race_Other",
+      "gender_Male",
+      "gender_Unknown_Invalid",
+      "weight_0_25)",
+      "weight_100_125)",
+      "weight_125_150)",
+      "weight_150_175)",
+      "weight_175_200)",
+      "weight_25_50)",
+      "weight_50_75)",
+      "weight_75_100)",
+      "max_glu_serum_300",
+      "max_glu_serum_Norm",
+      "A1Cresult_8",
+      "A1Cresult_Norm",
+      "metformin_No",
+      "metformin_Steady",
+      "metformin_Up",
+      "repaglinide_No",
+      "repaglinide_Steady",
+      "repaglinide_Up",
+      "nateglinide_No",
+      "nateglinide_Steady",
+      "nateglinide_Up",
+      "chlorpropamide_No",
+      "chlorpropamide_Steady",
+      "chlorpropamide_Up",
+      "glimepiride_No",
+      "glimepiride_Steady",
+      "glimepiride_Up",
+      "acetohexamide_Steady",
+      "glipizide_No",
+      "glipizide_Steady",
+      "glipizide_Up",
+      "glyburide_No",
+      "glyburide_Steady",
+      "glyburide_Up",
+      "tolbutamide_Steady",
+      "pioglitazone_No",
+      "pioglitazone_Steady",
+      "pioglitazone_Up",
+      "rosiglitazone_No",
+      "rosiglitazone_Steady",
+      "rosiglitazone_Up",
+      "acarbose_No",
+      "acarbose_Steady",
+      "acarbose_Up",
+      "miglitol_No",
+      "miglitol_Steady",
+      "miglitol_Up",
+      "troglitazone_Steady",
+      "tolazamide_Steady",
+      "tolazamide_Up",
+      "insulin_No",
+      "insulin_Steady",
+      "insulin_Up",
+      "glyburide_metformin_No",
+      "glyburide_metformin_Steady",
+      "glyburide_metformin_Up",
+      "glipizide_metformin_Steady",
+      "glimepiride_pioglitazone_Steady",
+      "metformin_rosiglitazone_Steady",
+      "metformin_pioglitazone_Steady",
+      "change_No",
+      "diabetesMed_Yes",
+      "age_target_encoded",
+      "payer_code_target_encoded",
+      "medical_specialty_target_encoded",
+      "diag_1_target_encoded",
+      "diag_2_target_encoded",
+      "diag_3_target_encoded",
+      "diag_1_cat_target_encoded",
+      "diag_2_cat_target_encoded",
+      "diag_3_cat_target_encoded"
+    ],
+    "split_rows": {
+      "train": 71236,
+      "validation": 15265,
+      "test": 15265
+    },
+    "patient_overlap": {
+      "train_validation": 5055,
+      "train_test": 5086,
+      "validation_test": 1760
+    },
+    "race_missing": {
+      "train": 1596,
+      "validation": 336,
+      "test": 341
+    },
+    "training_performed": false,
+    "preprocessing_performed": false,
+    "source_commit": "5c0fc144687766c0306e8b7150f3228579ac7a0f",
+    "content_files": {
+      "db_features.csv": "9217002122a78dd9060dbd89b7f58722dd4fa29887628a741bdfa47f1466f3f4",
+      "metadata.csv": "ef4466799bc78ec4e0325a31bd695f294d19868b54e7d60f7556169d65a87cef",
+      "test.csv": "471badde112c24e62124c80b69d95377d898931189f6fa431ae6164005a63a3c",
+      "test_demographics.csv": "f59d422ec50c2831ee2f0b4d768da0a9ae1d526b222f5e7d5c048f3d3ad8f8b8",
+      "train.csv": "71895ccb1886d8fd3d95c60542098ce59133e06fea7c372e91d770347bf5bc09",
+      "train_demographics.csv": "f92f23588cdc274c973c95cc20d169ec4e5820d8f1aad1b71364da1524c6dfab",
+      "validation.csv": "c0dedd01b0ddd12e0f6cde23a2b54c2805d4823bd50ed175d8b60b81cb85ee91",
+      "validation_demographics.csv": "9afb961d616ccf1cc61f2b414dac47a2de3fbbbb80efc37050daf59aaf235c77"
+    },
+    "data_id": "c34ec224503e2038c79fd11c47e0f603c7e392ba46f4e8c14e1661bfaf5303fd",
+    "files": {
+      "db_features.csv": "9217002122a78dd9060dbd89b7f58722dd4fa29887628a741bdfa47f1466f3f4",
+      "metadata.csv": "ef4466799bc78ec4e0325a31bd695f294d19868b54e7d60f7556169d65a87cef",
+      "test.csv": "471badde112c24e62124c80b69d95377d898931189f6fa431ae6164005a63a3c",
+      "test_demographics.csv": "f59d422ec50c2831ee2f0b4d768da0a9ae1d526b222f5e7d5c048f3d3ad8f8b8",
+      "train.csv": "71895ccb1886d8fd3d95c60542098ce59133e06fea7c372e91d770347bf5bc09",
+      "train_demographics.csv": "f92f23588cdc274c973c95cc20d169ec4e5820d8f1aad1b71364da1524c6dfab",
+      "validation.csv": "c0dedd01b0ddd12e0f6cde23a2b54c2805d4823bd50ed175d8b60b81cb85ee91",
+      "validation_demographics.csv": "9afb961d616ccf1cc61f2b414dac47a2de3fbbbb80efc37050daf59aaf235c77",
+      "asset_info.csv": "d1c550828cfbd3a264058e3be0f85c6dd40e77b886fa500e57e3d5a3c4003f19",
+      "NOTICE.txt": "6e33337de005f2469034025fea406c103951e59fd8e144f487bfd8aa37d0a157"
+    }
+  },
+  "profile_hash": "04e10da631e8ef907708794f4ceaab7a0ebe23abb4fd4f19fd8e470895e6fee7",
+  "schema_request": {
+    "schema_version": 1,
+    "stage": "input_mapping",
+    "profile_id": "diabetes_prepared",
+    "data_id": "c34ec224503e2038c79fd11c47e0f603c7e392ba46f4e8c14e1661bfaf5303fd",
+    "columns": [
+      {
+        "name": "row_key",
+        "description": "UCI encounter_id에 대응하는 입원 단위 고유 키입니다.",
+        "semantic_roles": [
+          "row_key"
+        ],
+        "data_type": "string",
+        "missing_count": 0
+      },
+      {
+        "name": "patient_key",
+        "description": "UCI encounter_id 조인으로 복원한 patient_nbr입니다. 동일 환자의 여러 입원을 연결하며 입원 ID가 아닙니다.",
+        "semantic_roles": [
+          "patient_key"
+        ],
+        "data_type": "string",
+        "missing_count": 0
+      },
+      {
+        "name": "split",
+        "description": "공개 준비 데이터의 고정 train/validation/test 분할입니다.",
+        "semantic_roles": [
+          "split"
+        ],
+        "data_type": "string",
+        "missing_count": 0
+      },
+      {
+        "name": "target",
+        "description": "이미 이진 인코딩된 30일 이내 재입원 정답입니다.",
+        "semantic_roles": [
+          "target"
+        ],
+        "data_type": "integer",
+        "missing_count": 0
+      },
+      {
+        "name": "race",
+        "description": "공개 준비 데이터의 인종 값이며 결측치 대체가 포함됩니다.",
+        "semantic_roles": [
+          "race"
+        ],
+        "data_type": "string",
+        "missing_count": 0
+      },
+      {
+        "name": "gender",
+        "description": "준비 데이터의 성별 값입니다.",
+        "semantic_roles": [
+          "gender"
+        ],
+        "data_type": "string",
+        "missing_count": 0
+      },
+      {
+        "name": "age_group",
+        "description": "준비 데이터의 연령 구간입니다.",
+        "semantic_roles": [
+          "age_group"
+        ],
+        "data_type": "string",
+        "missing_count": 0
+      },
+      {
+        "name": "race_original",
+        "description": "원본 인종 값으로, 원본 결측은 빈 값으로 보존됩니다.",
+        "semantic_roles": [
+          "race_original"
+        ],
+        "data_type": "string",
+        "missing_count": 2273
+      },
+      {
+        "name": "race_was_missing",
+        "description": "원본 인종 결측 여부를 나타내는 명시적 true/false 플래그입니다.",
+        "semantic_roles": [
+          "race_was_missing"
+        ],
+        "data_type": "boolean",
+        "missing_count": 0
+      }
+    ],
+    "required_roles": [
+      "row_key",
+      "patient_key",
+      "split",
+      "target"
+    ],
+    "candidate_bindings": {
+      "row_key": [
+        "row_key"
+      ],
+      "patient_key": [
+        "patient_key"
+      ],
+      "split": [
+        "split"
+      ],
+      "target": [
+        "target"
+      ],
+      "race": [
+        "race"
+      ],
+      "gender": [
+        "gender"
+      ],
+      "age_group": [
+        "age_group"
+      ],
+      "race_original": [
+        "race_original"
+      ],
+      "race_was_missing": [
+        "race_was_missing"
+      ]
+    },
+    "target_definition": "UCI readmitted의 <30은 1, >30과 NO는 0으로 제공된 정답입니다. 0이 완전한 30일 무사건 추적을 입증하지는 않습니다.",
+    "split_values": {
+      "train": "train",
+      "validation": "validation",
+      "test": "test"
+    },
+    "target_values": {
+      "0": 0,
+      "1": 1
+    },
+    "allowed_evidence_ids": [
+      "column:0:row_key",
+      "column:1:patient_key",
+      "column:2:split",
+      "column:3:target",
+      "column:4:race",
+      "column:5:gender",
+      "column:6:age_group",
+      "column:7:race_original",
+      "column:8:race_was_missing"
+    ],
+    "known_mapping": true,
+    "profile_hash": "04e10da631e8ef907708794f4ceaab7a0ebe23abb4fd4f19fd8e470895e6fee7",
+    "context_hash": "1da8ddee19360eb49545815e2a9a8cd62f3110592fcacf8500940b260ca38aa7"
+  },
+  "recommendation": null
+}
