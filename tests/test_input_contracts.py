@@ -127,6 +127,16 @@ class InputContractTests(unittest.TestCase):
             profile["bindings"]["patient_key"] = "row_key"
             self.assertEqual(inputs.load_profile()["bindings"]["patient_key"], "patient_key")
 
+    def test_identifier_label_and_split_roles_cannot_be_predictor_features(self):
+        directory, profile, mapping, _, _, manifest = self.package()
+        for name in (mapping["patient_key"], mapping["row_key"], mapping["target"],
+                     mapping["split"], "target", "patient_nbr"):
+            with self.subTest(name=name):
+                manifest["feature_columns"] = [name, "synthetic_f2"]
+                self.reseal(directory, profile, manifest)
+                with self.assertRaisesRegex(ValueError, "모델 입력"):
+                    inputs.inspect_inputs(directory)
+
     def test_two_different_raw_schemas_produce_identical_real_patient_overlap_results(self):
         first, _, _, _, _, _ = self.package()
         second, _, _, _, _, _ = self.package("synthetic_b", prefix="other_hospital_")

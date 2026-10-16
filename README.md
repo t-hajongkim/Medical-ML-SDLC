@@ -387,6 +387,7 @@ Merge 승인 기록은 이 매핑을 병합 commit의 registry와 다시 대조�
 `metadata.csv`, `db_features.csv`, `data_manifest.json` 세 파일과 등록된 SHA256·data_id·변수 순서·분할 행수를 검증합니다.
 data_id는 manifest의 data_id 필드를 제외한 정규화 JSON hash이며 registry의 값과 일치해야 합니다.
 특성 테이블은 `row_key,split,row_position,feature_values` 형식의 준비된 유한 숫자 배열입니다.
+식별자·분할·정답 역할의 원본 컬럼이나 표준 역할명을 입력 특성에 포함하면 거부합니다. 자동으로 특성을 삭제하거나 모델을 바꾸지 않습니다.
 원본 metadata의 컬럼 이름은 달라도 되지만 의미 사전과 역할별 서로 다른 컬럼, 세 분할·이진 정답 계약은 필요합니다.
 운영자는 새 이미지·profile·data_id·대응 모델·출처/라이선스를 등록해야 합니다. profile 추가가 이미지 생성·배포를 대신하지 않습니다.
 

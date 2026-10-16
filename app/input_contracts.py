@@ -188,6 +188,17 @@ def _safe_file(path):
         _fail("준비 자산 파일이 없거나 비어 있거나 안전하지 않은 경로입니다.")
 
 
+def _validate_feature_roles(manifest, profile):
+    features = manifest.get("feature_columns")
+    if not isinstance(features, list) or any(not isinstance(name, str) for name in features):
+        _fail("검증할 모델 입력 특성 목록이 올바르지 않습니다.")
+    protected = {"row_key", "patient_key", "encounter_id", "patient_nbr", "split", "target"}
+    protected.update(name for name, column in profile["columns"].items()
+                     if set(column["semantic_roles"]).intersection(REQUIRED_ROLES))
+    if protected.intersection(features):
+        _fail("환자·행 식별자, 분할 또는 정답 역할 컬럼을 모델 입력 특성에 포함할 수 없습니다.")
+
+
 def _manifest(directory, profile):
     for name in ("data_manifest.json", "metadata.csv", "db_features.csv"):
         _safe_file(directory / name)
@@ -209,6 +220,7 @@ def _manifest(directory, profile):
                 _fail("준비 자산의 파일 해시가 등록 manifest와 다릅니다.")
     if manifest.get("data_id") != profile["data_id"]:
         _fail("자산 data_id가 운영자 등록 profile과 다릅니다.")
+    _validate_feature_roles(manifest, profile)
     return manifest
 
 
@@ -515,6 +527,7 @@ def validate_saved_binding(binding, profile, schema_request):
     manifest = binding["source_manifest"]
     if not isinstance(manifest, dict) or manifest.get("data_id") != profile["data_id"]:
         _fail("저장된 원본 manifest의 data_id가 등록과 다릅니다.")
+    _validate_feature_roles(manifest, profile)
     if profile["source_kind"] == "registered_prepared_v1":
         _validate_registered_manifest(manifest)
     else:
