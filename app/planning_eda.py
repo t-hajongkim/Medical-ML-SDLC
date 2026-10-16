@@ -14,6 +14,8 @@ AI EDA additions stay separate from human ``selection.eda.add``. Record objectiv
 are the final union, not a replacement of human objectives. Coordination hashes
 bind the record, registered catalogs and policy without retaining source prose.
 Hashes provide source consistency, not proof of agent or comment authenticity.
+When supplied, ``basic_eda`` binds measured public aggregates and unused,
+unselected registered EDA candidates into the same context hash.
 """
 
 from copy import deepcopy
@@ -37,14 +39,17 @@ _NONPUBLIC_SCHEMA_KEYS = {
     "api_key", "access_token", "private_key", "token", "patient_name", "patient_full_name",
     "환자명", "성명",
 }
+_NONAGGREGATE_EDA_KEYS = {
+    "metadata", "row_key", "patient_key", "row_keys", "patient_keys", "patient_id",
+    "patient_ids", "record_ids", "sample_ids", "reference_sample_ids",
+    "predictions", "probabilities", "reference_probabilities", "y_true", "y_pred",
+    "y_probability", "vector", "vectors", "feature_vectors", "prediction_vectors",
+    "embeddings", "labels", "scores", "secret", "client_secret", "authorization",
+    "refresh_token", "id_token", "session_token",
+}
 _PROPOSAL_FIELDS = {
     "schema_version", "context_hash", "eda_add", "objectives", "feedback_ids",
     "selection_updates", "reason",
-}
-_RECORD_FIELDS = {
-    "schema_version", "provider", "context_hash", "request_hash", "base_selection_hash",
-    "selection_hash", "schema_hash", "feedback_hash", "feedback_ids", "eda_add",
-    "objectives", "reason", "coordination_hash",
 }
 _SENSITIVE = re.compile(
     r"-----BEGIN [A-Z0-9 -]+-----"
@@ -69,7 +74,7 @@ def _digest(value, label):
 
 
 def validate_feedback_state(ledger, applied, repository, number, issue):
-    """Validate body-free feedback provenance before queuing, AI use or approval."""
+    """Validate body-free feedback provenance before queuing or AI use."""
     references = []
     if ledger is not None:
         fields = {"schema_version", "kind", "repository", "pull_request", "issue_number", "comments"}
@@ -272,11 +277,78 @@ def _reason(value):
     return value.strip()
 
 
-def build_context(request, schema_request, selection, feedback, *, catalogs=None, policy=None):
+def _basic_eda(value, schema, catalogs):
+    fields = {
+        "schema_version", "kind", "report_generated", "assessment_status", "status_meanings",
+        "interpretation", "data_id", "prepared_revision", "raw_source_sha256",
+        "model_execution_performed", "training_performed", "preprocessing_performed",
+        "results", "input_profile", "input_mapping_hash", "dataset_context",
+        "coordination_hash", "research_request_hash", "coordination_evidence",
+        "initial_execution_plan_hash", "execution_plan_hash", "execution_mode",
+        "executed_ids", "reused_ids", "execution_result_hash",
+    }
+    required = {"schema_version", "kind", "report_generated", "data_id", "results"}
+    _object(value, "basic EDA", fields, required)
+    planning._version(value, "basic EDA")
+    if value["kind"] != "aggregate-eda" or value["report_generated"] is not True:
+        raise ValueError("Basic EDA must be a generated aggregate report")
+    if _digest(value["data_id"], "basic EDA data_id") != schema.get("data_id"):
+        raise ValueError("Basic EDA and public schema must have the same data_id")
+    snapshot = _schema(value)
+
+    def aggregates(item):
+        if isinstance(item, dict):
+            for key, child in item.items():
+                if re.sub(r"[\s-]+", "_", key.strip().lower()) in _NONAGGREGATE_EDA_KEYS:
+                    raise ValueError("Basic EDA must contain aggregates, not individual rows or vectors")
+                aggregates(child)
+        elif isinstance(item, list):
+            for child in item:
+                aggregates(child)
+
+    aggregates(snapshot)
+    entries = {entry["id"]: entry for entry in catalogs["eda"]["checks"]}
+    if not isinstance(snapshot["results"], list) or not snapshot["results"]:
+        raise ValueError("Basic EDA requires measured block results")
+    executed = []
+    for result in snapshot["results"]:
+        _object(result, "basic EDA result", {"block", "status", "details"},
+                {"block", "status", "details"})
+        identifier = result["block"]
+        if (not isinstance(identifier, str) or identifier not in entries
+                or identifier in executed):
+            raise ValueError("Basic EDA requires distinct registered canonical block IDs")
+        statuses = entries[identifier].get("output_contract", {}).get("statuses", planning._STATUSES)
+        if not isinstance(result["status"], str) or result["status"] not in statuses:
+            raise ValueError("Basic EDA requires registered diagnostic statuses")
+        planning._object(result["details"], "basic EDA aggregate details")
+        executed.append(identifier)
+    if ("assessment_status" in snapshot
+            and (not isinstance(snapshot["assessment_status"], str)
+                 or snapshot["assessment_status"] not in planning._STATUSES)):
+        raise ValueError("Basic EDA assessment_status must be a diagnostic status")
+    for field in ("model_execution_performed", "training_performed", "preprocessing_performed"):
+        if field in snapshot and snapshot[field] is not False:
+            raise ValueError("Basic EDA must not perform model execution, training or preprocessing")
+    for field in ("executed_ids", "reused_ids"):
+        if field in snapshot:
+            identifiers = snapshot[field]
+            if (not isinstance(identifiers, list)
+                    or any(not isinstance(item, str) or item not in executed for item in identifiers)
+                    or len(identifiers) != len(set(identifiers))):
+                raise ValueError("Basic EDA execution identifiers must refer to distinct result blocks")
+    return snapshot, executed
+
+
+def build_context(request, schema_request, selection, feedback, *, catalogs=None, policy=None,
+                  basic_eda=None):
     """Build transient public agent input, including raw public goal and writer prose.
 
     No Issue title, repository metadata, arbitrary request keys, row samples,
     environment variables or credentials are copied into the input.
+    Optional basic EDA retains public aggregates, including failed/unverifiable
+    diagnoses. AI candidates exclude executed, selected and human-excluded checks.
+    Without basic EDA the legacy context shape remains unchanged.
     """
     catalogs, policy = _configuration(catalogs, policy)
     public_request = _request(request)
@@ -293,6 +365,14 @@ def build_context(request, schema_request, selection, feedback, *, catalogs=None
         "selection_hash": canonical_hash(current), "schema_hash": canonical_hash(schema),
         "feedback_hash": canonical_hash(pending),
     }
+    if basic_eda is not None:
+        snapshot, executed = _basic_eda(basic_eda, schema, catalogs)
+        unavailable = set(executed) | set(_eda_ids(current, [], catalogs, policy))
+        unavailable.update(current["eda"]["exclude"])
+        context.update(
+            basic_eda=snapshot, executed_eda_ids=executed,
+            available_eda_ids=[entry["id"] for entry in catalogs["eda"]["checks"]
+                               if entry["id"] not in unavailable])
     context["context_hash"] = canonical_hash(context)
     _public_json(context)
     return context
@@ -304,7 +384,8 @@ def _validate_context(context, catalogs, policy):
     _object(public, "public research request", _FORM_FIELDS, _FORM_FIELDS)
     request = {**public, "schema_version": 1, "public_data_confirmation": True}
     rebuilt = build_context(request, context.get("schema_request"), context.get("selection"),
-                            context.get("feedback"), catalogs=catalogs, policy=policy)
+                            context.get("feedback"), catalogs=catalogs, policy=policy,
+                            basic_eda=context.get("basic_eda"))
     if context != rebuilt:
         raise ValueError("Intent context is stale, modified or has unsupported fields")
     return rebuilt
@@ -378,6 +459,8 @@ def apply_proposal(selection, proposal, context, *, catalogs=None, policy=None):
     The exact complete pending ID set is required. Protected choice patches need
     nonempty authenticated feedback; public goal alone may only union objectives
     and propose separate EDA additions. Parameter patches merge with prior values.
+    Basic-result contexts restrict only AI additions to unused candidates, not
+    authenticated human selection patches or the combined executor selection.
     """
     catalogs, policy = _configuration(catalogs, policy)
     context = _validate_context(context, catalogs, policy)
@@ -398,6 +481,9 @@ def apply_proposal(selection, proposal, context, *, catalogs=None, policy=None):
         raise ValueError("Human selection updates require authenticated pending feedback")
     additions = planning._ids(proposal["eda_add"], planning._aliases(catalogs["eda"], "eda"),
                               "AI EDA")
+    if ("basic_eda" in context
+            and not set(additions).issubset(context["available_eda_ids"])):
+        raise ValueError("AI EDA additions must be unused available registered checks")
     hints = _objectives(proposal["objectives"], policy)
     reason = _reason(proposal["reason"])
     result = _updates(current, proposal["selection_updates"], catalogs, policy)
@@ -418,50 +504,6 @@ def apply_proposal(selection, proposal, context, *, catalogs=None, policy=None):
     _public_json(record)
     return {"selection": result,
             "eda_ids": _eda_ids(result, additions, catalogs, policy), "record": record}
-
-
-def validate_record(record, selection, request, schema_request, *, catalogs=None, policy=None):
-    """Validate a frozen record against public source settings, without source bodies.
-
-    The caller separately verifies authenticated feedback/context provenance.
-    Their digests cannot be reconstructed from a final selection and no bodies.
-    This check binds all retained digests to the registered configuration and
-    rechecks public goal, schema, final selection, canonical IDs and objectives.
-    """
-    catalogs, policy = _configuration(catalogs, policy)
-    _object(record, "coordination record", _RECORD_FIELDS, _RECORD_FIELDS)
-    planning._version(record, "coordination record")
-    _public_json(record)
-    if record["provider"] != PROVIDER:
-        raise ValueError("Unsupported intent coordination provider")
-    for field in ("context_hash", "request_hash", "base_selection_hash", "selection_hash",
-                  "schema_hash", "feedback_hash", "coordination_hash"):
-        _digest(record[field], field)
-    current = _selection(selection, catalogs, policy)
-    if selection != current or canonical_hash(current) != record["selection_hash"]:
-        raise ValueError("Frozen selection does not match the normalized coordination record")
-    if canonical_hash(_request(request)) != record["request_hash"]:
-        raise ValueError("Frozen public research text does not match request_hash")
-    if canonical_hash(_schema(schema_request)) != record["schema_hash"]:
-        raise ValueError("Frozen public input schema does not match schema_hash")
-    aliases = planning._aliases(catalogs["eda"], "eda")
-    additions = planning._ids(record["eda_add"], aliases, "AI EDA")
-    if additions != record["eda_add"]:
-        raise ValueError("Recorded AI EDA IDs must be canonical and deduplicated")
-    objectives = _objectives(record["objectives"], policy)
-    if (objectives != record["objectives"]
-            or objectives != {stage: current[stage]["objectives"] for stage in _STAGES}):
-        raise ValueError("Recorded objectives do not match final selection objectives")
-    if _feedback_ids(record["feedback_ids"]) != record["feedback_ids"]:
-        raise ValueError("Recorded feedback IDs must be ordered and deduplicated")
-    if not record["feedback_ids"] and record["feedback_hash"] != canonical_hash([]):
-        raise ValueError("An empty feedback ID list requires the empty feedback hash")
-    if _reason(record["reason"]) != record["reason"]:
-        raise ValueError("Recorded reason must be normalized Korean text")
-    _eda_ids(current, additions, catalogs, policy)
-    if _coordination_hash(record, catalogs, policy) != record["coordination_hash"]:
-        raise ValueError("Coordination hash does not match the record and registered configuration")
-    return deepcopy(record)
 
 
 def input_signature(context: dict) -> dict:

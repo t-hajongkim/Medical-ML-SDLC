@@ -1,6 +1,7 @@
 """Synthetic events and real ZIP parsing; no GitHub, model or Docker execution."""
 
 import copy
+import hashlib
 import io
 import json
 import os
@@ -21,6 +22,8 @@ REPO = "fixture-owner/workshop"
 RUN = "38770131074"
 SHA = "a" * 40
 PR = 7
+ISSUE = 2
+ACTOR = "fixture-maintainer"
 
 
 def zip_bytes(files):
@@ -36,6 +39,11 @@ class EventHandoffTests(unittest.TestCase):
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
         self.directory = Path(self.temporary.name).resolve()
+        checkout = self.directory / "checkout"
+        checkout.mkdir()
+        root = patch.object(research, "ROOT", checkout)
+        root.start()
+        self.addCleanup(root.stop)
         environment = {"GITHUB_RUN_ID": RUN, "GITHUB_RUN_ATTEMPT": "2",
                        "GITHUB_SHA": SHA, "RUNNER_TEMP": str(self.directory)}
         self.environment = patch.dict(os.environ, environment)
@@ -47,13 +55,14 @@ class EventHandoffTests(unittest.TestCase):
     def test_normal_review_and_forced_review_emit_the_exact_pr_only(self):
         for outcome in (
             {"ai_dispatch": self.target, "private_note": "PRIVATE_SYNTHETIC_NOTE"},
-            {"refresh": {"ai_dispatch": self.target}},
             {"recommendation": self.target},
         ):
             with self.subTest(outcome=outcome):
                 path = events.write_target(outcome, REPO)
                 raw = path.read_text(encoding="utf-8")
                 value = json.loads(raw)
+                self.assertEqual(value["schema_version"], 2)
+                self.assertEqual((value["target_kind"], value["target_number"]), ("pull_request", PR))
                 self.assertEqual(path, self.directory / events.TARGET_FILE)
                 self.assertEqual(value["pull_request"], PR)
                 self.assertEqual(value["source_run_id"], RUN)
@@ -62,11 +71,31 @@ class EventHandoffTests(unittest.TestCase):
                 self.assertTrue(value["requested"])
                 self.assertNotIn("PRIVATE_SYNTHETIC_NOTE", raw)
 
-    def test_noop_provided_and_freeze_emit_explicit_no_request(self):
+    def test_prepared_initial_issue_emits_no_pr_or_private_inputs(self):
+        target = {"status": "requested", "workflow": "research-plan.lock.yml",
+                  "target_kind": "issue", "target_number": ISSUE, "issue": ISSUE}
+        value = json.loads(events.write_target({
+            "status": "prepared", "ai_dispatch": target, "patient_rows": ["PRIVATE"]},
+            REPO).read_text(encoding="utf-8"))
+        self.assertEqual(value["schema_version"], 2)
+        self.assertEqual((value["target_kind"], value["target_number"], value["issue_number"]),
+                         ("issue", ISSUE, ISSUE))
+        self.assertNotIn("pull_request", value)
+        self.assertNotIn("patient_rows", value)
+        for changed in (
+            {**target, "issue": ISSUE + 1},
+            {**target, "pull_request": PR},
+            {**target, "target_kind": "other"},
+        ):
+            with self.subTest(target=changed), self.assertRaises(ValueError):
+                events.write_target({"ai_dispatch": changed}, REPO)
+        with self.assertRaisesRegex(ValueError, "서로 다른"):
+            events.write_target({"ai_dispatch": target, "recommendation": self.target}, REPO)
+
+    def test_noop_and_provided_emit_explicit_no_request(self):
         for outcome in (
             {"status": "not_applicable"},
             {"ai_dispatch": {"status": "not_needed"}},
-            {"status": "frozen", "approved_plan": "research/approved/fixture.json"},
         ):
             value = json.loads(events.write_target(outcome, REPO).read_text(encoding="utf-8"))
             self.assertFalse(value["requested"])
@@ -87,11 +116,20 @@ class EventHandoffTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "체크아웃 외부"):
                 events.write_target({}, REPO)
 
-    def test_outputs_contain_only_boolean_and_numeric_pr(self):
+    def test_outputs_contain_exact_target_and_pr_compatibility(self):
         output = self.directory / "output.txt"
         with patch.dict(os.environ, {"GITHUB_OUTPUT": str(output)}):
             events.write_outputs({"ready": True, "pull_request": PR})
-        self.assertEqual(output.read_text(encoding="utf-8"), "ready=true\npull_request=7\n")
+        self.assertEqual(output.read_text(encoding="utf-8"),
+                         "ready=true\ntarget_kind=pull_request\ntarget_number=7\npull_request=7\n")
+
+    def test_issue_outputs_include_authorized_actor_but_never_pr(self):
+        output = self.directory / "issue-output.txt"
+        with patch.dict(os.environ, {"GITHUB_OUTPUT": str(output)}):
+            events.write_outputs({"ready": True, "target_kind": "issue", "target_number": ISSUE,
+                                  "issue_number": ISSUE, "request_actor": ACTOR})
+        self.assertEqual(output.read_text(encoding="utf-8"),
+                         f"ready=true\ntarget_kind=issue\ntarget_number=2\nissue_number=2\nrequest_actor={ACTOR}\n")
 
 
 class ResolutionTests(unittest.TestCase):
@@ -101,14 +139,26 @@ class ResolutionTests(unittest.TestCase):
             "repository": {"full_name": REPO}, "head_repository": {"full_name": REPO},
             "path": ".github/workflows/prepare-eda-pr.yml", "event": "issues",
             "status": "completed", "conclusion": "success",
+            "actor": {"login": ACTOR, "type": "User"},
         }
         self.event = {"repository": {"full_name": REPO, "default_branch": "main"},
                       "workflow_run": {"id": int(RUN), "run_attempt": 2}}
         self.payload = {
-            "schema_version": 1, "repository": REPO, "source_run_id": RUN,
+            "schema_version": 2, "repository": REPO, "source_run_id": RUN,
             "source_run_attempt": "2", "source_head_sha": SHA,
-            "requested": True, "pull_request": PR,
+            "requested": True, "target_kind": "pull_request", "target_number": PR,
+            "pull_request": PR,
         }
+        form = research.form_contract()
+        self.issue = {
+            "number": ISSUE, "state": "open", "title": "합성 연구",
+            "user": {"login": ACTOR},
+            "body": "\n\n".join(
+                f"### {label}\n\n" + (f"- [x] {form['consent']}" if identifier == "public_data_confirmation"
+                                      else "Synthetic public research")
+                for label, identifier in form["fields"].items()),
+        }
+        self.permission = "write"
         self.artifacts = [{"id": 19, "name": f"research-ai-target-{RUN}-2", "expired": False}]
         self.pull = {
             "number": PR, "state": "open", "title": "연구검토 #2: 합성 검증",
@@ -128,6 +178,10 @@ class ResolutionTests(unittest.TestCase):
             return [{"artifacts": copy.deepcopy(self.artifacts)}]
         if path == f"{prefix}/pulls/{PR}":
             return copy.deepcopy(self.pull)
+        if path == f"{prefix}/issues/{ISSUE}":
+            return copy.deepcopy(self.issue)
+        if path == f"{prefix}/collaborators/{ACTOR}/permission":
+            return {"permission": self.permission}
         if path == prefix:
             return {"default_branch": "main"}
         raise AssertionError(f"Unexpected API lookup: {path}")
@@ -141,9 +195,63 @@ class ResolutionTests(unittest.TestCase):
         return events.resolve_target(self.event, "workflow_run", REPO)
 
     def test_trusted_success_resolves_exact_pr_from_real_zip(self):
-        self.assertEqual(self.resolve(), {"ready": True, "pull_request": PR, "trigger": "workflow_run"})
+        self.assertEqual(self.resolve(), {
+            "ready": True, "target_kind": "pull_request", "target_number": PR,
+            "pull_request": PR, "trigger": "workflow_run"})
         self.process.assert_called_once()
         self.assertFalse(any("/pulls?" in call.args[0] for call in self.api.call_args_list))
+
+    def initial(self):
+        self.payload.update(target_kind="issue", target_number=ISSUE, issue_number=ISSUE)
+        self.payload.pop("pull_request", None)
+
+    def test_initial_issue_is_authorized_and_resolved_without_a_pr_lookup(self):
+        self.initial()
+        self.assertEqual(self.resolve(), {
+            "ready": True, "target_kind": "issue", "target_number": ISSUE,
+            "issue_number": ISSUE, "request_actor": ACTOR, "trigger": "workflow_run"})
+        self.assertFalse(any("/pulls" in call.args[0] for call in self.api.call_args_list))
+        self.assertTrue(any("/permission" in call.args[0] for call in self.api.call_args_list))
+
+    def test_initial_rejects_bot_or_missing_or_read_only_source_actor(self):
+        self.initial()
+        for actor in ({}, {"login": ACTOR, "type": "Bot"}, {"login": "bot[bot]", "type": "User"},
+                      {"login": ACTOR + "\nspoof", "type": "User"}):
+            with self.subTest(actor=actor), self.assertRaises(ValueError):
+                self.source["actor"] = actor
+                self.resolve()
+        self.source["actor"] = {"login": ACTOR, "type": "User"}
+        for permission in ("read", "triage", "none"):
+            with self.subTest(permission=permission), self.assertRaises(ValueError):
+                self.permission = permission
+                self.resolve()
+
+    def test_initial_rejects_wrong_closed_unregistered_or_spoofed_issue(self):
+        self.initial()
+        original = copy.deepcopy(self.issue)
+        for update in (
+            {"number": ISSUE + 1}, {"state": "closed"}, {"pull_request": {}},
+            {"body": "not a registered research form"}, {"user": {"login": "outsider"}},
+        ):
+            with self.subTest(update=update), self.assertRaises(ValueError):
+                self.issue = {**original, **update}
+                self.resolve()
+        self.issue = original
+        self.source.update(path=".github/workflows/review-eval-plan.yml", event="issue_comment")
+        with self.assertRaises(ValueError):
+            self.resolve()
+
+    def test_manual_intake_source_can_target_an_existing_open_issue(self):
+        self.initial()
+        self.source["event"] = "workflow_dispatch"
+        self.issue["user"]["login"] = "public-contributor"
+        self.assertEqual(self.resolve()["issue_number"], ISSUE)
+
+    def test_version_one_exact_pr_handoffs_remain_supported(self):
+        self.payload["schema_version"] = 1
+        self.payload.pop("target_kind")
+        self.payload.pop("target_number")
+        self.assertEqual(self.resolve()["pull_request"], PR)
 
     def test_manual_human_path_needs_no_source_artifact(self):
         result = events.resolve_target(self.event, "workflow_dispatch", REPO, str(PR))
@@ -156,10 +264,11 @@ class ResolutionTests(unittest.TestCase):
         self.source["conclusion"] = "failure"
         self.assertFalse(self.resolve()["ready"])
 
-    def test_merge_freeze_does_not_recommend_again(self):
+    def test_removed_merge_source_is_rejected(self):
         self.source.update(path=".github/workflows/review-eval-plan.yml", event="pull_request",
                            head_branch="research/review-issue-2")
-        self.assertFalse(self.resolve()["ready"])
+        with self.assertRaises(ValueError):
+            self.resolve()
         self.process.assert_not_called()
 
     def test_untrusted_workflow_branch_repo_and_event_are_rejected(self):
@@ -181,6 +290,8 @@ class ResolutionTests(unittest.TestCase):
     def test_no_request_skips_without_touching_a_pr(self):
         self.payload.update(requested=False)
         self.payload.pop("pull_request")
+        self.payload.pop("target_kind")
+        self.payload.pop("target_number")
         self.assertFalse(self.resolve()["ready"])
         self.assertFalse(any("/pulls/" in call.args[0] for call in self.api.call_args_list))
 
@@ -202,6 +313,7 @@ class ResolutionTests(unittest.TestCase):
             {"repository": "other/repo"}, {"source_run_id": "10"},
             {"source_run_attempt": "1"}, {"source_head_sha": "b" * 40},
             {"schema_version": True}, {"requested": "true"}, {"private_rows": []},
+            {"target_kind": "other"}, {"target_number": PR + 1}, {"pull_request": True},
         ):
             with self.subTest(update=update):
                 self.payload = {**original, **update}
@@ -211,6 +323,16 @@ class ResolutionTests(unittest.TestCase):
         self.pull["head"]["repo"]["full_name"] = "outsider/fork"
         with self.assertRaisesRegex(ValueError, "same-repository"):
             self.resolve()
+
+    def test_spoofed_event_sha_and_api_run_id_are_rejected(self):
+        self.event["workflow_run"]["head_sha"] = "b" * 40
+        with self.assertRaises(ValueError):
+            self.resolve()
+        self.event["workflow_run"].pop("head_sha")
+        self.source["id"] = int(RUN) + 1
+        with self.assertRaises(ValueError):
+            self.resolve()
+        self.process.assert_not_called()
 
     def test_download_failure_invalid_zip_and_unexpected_files_fail_closed(self):
         for data in (
@@ -232,26 +354,32 @@ class ResolutionTests(unittest.TestCase):
 
 
 class TrustedImportTests(unittest.TestCase):
-    def test_report_tree_code_cannot_replace_cached_helpers_or_checks(self):
+    def test_private_post_check_never_imports_report_tree_code(self):
         with tempfile.TemporaryDirectory(prefix="trusted-review-code-") as folder:
             root = Path(folder)
             shutil.copytree(research.ROOT / "app", root / "app",
                             ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
-            script = r'''
-import importlib, os
-from pathlib import Path
-from app import research
-research.pin_review_code()
-for name in ("app/input_review.py", "app/recommendation_events.py", "app/blocks/checks/cohort.py"):
-    (research.ROOT / name).write_text('raise RuntimeError("UNTRUSTED_PR_CODE")', encoding="utf-8")
-from app import input_review, recommendation_events
-assert input_review.mapping_lines({"provider":"fixture","profile_id":"fixture","bindings":{}})
-os.environ["GITHUB_OUTPUT"] = str(research.ROOT / "outputs.txt")
-recommendation_events.write_outputs({"ready":False})
-assert research.report({"metadata":[]}, identifiers=["cohort"])["results"][0]["status"] == "unverifiable"
-'''
-            result = subprocess.run([sys.executable, "-S", "-B", "-c", script],
-                                    cwd=root, env={**os.environ, "PYTHONPATH": str(root)},
+            work = root / "private"
+            work.mkdir()
+            source = (research.ROOT / "app" / "research_tools.py").read_text(encoding="utf-8")
+            source = source.replace(
+                'Path("/tmp/gh-aw/research-recommendation/publication.json")',
+                f"Path({str(work / 'publication.json')!r})")
+            (work / "tools.py").write_text(source, encoding="utf-8")
+            for path in (root / "app").rglob("*.py"):
+                path.write_text('raise RuntimeError("UNTRUSTED_PR_CODE")', encoding="utf-8")
+            body = b"Synthetic report"
+            (work / "pr-body.md").write_bytes(body)
+            (work / "publication.json").write_text(json.dumps({
+                "schema_version": 2, "operation": "update", "target_kind": "pull_request",
+                "target_number": 7, "pull_request": 7, "publication_commit": None,
+                "body_refresh_required": False,
+                "body_sha256": hashlib.sha256(body).hexdigest()}), encoding="utf-8")
+            output = work / "agent.json"
+            output.write_text('{"items":[]}', encoding="utf-8")
+            result = subprocess.run([sys.executable, "-S", "-B", str(work / "tools.py"), "post-check"],
+                                    cwd=root, env={**os.environ, "PYTHONPATH": str(root),
+                                                   "GITHUB_ACTIONS": "true", "GH_AW_AGENT_OUTPUT": str(output)},
                                     capture_output=True, text=True, encoding="utf-8", timeout=30)
             self.assertEqual(result.returncode, 0, result.stderr)
 
@@ -275,6 +403,33 @@ assert module.run_workflow.__globals__ is module.__dict__
                                     cwd=root, env={**os.environ, "PYTHONPATH": str(root)},
                                     capture_output=True, text=True, encoding="utf-8", timeout=30)
             self.assertEqual(result.returncode, 0, result.stderr)
+
+
+class SourceWorkflowTests(unittest.TestCase):
+    def test_issue_intake_is_read_only_and_feedback_keeps_runtime_authorization(self):
+        import yaml
+        workflows = Path(__file__).resolve().parents[1] / ".github" / "workflows"
+        prepare = (workflows / "prepare-eda-pr.yml").read_text(encoding="utf-8")
+        feedback = (workflows / "review-eval-plan.yml").read_text(encoding="utf-8")
+        config = yaml.load(prepare, Loader=yaml.BaseLoader)
+        self.assertEqual(config["permissions"], {
+            "contents": "read", "pull-requests": "read", "issues": "read"})
+        self.assertEqual(config["on"]["issues"]["types"], ["opened"])
+        self.assertIn("python -B -m app.research workflow", prepare)
+        self.assertNotIn("docker", prepare.lower())
+        self.assertNotIn("ghcr", prepare.lower())
+        review = yaml.load(feedback, Loader=yaml.BaseLoader)
+        self.assertEqual(review["on"], {"issue_comment": {"types": ["created"]}})
+        self.assertEqual(review["jobs"]["review-plan"]["permissions"]["contents"], "write")
+        self.assertIn("python -B -m app.review_eval_plan", feedback)
+        for text in (prepare, feedback):
+            self.assertNotIn("unittest", text)
+            self.assertNotIn("approval.json", text)
+            self.assertNotIn("gh workflow run", text)
+            self.assertNotIn("repository_dispatch", text)
+            self.assertNotIn("PAT", text)
+            self.assertIn("research-ai-target-${{ github.run_id }}-${{ github.run_attempt }}", text)
+            self.assertIn("if-no-files-found: error", text)
 
 
 if __name__ == "__main__":

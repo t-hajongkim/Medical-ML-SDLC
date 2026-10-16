@@ -647,16 +647,6 @@ class InputContractTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     inputs.load_profile(registry=invalid)
 
-    def test_saved_config_binding_is_validated_purely_and_returned_as_a_copy(self):
-        directory, _, _, _, _, _ = self.package()
-        bundle = inputs.inspect_inputs(directory)
-        profile = inputs.load_profile(registry=deepcopy(self.config))
-        with patch.object(Path, "open", side_effect=AssertionError("자산 I/O 금지")), \
-                patch.object(inputs, "_read_json", side_effect=AssertionError("설정 I/O 금지")):
-            saved = inputs.validate_saved_binding(bundle["binding"], profile, bundle["schema_request"])
-        self.assertEqual(saved, bundle["binding"])
-        saved["bindings"].clear()
-        self.assertTrue(bundle["binding"]["bindings"])
 
     def test_saved_ai_recommendation_replays_through_full_asset_validation(self):
         directory, _, mapping, _, _, _ = self.package(known=False)
@@ -664,7 +654,6 @@ class InputContractTests(unittest.TestCase):
         answer = self.recommendation(request, mapping)
         ready = inputs.apply_mapping(directory, answer)
         saved = json.loads(json.dumps(ready["binding"], ensure_ascii=False))
-        inputs.validate_saved_binding(saved, inputs.load_profile(), request)
         rerun = inputs.apply_mapping(directory, saved["recommendation"])
         self.assertEqual(rerun["binding"], saved)
         self.assertEqual(patient_overlap.run(rerun["context"]), patient_overlap.run(ready["context"]))
@@ -675,89 +664,6 @@ class InputContractTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             inputs.apply_mapping(directory, saved["recommendation"])
 
-    def test_saved_binding_rejects_tampered_snapshots_ids_mappings_and_provider(self):
-        directory, _, mapping, _, _, _ = self.package()
-        bundle = inputs.inspect_inputs(directory)
-        profile = inputs.load_profile()
-        original = bundle["binding"]
-        changes = [
-            ("schema_version", True), ("provider", inputs.PROVIDER), ("status", "provided"),
-            ("profile_id", "unregistered"), ("data_id", "f" * 64), ("context_hash", "f" * 64),
-            ("profile_hash", "f" * 64), ("profile_snapshot", {}),
-            ("split_values", {"train": "train", "dev": "test", "holdout": "validation"}),
-            ("target_values", {"negative": False, "positive": True}),
-            ("bindings", {**mapping, "patient_key": mapping["row_key"]}),
-            ("recommendation", {}), ("schema_request", {}),
-            ("source_manifest", {**original["source_manifest"], "data_id": "f" * 64}),
-        ]
-        for field, value in changes:
-            changed = deepcopy(original)
-            changed[field] = value
-            with self.subTest(field=field):
-                with self.assertRaises(ValueError):
-                    inputs.validate_saved_binding(changed, profile, bundle["schema_request"])
-        changed = deepcopy(original)
-        changed["profile_snapshot"]["target_values"] = {"negative": False, "positive": True}
-        with self.assertRaises(ValueError):
-            inputs.validate_saved_binding(changed, profile, bundle["schema_request"])
-        changed = deepcopy(original)
-        changed["raw_rows"] = []
-        with self.assertRaises(ValueError):
-            inputs.validate_saved_binding(changed, profile, bundle["schema_request"])
-
-    def test_saved_ai_binding_requires_unchanged_original_reasons_and_role_evidence(self):
-        directory, _, mapping, _, _, _ = self.package(known=False)
-        request = inputs.inspect_inputs(directory)["schema_request"]
-        original = inputs.apply_mapping(directory, self.recommendation(request, mapping))["binding"]
-        for field, value in (
-            ("reasons", {}), ("evidence", []), ("context_hash", "f" * 64),
-            ("provider", "registered-config"), ("bindings", {**mapping, "patient_key": mapping["row_key"]}),
-        ):
-            changed = deepcopy(original)
-            changed["recommendation"][field] = value
-            with self.subTest(field=field):
-                with self.assertRaises(ValueError):
-                    inputs.validate_saved_binding(changed, inputs.load_profile(), request)
-        changed = deepcopy(original)
-        changed["provider"] = "registered-config"
-        with self.assertRaises(ValueError):
-            inputs.validate_saved_binding(changed, inputs.load_profile(), request)
-
-    def test_saved_public_schema_is_checked_against_registered_semantics_and_hash(self):
-        directory, _, mapping, _, _, _ = self.package()
-        bundle = inputs.inspect_inputs(directory)
-        request = bundle["schema_request"]
-        profile = inputs.load_profile()
-        variants = []
-        for field, value in (
-            ("context_hash", "f" * 64), ("profile_hash", "f" * 64),
-            ("candidate_bindings", {"patient_key": [mapping["row_key"]]}),
-            ("known_mapping", 1), ("schema_version", True), ("allowed_evidence_ids", ["fabricated"]),
-        ):
-            changed = deepcopy(request)
-            changed[field] = value
-            variants.append(changed)
-        for field, value in (
-            ("description", "새로운 의미"), ("semantic_roles", ["patient_key"]),
-            ("missing_count", True), ("missing_count", -1), ("data_type", "integer"),
-        ):
-            changed = deepcopy(request)
-            changed["columns"][0][field] = value
-            changed["context_hash"] = canonical_hash({k: v for k, v in changed.items() if k != "context_hash"})
-            variants.append(changed)
-        for changed in variants:
-            with self.subTest(request=changed):
-                with self.assertRaises(ValueError):
-                    inputs.validate_saved_binding(bundle["binding"], profile, changed)
-
-    def test_saved_profile_must_match_the_actual_merge_commit_registration(self):
-        directory, _, _, _, _, _ = self.package()
-        bundle = inputs.inspect_inputs(directory)
-        registry = deepcopy(self.config)
-        registry["profiles"]["synthetic_a"]["limitations"].append("merge 이후 변경된 제한입니다.")
-        profile = inputs.load_profile(registry=registry)
-        with self.assertRaises(ValueError):
-            inputs.validate_saved_binding(bundle["binding"], profile, bundle["schema_request"])
 
     def test_patient_candidate_cannot_be_replaced_by_a_more_unique_admission_column(self):
         directory, profile, mapping, records, _, manifest = self.package(known=False)
@@ -843,11 +749,12 @@ class InputContractTests(unittest.TestCase):
         self.assertIs(bundle["context"]["dataset_context"]["legacy"], True)
         self.assertEqual(set(bundle["context"]["metadata"][0]), set(METADATA_COLUMNS))
         self.assertEqual(bundle["binding"]["bindings"], dict(zip(METADATA_COLUMNS, METADATA_COLUMNS)))
-        inputs.validate_saved_binding(bundle["binding"], inputs.load_profile(), bundle["schema_request"])
         changed = deepcopy(bundle["binding"])
         changed["source_manifest"]["training_performed"] = True
+        write_json(directory / "data_manifest.json", changed["source_manifest"])
         with self.assertRaises(ValueError):
-            inputs.validate_saved_binding(changed, inputs.load_profile(), bundle["schema_request"])
+            inputs.inspect_inputs(directory)
+        write_json(directory / "data_manifest.json", manifest)
         with patch.object(inputs.prepared, "validate_data_manifest",
                           side_effect=ValueError("기존 무결성 검증 실패")) as verify:
             with self.assertRaises(ValueError):

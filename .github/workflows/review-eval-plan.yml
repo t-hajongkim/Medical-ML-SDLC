@@ -1,15 +1,13 @@
-name: Review evaluation plan and freeze approval
+name: Review evaluation plan feedback
 
 on:
   issue_comment:
     types: [created]
-  pull_request:
-    types: [closed]
 
 permissions: {}
 
 concurrency:
-  group: research-plan-${{ github.repository }}-${{ github.event.issue.number || github.event.pull_request.number }}
+  group: research-plan-${{ github.repository }}-${{ github.event.issue.number }}
   cancel-in-progress: false
 
 env:
@@ -18,14 +16,10 @@ env:
 
 jobs:
   review-plan:
-    if: >-
-      (github.event_name == 'issue_comment' && github.event.issue.pull_request) ||
-      (github.event_name == 'pull_request' && github.event.pull_request.merged == true &&
-       startsWith(github.event.pull_request.head.ref, 'research/review-issue-') &&
-       github.event.pull_request.head.repo.full_name == github.repository)
+    if: github.event.issue.pull_request && github.event.comment.user.type == 'User'
     permissions:
       contents: write
-      pull-requests: write
+      pull-requests: read
       issues: read
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -38,11 +32,7 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
         with:
           python-version: "3.12"
-      - name: Install workflow-only dependencies
-        run: python -m pip install --disable-pip-version-check -r requirements-workflow.txt
-      - name: Verify source-only review contracts
-        run: python -B -m unittest discover -s tests -p 'test_review_plan.py' -v
-      - name: Apply explicit human commands or freeze merged educational plan
+      - name: Queue authorized natural-language feedback for AI planning
         env:
           GH_TOKEN: ${{ github.token }}
         run: python -B -m app.review_eval_plan

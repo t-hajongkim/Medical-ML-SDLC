@@ -193,6 +193,12 @@ class PlanningTests(unittest.TestCase):
         for item in result["evaluation"]["items"]:
             self.assertEqual(item["state"], "eligible_planned_inputs")
             self.assertIn("아직 계산하지 않았습니다", item["reason"])
+        self.assertIn("이 데이터셋에서 확인한", result["evaluation"]["interpretation"])
+        self.assertNotIn("validation 재사용", result["evaluation"]["interpretation"])
+
+    def test_known_diabetes_source_keeps_its_documented_validation_limit(self):
+        self.manifest["prepared_source"]["dataset"] = "auphong2707/hospital-readmission-risk-data"
+        result = self.build()
         self.assertIn("validation 재사용", result["evaluation"]["interpretation"])
 
     def test_unverified_probability_capability_is_blocked(self):

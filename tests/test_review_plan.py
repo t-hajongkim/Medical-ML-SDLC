@@ -68,60 +68,6 @@ def request_marker():
             "issue_url": f"https://github.com/{REPO}/issues/{ISSUE}"}
 
 
-def approval_files():
-    source = json.loads((ROOT / "config" / "prepared-source.json").read_text(encoding="utf-8"))
-    # Historical report fixture, not the current publisher's EDA acceptance criteria.
-    source["expected_patient_overlap"] = {
-        "train_validation": 5055, "train_test": 5086, "validation_test": 1760}
-    source["expected_test_race_missing"] = 341
-    catalogs = {stage: planning.load_catalog(stage) for stage in review.STAGES}
-    policy = planning.load_policy()
-    selected = planning.default_selection()
-    selected["eda"]["exclude"] = ["demographics", "cohort"]
-    selected["evaluation"].update(primary_metric="roc_auc", add=["roc_auc"])
-    eda = {
-        "schema_version": 1, "kind": "aggregate-eda", "report_generated": True,
-        "model_execution_performed": False, "training_performed": False,
-        "preprocessing_performed": False, "data_id": "1" * 64, "assessment_status": "failed",
-        "provenance": {"data_image": "ghcr.io/example/data@sha256:" + "2" * 64,
-                       "code_commit": CODE},
-        "results": [
-            {"block": "schema", "status": "unverifiable", "details": {
-                "numeric_contract": "passed", "actual_count": len(source["features"]),
-                "expected_count": len(source["features"]), "schema_match": True,
-                "duplicate_columns": 0,
-                "rows": sum(split["rows"] for split in source["splits"].values()),
-                "split_rows": {name: split["rows"] for name, split in source["splits"].items()}}},
-            {"block": "patient_overlap", "status": "failed",
-             "details": {"overlaps": source["expected_patient_overlap"]}},
-        ],
-    }
-    manifest = {
-        "data_id": eda["data_id"], "prepared_source": source, "files": {"metadata.csv": None},
-        "feature_columns": source["features"],
-        "split_rows": {name: source["splits"][name]["rows"]
-                       for name in ("train", "validation", "test")}}
-    initial = planning.build_plans(eda, manifest, selected, None)
-    ai = {
-        "schema_version": 1, "provider": "github-copilot-cloud-agent",
-        "context_hash": initial["recommendation_request"]["context_hash"], "status": "provided",
-        "eda": [{"id": "schema", "reason": "공개 구조 점검", "evidence": ["data_id"]}],
-        "evaluation": [],
-    }
-    plans = planning.build_plans(eda, manifest, selected, ai)
-    values = {
-        "request.json": request_marker(), "eda.json": eda, "eda-plan.json": plans["eda"],
-        "evaluation-plan.json": plans["evaluation"], "selection.json": selected,
-        "ai-recommendations.json": ai, "recommendation-request.json": plans["recommendation_request"],
-        "config/assets.json": {
-            "schema_version": 1, "data_image": eda["provenance"]["data_image"],
-            "model_image": "ghcr.io/example/model@sha256:" + "3" * 64},
-        "config/prepared-source.json": source, "config/eda-catalog.json": catalogs["eda"],
-        "config/metric-catalog.json": catalogs["evaluation"], "config/planning-policy.json": policy,
-    }
-    return {name: encoded(value) for name, value in values.items()}
-
-
 class FakeGitHub:
     """In-memory Git data and paginated comments; no network/model process exists."""
 
@@ -226,106 +172,11 @@ class FakeGitHub:
         return json.loads(self.content(branch, path))
 
 
-class CommandTests(unittest.TestCase):
-    def apply(self, body, selected=None):
-        return review.apply_commands(selected or planning.default_selection(), body)
-
-    def test_explicit_add_remove_alias_primary_threshold(self):
-        selected, result = self.apply(
-            "/plan add eda prediction-timing\n"
-            "/plan remove eda demographics\n/plan add evaluation sensitivity\n"
-            "/plan remove evaluation brier\n/plan primary AUROC\n/plan threshold 0.27")
-        self.assertEqual(result["rejected"], [])
-        self.assertEqual(len(result["applied"]), 6)
-        self.assertIn("prediction_timing", selected["eda"]["add"])
-        self.assertIn("demographics", selected["eda"]["exclude"])
-        self.assertIn("recall", selected["evaluation"]["add"])
-        self.assertIn("brier_score", selected["evaluation"]["exclude"])
-        self.assertEqual(selected["evaluation"]["primary_metric"], "roc_auc")
-        self.assertEqual(selected["evaluation"]["threshold"], 0.27)
-        self.assertNotIn("threshold", selected["evaluation"]["parameters"])
-
-    def test_required_unknown_and_primary_removal_rejected(self):
-        selected, result = self.apply(
-            "/plan primary AUROC\n/plan remove evaluation roc_auc\n"
-            "/plan remove eda schema\n/plan remove eda patient-overlap\n"
-            "/plan add evaluation imaginary\n/plan add eda nonexistent")
-        self.assertEqual(len(result["applied"]), 1)
-        self.assertEqual(len(result["rejected"]), 5)
-        self.assertEqual(selected["evaluation"]["primary_metric"], "roc_auc")
-        self.assertEqual(selected["eda"]["exclude"], [])
-        self.assertIn("먼저", result["rejected"][0]["reason"])
-
-    def test_primary_explicitly_readds_excluded_metric_and_can_then_switch(self):
-        selected, result = self.apply(
-            "/plan remove evaluation recall\n/plan primary sensitivity\n"
-            "/plan primary auroc\n/plan remove evaluation recall")
-        self.assertEqual(result["rejected"], [])
-        self.assertEqual(selected["evaluation"]["primary_metric"], "roc_auc")
-        self.assertIn("recall", selected["evaluation"]["exclude"])
-
-    def test_threshold_never_defaults_and_rejects_nonfinite_outside_range(self):
-        selected, result = self.apply(
-            "/plan threshold NaN\n/plan threshold inf\n/plan threshold -0.1\n"
-            "/plan threshold 1.01\n/plan threshold nope")
-        self.assertIsNone(selected["evaluation"]["threshold"])
-        self.assertEqual(len(result["rejected"]), 5)
-        for value in ("0", "1"):
-            selected, result = self.apply("/plan threshold " + value)
-            self.assertEqual(selected["evaluation"]["threshold"], float(value))
-            self.assertEqual(result["rejected"], [])
-
-    def test_only_exact_command_lines_are_interpreted_and_no_code_runs(self):
-        body = "please /plan primary roc_auc\nimport os; os.system('bad')\nSELECT * FROM rows;\n/planet add eda schema"
-        with patch("subprocess.run", side_effect=AssertionError("must not execute")):
-            selected, result = self.apply(body)
-        self.assertEqual(selected, planning.default_selection())
-        self.assertEqual(result["applied"], [])
-        self.assertEqual(result["rejected"], [])
-        self.assertFalse(result["recommend"])
-
-    def test_quotes_examples_and_mixed_prose_do_not_change_selections(self):
-        for body in (
-            "예시입니다.\n/plan primary roc_auc",
-            "```text\n/plan threshold 0.9\n```",
-            "> /plan primary roc_auc",
-            "/plan primary roc_auc\n일반 설명",
-        ):
-            with self.subTest(body=body):
-                selected, result = self.apply(body)
-                self.assertEqual(selected, planning.default_selection())
-                self.assertEqual(result["applied"], [])
-
-    def test_parameter_values_and_clinical_action_remain_explicit(self):
-        selected, result = self.apply(
-            "/plan parameter thresholds [0.05, 0.1, 0.2]\n"
-            "/plan parameter top_fraction 0.1\n/plan parameter n_bins 8\n"
-            "/plan clinical-action 교육용 상담 대상 검토")
-        self.assertEqual(result["rejected"], [])
-        self.assertEqual(selected["evaluation"]["parameters"], {
-            "thresholds": [0.05, 0.1, 0.2], "top_fraction": 0.1, "n_bins": 8})
-        self.assertEqual(selected["evaluation"]["clinical_action"], "교육용 상담 대상 검토")
-        selected, result = self.apply(
-            "/plan parameter n_bins 0\n/plan parameter top_fraction 0\n"
-            "/plan parameter thresholds [0.2, 0.1]\n/plan parameter arbitrary 4")
-        self.assertEqual(selected, planning.default_selection())
-        self.assertEqual(len(result["rejected"]), 4)
-
-    def test_invalid_does_not_rollback_valid_and_recommend_changes_no_selection(self):
-        selected, result = self.apply("/plan threshold bad\n/plan recommend\n/plan add eda cohort")
-        self.assertEqual(len(result["rejected"]), 1)
-        self.assertEqual(len(result["applied"]), 2)
-        self.assertTrue(result["recommend"])
-        self.assertIsNone(selected["evaluation"]["threshold"])
-
-
 class _ApiCase(unittest.TestCase):
     def setUp(self):
         self.api = FakeGitHub()
         self.read = patch.object(research, "gh_json", side_effect=self.api.read).start()
         self.command = patch.object(research, "command", side_effect=self.api.command).start()
-        self.refresh = patch.object(review, "_refresh", return_value={
-            "status": "updated", "ai_status": "provided"}).start()
         self.dispatch = patch.object(research, "dispatch_ai", return_value={"status": "requested"}).start()
         self.addCleanup(patch.stopall)
 
@@ -336,130 +187,6 @@ class ReviewApiTests(_ApiCase):
             item for item in self.api.comments if item["id"] == identifier)
         return review.run_event(event(target), "issue_comment", REPO, target["user"]["login"])
 
-    def test_atomic_two_file_write_records_hash_actor_and_rejections_not_body(self):
-        self.api.comments = [comment(1, "/plan primary auroc\n/plan remove eda schema\n"
-                                       "/plan add eda PRIVATE_SYNTHETIC_NOTE")]
-        outcome = self.review()
-        self.assertEqual(outcome["status"], "partially_applied")
-        self.assertIn("필수", outcome["comments"][0]["rejected"][0]["reason"])
-        state_bytes = self.api.content(BRANCH, PREFIX + "review-state.json")
-        self.assertNotIn(b"PRIVATE_SYNTHETIC_NOTE", state_bytes)
-        state = json.loads(state_bytes)
-        self.assertEqual(state["comments"]["1"]["actor"], "maintainer")
-        self.assertEqual(state["comments"]["1"]["body_sha256"],
-                         hashlib.sha256(self.api.comments[0]["body"].encode()).hexdigest())
-        tree_writes = [data for _, path, data in self.api.writes if path == "git/trees"]
-        self.assertEqual(len(tree_writes), 1)
-        self.assertEqual({entry["path"] for entry in tree_writes[0]["tree"]},
-                         {PREFIX + "selection.json", PREFIX + "review-state.json"})
-        ref_writes = [data for method, path, data in self.api.writes if path.startswith("git/refs/")]
-        self.assertEqual(ref_writes[0]["force"], False)
-        parent = next(data for _, path, data in self.api.writes if path == "git/commits")
-        self.assertEqual(parent["parents"], [HEAD])
-        self.refresh.assert_called_once_with(REPO, "main", "maintainer", ISSUE)
-
-    def test_paginated_backlog_processed_in_id_order_up_to_event(self):
-        self.api.comments = [comment(index, "ordinary") for index in range(1, 99)]
-        self.api.comments.extend([
-            comment(101, "/plan threshold 0.8", "other"),
-            comment(99, "/plan threshold 0.1"),
-            comment(100, "/plan add evaluation recall"),
-            comment(102, "/plan threshold 0.2")])
-        result = self.review(101)
-        self.assertEqual([item["comment_id"] for item in result["comments"]], [99, 100, 101])
-        self.assertEqual(self.api.json(BRANCH, PREFIX + "selection.json")["evaluation"]["threshold"], 0.8)
-        self.refresh.assert_called_once_with(REPO, "main", "other", ISSUE)
-        self.assertTrue(any("page=2" in arguments for arguments in self.api.reads))
-
-    def test_duplicate_and_edited_applied_comment_never_reinterpreted(self):
-        self.api.comments = [comment(1, "/plan threshold 0.2")]
-        self.review()
-        writes = len(self.api.writes)
-        self.api.comments[0]["body"] = "/plan threshold 0.9"
-        result = self.review()
-        self.assertEqual(result["status"], "unchanged")
-        self.assertIn("새 /plan", result["edit_policy"])
-        self.assertEqual(len(self.api.writes), writes)
-        self.assertEqual(self.api.json(BRANCH, PREFIX + "selection.json")["evaluation"]["threshold"], 0.2)
-
-    def test_event_body_is_ignored_current_api_body_is_used(self):
-        item = comment(1, "/plan threshold 0.13")
-        stale_event = event(item)
-        stale_event["comment"]["body"] = "/plan threshold 0.95"
-        self.api.comments = [item]
-        review.run_event(stale_event, "issue_comment", REPO, "maintainer")
-        self.assertEqual(self.api.json(BRANCH, PREFIX + "selection.json")["evaluation"]["threshold"], 0.13)
-
-    def test_bot_and_no_write_permission_defer_without_changes(self):
-        for login, kind in (("reader", "User"), ("agent", "Bot"), ("external", "User")):
-            with self.subTest(login=login):
-                self.api.comments = [comment(1, "/plan primary auroc", login, kind)]
-                self.assertEqual(self.review()["status"], "deferred")
-                self.assertEqual(self.api.writes, [])
-
-    def test_each_backlog_author_permission_checked_and_rejected_visible(self):
-        self.api.comments = [
-            comment(1, "/plan threshold 0.9", "reader"),
-            comment(2, "/plan threshold 0.3", "maintainer")]
-        result = self.review()
-        self.assertEqual(result["status"], "partially_applied")
-        self.assertTrue(result["comments"][0]["rejected"])
-        self.assertEqual(self.api.json(BRANCH, PREFIX + "selection.json")["evaluation"]["threshold"], 0.3)
-
-    def test_actor_mismatch_wrong_repo_and_wrong_pr_are_rejected(self):
-        self.api.comments = [comment(1, "/plan primary auroc")]
-        with self.assertRaisesRegex(ValueError, "actor"):
-            review.run_event(event(self.api.comments[0]), "issue_comment", REPO, "other")
-        self.api.pull["head"]["repo"]["full_name"] = "outsider/fork"
-        with self.assertRaisesRegex(ValueError, "저장소"):
-            self.review()
-        self.assertEqual(self.api.writes, [])
-
-    def test_required_rejection_is_not_reported_as_success(self):
-        self.api.comments = [comment(1, "/plan remove eda patient_overlap")]
-        result = self.review()
-        self.assertEqual(result["status"], "rejected")
-        self.assertEqual(result["comments"][0]["applied"], [])
-        self.refresh.assert_not_called()
-
-    def test_recommend_dispatches_even_no_selection_change_with_current_pr(self):
-        self.api.comments = [comment(1, "/plan recommend")]
-        result = self.review()
-        self.assertFalse(result["selection_changed"])
-        self.dispatch.assert_called_once_with(
-            {"status": "updated", "ai_status": "stale",
-             "pull_url": f"https://github.com/{REPO}/pull/{PR}"}, REPO, "main")
-
-    def test_normal_refresh_already_dispatching_does_not_double_request(self):
-        self.refresh.return_value["ai_dispatch"] = {"status": "requested"}
-        self.api.comments = [comment(1, "/plan recommend")]
-        self.review()
-        self.dispatch.assert_not_called()
-
-    def test_refresh_failure_keeps_selection_and_reports_failure(self):
-        self.api.comments = [comment(1, "/plan primary auroc")]
-        self.refresh.side_effect = RuntimeError("synthetic refresh failure")
-        with patch.object(review, "_summary") as summary:
-            with self.assertRaises(RuntimeError):
-                self.review()
-        self.assertEqual(self.api.json(BRANCH, PREFIX + "selection.json")["evaluation"]["primary_metric"], "roc_auc")
-        self.assertEqual(summary.call_args.args[0]["status"], "failed")
-        self.assertTrue(summary.call_args.args[0]["review_pr_preserved"])
-        writes = len(self.api.writes)
-        self.refresh.side_effect = None
-        recovered = self.review()
-        self.assertEqual(recovered["status"], "unchanged")
-        self.assertEqual(recovered["refresh"]["status"], "updated")
-        self.assertEqual(len(self.api.writes), writes)
-        self.assertEqual(self.refresh.call_count, 2)
-
-    def test_ref_race_never_force_updates_selection(self):
-        self.api.comments = [comment(1, "/plan threshold 0.2")]
-        self.api.race_ref = True
-        with self.assertRaisesRegex(RuntimeError, "force=false"):
-            self.review()
-        self.assertEqual(self.api.refs[BRANCH], HEAD)
-        self.refresh.assert_not_called()
 
     def test_natural_feedback_is_queued_without_executing_or_changing_selection(self):
         self.api.comments = [comment(1, "실행해 주세요: Python 또는 SQL 명령")]
@@ -468,7 +195,7 @@ class ReviewApiTests(_ApiCase):
         self.assertEqual(ledger["comments"][0]["comment_id"], 1)
         self.assertNotIn("body", ledger["comments"][0])
         self.assertIsNone(self.api.json(BRANCH, PREFIX + "selection.json")["evaluation"]["primary_metric"])
-        self.refresh.assert_not_called()
+        self.dispatch.assert_called_once()
 
     def test_natural_feedback_backlog_permissions_duplicates_and_pending_edit(self):
         self.api.comments = [
@@ -518,14 +245,76 @@ class ReviewApiTests(_ApiCase):
         self.api.comments = [comment(1, "확인했습니다.")]
         self.assertEqual(self.review()["status"], "not_applicable")
         self.assertEqual(self.api.writes, [])
-        self.refresh.assert_not_called()
+        self.dispatch.assert_not_called()
+
+
+class FeedbackContractTests(_ApiCase):
+    def send(self, body):
+        item = comment(1, body)
+        self.api.comments = [item]
+        return review.run_event(event(item), "issue_comment", REPO, "maintainer")
+
+    def test_free_form_block_choices_do_not_require_commands(self):
+        body = "F1은 추가하고 Brier 점수는 빼고 싶어요."
+        self.assertEqual(self.send(body)["status"], "feedback_queued")
+        ledger = self.api.json(BRANCH, PREFIX + "feedback-requests.json")
+        self.assertEqual(ledger["comments"][0]["body_sha256"],
+                         hashlib.sha256(body.encode("utf-8")).hexdigest())
+        self.assertEqual(self.api.json(BRANCH, PREFIX + "selection.json"),
+                         planning.default_selection())
+        self.assertFalse(hasattr(review, "apply_commands"))
+
+    def test_command_looking_text_is_only_forwarded_not_directly_applied(self):
+        self.assertEqual(self.send("/plan primary roc_auc")["status"], "feedback_queued")
+        self.assertIsNone(self.api.json(BRANCH, PREFIX + "selection.json")["evaluation"]["primary_metric"])
+
+    def test_merge_is_not_a_feedback_event_and_creates_no_approval_json(self):
+        result = review.run_event(merged_event(), "pull_request", REPO, "maintainer")
+        self.assertEqual(result["status"], "not_applicable")
+        self.assertEqual(self.api.writes, [])
+        self.read.assert_not_called()
+        self.assertFalse(hasattr(review, "freeze_merge"))
+        self.assertFalse(hasattr(review, "_snapshot"))
+
+    def test_current_api_comment_wins_over_event_text(self):
+        item = comment(1, "실제 원본 요청")
+        self.api.comments = [item]
+        payload = event(item)
+        payload["comment"]["body"] = "이벤트에 섞인 다른 요청"
+        review.run_event(payload, "issue_comment", REPO, "maintainer")
+        record = self.api.json(BRANCH, PREFIX + "feedback-requests.json")["comments"][0]
+        self.assertEqual(record["body_sha256"],
+                         hashlib.sha256(item["body"].encode("utf-8")).hexdigest())
+
+    def test_actor_and_repository_mismatches_are_rejected(self):
+        item = comment(1, "평가 지표를 검토해 주세요.")
+        self.api.comments = [item]
+        with self.assertRaises(ValueError):
+            review.run_event(event(item), "issue_comment", REPO, "other")
+        with self.assertRaises(ValueError):
+            review.run_event({**event(item), "repository": {"full_name": "other/repo"}},
+                             "issue_comment", REPO, "maintainer")
+        self.assertEqual(self.api.writes, [])
+
+    def test_concurrent_branch_update_never_forces_feedback_write(self):
+        self.api.race_ref = True
+        with self.assertRaisesRegex(RuntimeError, "force=false"):
+            self.send("F1을 추가해 주세요.")
+        update = self.api.writes[-1]
+        self.assertEqual(update[0], "PATCH")
+        self.assertFalse(update[2]["force"])
 
 
 class ApprovalReadinessTests(unittest.TestCase):
     def plans(self):
-        files = approval_files()
-        return {"eda": json.loads(files["eda-plan.json"]),
-                "evaluation": json.loads(files["evaluation-plan.json"])}
+        return {
+            "eda": {"ai_status": "provided", "planning_complete": True, "assessment_status": "failed"},
+            "evaluation": {
+                "ai_status": "provided", "planning_complete": True,
+                "primary_metric": "roc_auc", "selected_ids": ["roc_auc"],
+                "items": [{"id": "roc_auc", "state": "planned"}],
+            },
+        }
 
     def test_ready_is_educational_only_and_keeps_known_eda_failure(self):
         readiness = planning.approval_readiness(self.plans())
@@ -543,197 +332,7 @@ class ApprovalReadinessTests(unittest.TestCase):
         self.assertEqual(len(readiness["reasons"]), 3)
 
 
-class FreezeTests(_ApiCase):
-    def setUp(self):
-        super().setUp()
-        self.api.pull = pull(True)
-        self.files = approval_files()
-        self.api.set_files(MERGE, self.remote_files())
-
-    def remote_files(self):
-        return {name if name.startswith("config/") else PREFIX + name: value
-                for name, value in self.files.items()}
-
-    def mutate(self, name, update):
-        value = json.loads(self.files[name])
-        update(value)
-        self.files[name] = encoded(value)
-        self.api.set_files(MERGE, self.remote_files())
-
-    def freeze(self):
-        return review.run_event(merged_event(), "pull_request", REPO, "maintainer")
-
-    def test_freeze_all_hashes_snapshot_scope_limits_and_latest_main_preserved(self):
-        result = self.freeze()
-        self.assertEqual(result["status"], "frozen")
-        path = f"research/approved/issue-{ISSUE}/{MERGE}.json"
-        snapshot = self.api.json("main", path)
-        self.assertEqual(snapshot["file_hashes"], {
-            name: hashlib.sha256(content).hexdigest() for name, content in self.files.items()})
-        self.assertEqual(snapshot["source_head_commit"], HEAD)
-        self.assertEqual(snapshot["merge_commit"], MERGE)
-        self.assertEqual(snapshot["code_commit"], CODE)
-        self.assertEqual(snapshot["primary_metric"], "roc_auc")
-        self.assertEqual(snapshot["approval_scope"], "educational_demo_only")
-        self.assertFalse(snapshot["clinical_use_approved"])
-        self.assertFalse(snapshot["metric_execution_performed"])
-        self.assertFalse(snapshot["model_execution_performed"])
-        self.assertTrue(snapshot["limitations"]["validation_development_reuse"])
-        self.assertFalse(snapshot["limitations"]["independent_clinical_validation"])
-        self.assertTrue(snapshot["limitations"]["patient_overlap"]["overlaps"]["train_validation"])
-        self.assertIn("schema", snapshot["limitations"]["uncertain_blocks"])
-        self.assertEqual(self.api.content("main", "preserved.txt"), b"concurrent main change\n")
-        commits = [value for _, path, value in self.api.writes if path == "git/commits"]
-        self.assertEqual(commits[0]["parents"], [MAIN])
-        tree_writes = [value for _, path, value in self.api.writes if path == "git/trees"]
-        self.assertEqual([entry["path"] for entry in tree_writes[0]["tree"]], [path])
-        self.assertFalse(next(value for _, path, value in self.api.writes
-                              if path.startswith("git/refs/"))["force"])
-        self.refresh.assert_not_called()
-        self.dispatch.assert_not_called()
-
-    def test_same_record_noop_and_changed_record_is_immutable(self):
-        result = self.freeze()
-        writes = len(self.api.writes)
-        self.assertEqual(self.freeze()["status"], "unchanged")
-        self.assertEqual(len(self.api.writes), writes)
-        current = self.api.refs["main"]
-        self.api.set_files(current, {result["approved_plan"]: b'{"tampered":true}\n'})
-        with self.assertRaisesRegex(ValueError, "불변성"):
-            self.freeze()
-        self.assertEqual(len(self.api.writes), writes)
-
-    def test_nonmerged_and_untrusted_merger_never_freeze(self):
-        item = merged_event()
-        item["pull_request"]["merged"] = False
-        self.assertEqual(review.run_event(item, "pull_request", REPO, "maintainer")["status"], "not_applicable")
-        self.api.pull["merged_by"] = {"login": "reader", "type": "User"}
-        with self.assertRaisesRegex(ValueError, "권한"):
-            self.freeze()
-        self.assertEqual(self.api.writes, [])
-
-    def test_wrong_repo_base_branch_marker_and_merge_sha_rejected(self):
-        for field, value in (("head_repo", "outsider/fork"), ("base", "development"),
-                             ("branch", "feature/custom"), ("sha", "e" * 40)):
-            with self.subTest(field=field):
-                self.api.pull = pull(True)
-                if field == "head_repo":
-                    self.api.pull["head"]["repo"]["full_name"] = value
-                elif field == "base":
-                    self.api.pull["base"]["ref"] = value
-                elif field == "branch":
-                    self.api.pull["head"]["ref"] = value
-                else:
-                    self.api.pull["merge_commit_sha"] = value
-                with self.assertRaises(ValueError):
-                    self.freeze()
-        self.api.pull = pull(True)
-        self.mutate("request.json", lambda value: value.update(issue_number=99))
-        with self.assertRaisesRegex(ValueError, "마커"):
-            self.freeze()
-        self.assertEqual(self.api.writes, [])
-
-    def test_pending_ai_incomplete_and_no_primary_rejected(self):
-        original = copy.deepcopy(self.files)
-        for name, update in (
-            ("evaluation-plan.json", lambda value: value.update(ai_status="pending")),
-            ("eda-plan.json", lambda value: value.update(planning_complete=False)),
-            ("selection.json", lambda value: value["evaluation"].update(primary_metric=None)),
-            ("evaluation-plan.json", lambda value: value.update(primary_metric=None)),
-            ("ai-recommendations.json", lambda value: value.update(context_hash="0" * 64)),
-        ):
-            with self.subTest(name=name):
-                self.files = copy.deepcopy(original)
-                self.mutate(name, update)
-                with self.assertRaises(ValueError):
-                    self.freeze()
-        self.assertEqual(self.api.writes, [])
-
-    def test_blocked_selected_metric_rejected(self):
-        self.mutate("selection.json", lambda value: value["evaluation"]["add"].append("recall"))
-        source = json.loads(self.files["config/prepared-source.json"])
-        eda = json.loads(self.files["eda.json"])
-        manifest = {
-            "data_id": eda["data_id"], "prepared_source": source, "files": {"metadata.csv": None},
-            "feature_columns": source["features"],
-            "split_rows": {name: source["splits"][name]["rows"]
-                           for name in ("train", "validation", "test")}}
-        plans = planning.build_plans(eda, manifest, json.loads(self.files["selection.json"]),
-                                     json.loads(self.files["ai-recommendations.json"]))
-        self.files["evaluation-plan.json"] = encoded(plans["evaluation"])
-        self.api.set_files(MERGE, self.remote_files())
-        with self.assertRaisesRegex(ValueError, "blocked"):
-            self.freeze()
-        self.assertEqual(self.api.writes, [])
-
-    def test_unpinned_or_mismatched_images_and_model_execution_rejected(self):
-        original = copy.deepcopy(self.files)
-        for name, update in (
-            ("config/assets.json", lambda value: value.update(data_image="ghcr.io/example/data:latest")),
-            ("config/assets.json", lambda value: value.update(model_image="ghcr.io/example/model:latest")),
-            ("eda.json", lambda value: value["provenance"].update(
-                data_image="ghcr.io/example/data@sha256:" + "f" * 64)),
-            ("eda.json", lambda value: value.update(model_execution_performed=True)),
-        ):
-            with self.subTest(name=name):
-                self.files = copy.deepcopy(original)
-                self.mutate(name, update)
-                with self.assertRaises(ValueError):
-                    self.freeze()
-        self.assertEqual(self.api.writes, [])
-
-    def test_approval_reads_merge_not_latest_main_reports(self):
-        self.api.set_files(MAIN, {"preserved.txt": b"concurrent main change\n",
-                                 PREFIX + "evaluation-plan.json": b'{"ai_status":"pending"}'})
-        self.assertEqual(self.freeze()["status"], "frozen")
-
-    def test_protected_or_racing_main_ref_is_not_forced(self):
-        for attribute in ("block_ref", "race_ref"):
-            with self.subTest(attribute=attribute):
-                setattr(self.api, attribute, True)
-                with self.assertRaisesRegex(RuntimeError, "force=false"):
-                    self.freeze()
-                self.assertEqual(self.api.refs["main"], MAIN)
-                setattr(self.api, attribute, False)
-
-
 class IsolationAndWorkflowTests(unittest.TestCase):
-    def test_normalized_internal_refresh_human_actor_and_source_unchanged(self):
-        runtime = ROOT.parent / "review-plan-synthetic-runner"
-        source = research.ROOT
-        calls = []
-
-        def command(arguments, **kwargs):
-            calls.append((arguments, kwargs))
-            if arguments[:3] == ["git", "status", "--porcelain"]:
-                return SimpleNamespace(stdout="")
-            if arguments[:3] == ["git", "rev-parse", "HEAD"]:
-                return SimpleNamespace(stdout=CODE)
-            if arguments[:2] == ["git", "clone"]:
-                Path(arguments[-1]).mkdir()
-            return SimpleNamespace(stdout="", returncode=0)
-
-        def run(*arguments, **kwargs):
-            self.assertNotEqual(research.ROOT, source)
-            self.assertFalse(research.ROOT.resolve().is_relative_to(source.resolve()))
-            self.assertEqual(arguments[:6], (
-                {"repository": {"full_name": REPO, "default_branch": "main"}},
-                "workflow_dispatch", REPO, "maintainer", "main", arguments[5]))
-            self.assertEqual(kwargs, {"manual_number": ISSUE})
-            return {"status": "updated"}
-
-        environment = {"RUNNER_TEMP": str(runtime), "GITHUB_RUN_ID": "123", "GITHUB_RUN_ATTEMPT": "2"}
-        with patch.dict(os.environ, environment), patch.object(research, "command", side_effect=command), \
-                patch.object(research, "run_workflow", side_effect=run) as runner:
-            try:
-                self.assertEqual(review._refresh(REPO, "main", "maintainer", ISSUE)["status"], "updated")
-            finally:
-                if runtime.exists():
-                    runtime.rmdir()
-        self.assertEqual(research.ROOT, source)
-        self.assertEqual(runner.call_count, 1)
-        self.assertFalse(any(arguments[:3] == ["git", "remote", "set-url"]
-                             and kwargs.get("cwd") == source for arguments, kwargs in calls))
 
     def test_remote_cli_disabled_locally(self):
         with patch.dict(os.environ, {"GITHUB_ACTIONS": "false"}), \
@@ -757,15 +356,14 @@ class IsolationAndWorkflowTests(unittest.TestCase):
         import yaml
         workflow = yaml.safe_load((ROOT / ".github" / "workflows" / "review-eval-plan.yml").read_text(encoding="utf-8"))
         trigger = workflow.get("on", workflow.get(True))
-        self.assertEqual(set(trigger), {"issue_comment", "pull_request"})
+        self.assertEqual(set(trigger), {"issue_comment"})
         self.assertEqual(trigger["issue_comment"]["types"], ["created"])
-        self.assertEqual(trigger["pull_request"]["types"], ["closed"])
         self.assertFalse(workflow["concurrency"]["cancel-in-progress"])
-        self.assertIn("github.event.issue.number || github.event.pull_request.number",
+        self.assertIn("github.event.issue.number",
                       workflow["concurrency"]["group"])
         job = workflow["jobs"]["review-plan"]
         self.assertEqual(job["permissions"],
-                         {"contents": "write", "pull-requests": "write", "issues": "read"})
+                         {"contents": "write", "pull-requests": "read", "issues": "read"})
         checkout = job["steps"][0]
         self.assertEqual(checkout["with"]["ref"], "${{ github.event.repository.default_branch }}")
         self.assertFalse(checkout["with"]["persist-credentials"])

@@ -242,19 +242,6 @@ def execute_plan(plan: dict, context: dict, *, catalog=None, policy=None,
     if planning_eda.input_signature(context) != plan["input_signature"]:
         raise ValueError("Prepared input does not match the startup execution plan")
     entries = {entry["id"]: entry for entry in catalog["checks"]}
-    required_roles = set()
-    for call in plan["calls"]:
-        entry = entries[call["tool_id"]]
-        for name in entry["requires"]:
-            if name not in context or context[name] is None:
-                raise ValueError("Missing required EDA input: " + name)
-        required_roles.update(entry.get("input_contract", {}).get("metadata_roles", []))
-    if required_roles:
-        records = context.get("metadata")
-        if not isinstance(records, (list, tuple)):
-            raise ValueError("Prepared metadata must be a collection of normalized rows")
-        if any(not isinstance(row, dict) or not required_roles.issubset(row) for row in records):
-            raise ValueError("Prepared metadata is missing a required normalized role")
     cached = {}
     previous_calls = {}
     if reuse is not None:
@@ -276,6 +263,21 @@ def execute_plan(plan: dict, context: dict, *, catalog=None, policy=None,
         for item in results:
             _validate_result(item, item["block"])
             cached[item["block"]] = item
+    required_roles = set()
+    for call in plan["calls"]:
+        if call["tool_id"] in cached and previous_calls[call["tool_id"]] == call:
+            continue
+        entry = entries[call["tool_id"]]
+        for name in entry["requires"]:
+            if name not in context or context[name] is None:
+                raise ValueError("Missing required EDA input: " + name)
+        required_roles.update(entry.get("input_contract", {}).get("metadata_roles", []))
+    if required_roles:
+        records = context.get("metadata")
+        if not isinstance(records, (list, tuple)):
+            raise ValueError("Prepared metadata must be a collection of normalized rows")
+        if any(not isinstance(row, dict) or not required_roles.issubset(row) for row in records):
+            raise ValueError("Prepared metadata is missing a required normalized role")
     import copy
     measured, executed, reused = [], [], []
     for call in plan["calls"]:

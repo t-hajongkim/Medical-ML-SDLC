@@ -1,5 +1,19 @@
 # GHCR 자산·조합형 EDA·평가 계획 승인 구조
 
+## 2026-10-17: 같은 runner 안의 반복 준비 축소
+
+- 최초 Issue는 실제 입력 검증과 기본 EDA를 먼저 실행한다. 이 순서는 유지한다.
+- 기존 PR은 성공한 native 게시 증거와 Git blob이 일치하면 행 없는 계획 문맥으로 조율을 시작한다.
+  지표 선택·기존 점검 제외만 바꾸면 GHCR 추출·CSV 파싱·전체 행 캐시 복원이 없다.
+  새 EDA 블록이 필요하면 같은 job에서 자산을 한 번 준비하고 실제 파일·입력을 검증한 뒤 새 블록만 계산한다.
+- 최종 게시 준비는 `PLANNING_CONTEXT.json`을 사용한다. 계산용 `VALIDATED_CONTEXT.json`과 실제 자산은 게시 단계에서 다시 읽지 않는다.
+- `research_tools.py`를 AI 시작 전 비공개 runner 경로에 복사한다. 각 MCP 도구는 한 Python 프로세스에서 함수를 직접 호출한다.
+  보고서 tree 선택 후 재조회·post-check는 이 사본의 표준 라이브러리 코드만 실행하고 저장소 코드를 import하지 않는다.
+- Docker는 데이터 파일 추출에만 `create/cp/rm`으로 사용한다. 연구 요청 처리에서 DB `start/run`이나 모델 실행은 없다.
+- 구형 `publish_payload`·`write_pending`·`read_binding`·`run-data-checks`와 선행 import 장치를 제거한다.
+  현재 입력 역할 표·중립 보고서, 이미지 제작 코드와 후속 지표 실행기는 유지한다.
+- 이전 게시 증거는 7일 보관한다. 누락·만료·입력/코드 변경이면 새 자산 준비로 돌아가며 조작된 증거는 거부한다.
+
 ## 2026-10-16: 계획과 실행의 명시적 파일 경계
 
 ```text
@@ -20,14 +34,15 @@ raw metadata·숫자 벡터는 Python context 안에 있고 AI 계획 JSON에 �
 계획·입력 변경과 필수 진단 누락은 계산 전에 실패한다. 출력은 집계 계약으로 검사하며,
 환자 중복 failed/증거 부족 unverifiable를 계산 오류와 구분한다.
 후단 추가 진단은 최초 검증 결과와 해당 실행계획을 확인해 새 블록만 계산한다.
-최초 실행계획 hash는 평가계획 문맥에 고정하고 최종 실행계획은 승인 snapshot에 별도로 보존한다.
+최초 실행계획 hash는 평가계획 문맥에 고정하고 최종 실행계획은 같은 PR의 생성 파일에 보존한다.
 입력 서명·코드·도구/정책·매개변수가 다른 결과는 재사용하지 않는다.
 
 `executor_eval`은 기존 지표 15개를 호출하는 순수 수치 라이브러리이며 현재 MCP/Actions 경로에서는 호출하지 않는다.
 계획의 planning_complete는 사람 승인 증거가 아니다. 모델 로딩·predict·PR2 승인·최종 평가/Pages 자동 연결은 여전히 후속이다.
 실행 중 데이터 교체·자동 재계획·새 전처리 fit은 추가하지 않는다.
 `research-plan.md`는 AI/도구/권한 원본, `.lock.yml`은 공식 compiler의 생성 결과다.
-`review-eval-plan.yml`/`review_eval_plan.py`는 사람의 피드백과 교육용 Merge 기록만 처리한다.
+`review-eval-plan.yml`/`review_eval_plan.py`는 권한 확인한 자연어 피드백을 AI에 전달한다.
+Git 파일·JSON 읽기는 입력 단계와 함께 `github_io.py`를 사용한다. Merge 이벤트 처리는 없다.
 기존 블록·등록 목록과 안전한 게시·재시도·입력/승인 검증은 재사용한다.
 
 ## 현재 연결 범위: Target → EDA → Evaluation Plan
@@ -35,25 +50,21 @@ raw metadata·숫자 벡터는 Python context 안에 있고 AI 계획 JSON에 �
 ```text
 연구 Issue / prepare-eda-pr.yml
   → default branch의 신뢰 코드와 폼 YAML 계약
-  → 고정 Public 데이터 이미지의 준비파일 검증
-  → GHCR manifest + 입력 형식 계약: 컬럼·타입·역할·값·data_id 검증
-  → EDA 미실행 준비 보고서 + selection.json → 연구검토 draft PR
-  → PR 번호·run ID/회차·source SHA만 전달 artifact에 기록
+  → 권한·폼 확인 후 Issue 또는 기존 PR·run ID/회차·source SHA 전달
   → 선행 workflow 성공 완료 이벤트(workflow_run)
   → resolve_review: 동일 저장소·기본 브랜치·등록된 선행 경로·전달 출처 검증
   → research-plan.lock.yml의 Copilot 엔진
-      공개 연구 텍스트 4필드·스키마·현재 선택·허가된 미반영 피드백 제공
-      확정 bindings 재사용 / 미확정만 AI 추천 → Python 의미·타입·hash 검증
-      AI 목적·점검 조율안 → Python 등록 ID/매개변수 검증·실제 EDA
-      목적·필수/선택 전체 EDA 기반 AI 지표 추천 → Python 조합
-      기본 생성파일 + 입력/조율/반영 기록 + 허가된 선택 변경만 같은 PR에 게시
+      고정 DATA 추출·입력 검증, 확정 bindings 재사용 / 미확정만 AI 매핑
+      Python이 기본 EDA를 먼저 실행 → 공개 목적·기본 집계·미사용 블록을 AI에 제공
+      AI 추가 점검 계획 → Python 검증·기존 결과 재사용·추가 블록만 실행
+      최종 EDA 기반 AI 지표 추천 → Python 최종 계획 조합 (늦은 EDA 실행 없음)
+      최초는 native create-pull-request, 피드백은 기존 PR push/본문 갱신
       AI 댓글: 변경·제한·사람의 선택/승인 대기 안내
-  → review-eval-plan.yml의 자연어 피드백 / 기존 /plan 댓글
+  → review-eval-plan.yml의 자연어 피드백
       사람의 현재 write/maintain/admin 권한·원본 API·본문 hash 확인
       자연어는 본문 없는 대기열 → workflow_run → AI 조율·Python 검증
-      /plan은 명령 검증·선택 저장 → 신뢰 소스 clone에서 갱신
   → 사람이 Ready for review → Merge
-  → 병합 commit의 파일·이미지·선택·해시·제한을 새 불변 승인 기록에 저장
+  → Merge된 계획과 commit을 승인 기준으로 사용 (별도 승인 JSON 없음)
 ```
 
 EDA는 데이터 점검, Evaluation은 예측 결과 지표다. 서로 다른 카탈로그와 실행 블록을 사용한다.
@@ -61,7 +72,7 @@ EDA는 데이터 점검, Evaluation은 예측 결과 지표다. 서로 다른 �
 기본/필수 선택은 `planning-policy.json`, 연구별 선택은 `selection.json`, 실제 AI 입력은
 `ai-recommendations.json`으로 분리한다. 초기 AI는 주지표·threshold를 임의 확정하지 않는다.
 사람이 자연어로 명시한 변경만 AI가 형식화하고 Python이 검증해 selection에 반영한다. Merge 승인은 별개다.
-알려진 config도 AI가 목적·입력·점검 구성을 먼저 조율한다. 새 매핑이 불필요할 뿐 AI 생략은 아니다.
+알려진 입력은 기본 EDA부터 수행한다. AI는 그 결과로 미사용 점검을 선정한다. 미확정 매핑만 기본 실행 전에 해결한다.
 입력 매핑·목적 조율·후단 추천의 context hash는 구별한다.
 앞단은 공개 목적·스키마·현재 선택, 후단은 여기에 전체 실제 EDA 집계를 받는다.
 매핑이 없으면 추측한 환자 키로 EDA를 실행하거나 중복 0명으로 통과시키지 않는다.
@@ -74,13 +85,13 @@ Copilot native 인증은 github.token과 copilot-requests: write이며 PAT/AI Se
 사수님 analysis-verification.md와 같은 workflow_run 연결을 사용하며 기본 사람 역할 검사를 유지한다.
 on.bots 예외나 roles: all은 추가하지 않는다. 대상 해석 job의 actions: read는 전달 artifact 조회용이다.
 대상은 해당 실행이 기록한 PR 한 개이며 최신 PR 추측·다른 저장소·다른 브랜치·변조/만료 전달 파일은 거부한다.
-서로 다른 실행은 run ID/회차로 구분하고 Merge 승인 기록은 AI를 다시 요청하지 않는다.
+서로 다른 실행은 run ID/회차로 구분하며 Merge는 이 피드백 workflow를 실행하지 않는다.
 정적 branch 제한 대신 source run의 실제 default branch와 경로를 코드에서 검증하므로 compiler 경고 1개는 남는다.
-request.json·feedback-requests.json·review-state.json은 AI 게시에서 제외한다.
+request.json·feedback-requests.json은 AI 게시에서 제외한다.
 selection.json은 검증된 목적 합치기 또는 권한 확인한 피드백 변경이 있을 때만 허용 목록에 포함한다.
 PR의 사람 본문·제목·기존 댓글은 보존하며 새 AI 안내 댓글을 최대 1개 추가할 수 있다.
 coordination-plan.json은 원문 대신 목적/선택/스키마/피드백 hash와 최초 EDA 근거를 저장한다.
-후단 추가 점검으로 최초 근거 hash가 순환 변경되지 않도록 분리하고 Merge 시 재검증한다.
+후단 추가 점검으로 최초 근거 hash가 순환 변경되지 않도록 분리한다.
 
 입력 확장 범위는 등록된 준비 이진분류 자산이다. 기존 v2 Diabetes 검증은 유지한다.
 등록형 v1은 source file hash·data_id·feature schema·3분할을 검사하고 원본 컬럼을 표준 역할로 연결한다.
@@ -88,19 +99,18 @@ coordination-plan.json은 원문 대신 목적/선택/스키마/피드백 hash�
 generic 경로의 코호트/정답/인구집단/전처리 해석은 데이터셋 문맥을 사용하고 Diabetes 전용 가정은 적용하지 않는다.
 환자 중복 계산 자체는 같은 patient_key 집합의 교집합이다. 지원된 합성 스키마 두 개로 동일 결과를 확인한다.
 
-명령 댓글은 등록된 ID와 검증된 매개변수만 변경한다. 자연어는 AI 조율의 데이터이며 코드로 실행하지 않는다.
+자연어는 AI 조율의 데이터이며 코드로 실행하지 않는다. 변경안의 등록 ID·입력·매개변수는 Python이 검증한다.
 연속 댓글은 미처리 ID 순서로 처리하고, 이미 처리한 댓글 편집은 새 요청으로 보지 않는다.
 미반영 자연어 편집은 hash를 갱신한다. AI 준비·게시 전 원본 작성자/권한/본문/PR을 다시 확인한다.
-미반영 자연어 요청이 남으면 Merge가 되었어도 승인 기록을 만들지 않는다.
-선택 저장 뒤 보고서 갱신이 실패해도 기존 선택을 보존하며 재실행으로 갱신을 복구한다.
+미반영 요청은 같은 PR의 댓글·피드백 기록에서 확인하고 사람이 검토한다.
 PR 코드·사용자 셸·SQL은 실행하지 않는다. 원래 checkout의 HEAD/index/origin도 변경하지 않는다.
 보고서 브랜치 checkout 전에 도우미 모듈을 신뢰 코드에서 고정하고, CLI의 __main__/app.research 참조를 같은 모듈로 유지한다.
 CHECKS는 기존 catalog의 미리 import된 함수 참조를 사용한다. 보고서 브랜치에 Python 파일이 바뀌어 있어도 새로 불러오지 않는다.
 
-Merge 후 `research/approved/issue-N/{merge-SHA}.json`은 현재 main의 보고서가 아니라
-실제로 병합한 commit의 입력을 검증해 기록한다. 최신 main에는 그 승인 파일만 추가하고 force push하지 않는다.
-승인 범위는 educational_demo_only이며 임상 승인 false, 알려진 환자 중복·불확실성을 보존한다.
-동일 기록은 no-op이고 내용이 달라지면 불변성 오류다. 준비가 안 된 병합에는 승인 기록을 만들지 않는다.
+승인 기준은 사람이 Merge한 계획과 commit이다. 별도 승인 JSON·동결 검증·추가 main 쓰기를 제거했다.
+계획 준비 상태는 안내이며 Merge 자체를 별도 코드로 차단하지 않는다.
+모델 실행을 연결할 때 필요한 입력·허용 블록·필수 매개변수 검사는 실제 실행 경계에서 유지한다.
+승인은 교육용 계획 확정이며 임상 사용 승인이 아니다. 알려진 환자 중복·불확실성은 보고서에 그대로 남는다.
 
 운영 범위는 템플릿 코드 반영과 PR 생성 허용 설정까지다.
 독립 복사본 설정·갱신과 실제 Issue/Copilot/PR 승인 흐름 확인은 사용자가 수행한다.
@@ -131,8 +141,7 @@ cohort는 출처의 입원/당뇨/1–14일/검사/투약 선정 설명과 raw �
 예측시점 승인·가용시점 사전, 추적 종료/외부병원 재입원 포착, 역사적 fit 범위가 없어 임의로 인증하지 않는다.
 환자/입원 키와 벡터는 JSON·로그에 출력하지 않는다. 모델 artifact를 로드하거나 실행하지 않는다.
 
-기존 pair 초안의 `assets.py/bootstrap.py`는 회귀 호환상 수치 행을 schema에 전달하고 **수치 계약만** 초기화 게이트로 삼는다.
-전체 schema/인종 원본 근거의 unverifiable 상태는 반환값에서 유지한다. 현재 EDA가 그 초안 실행 경로를 호출하지 않는다.
+구형 pair 초기화·학습 경로와 호출자 없는 pair 계약은 제거했다. 현재 입력·수치·출력 집계 계약은 유지한다.
 
 Issue→EDA→연구검토 draft PR과 3단계 연결은 위 현재 범위를 따른다.
 모델 추론·실제 결과 지표 실행·재전처리·재분할·자산 재게시는 이번 범위 밖이다.
@@ -143,25 +152,24 @@ Issue→EDA→연구검토 draft PR과 3단계 연결은 위 현재 범위를 �
 ```text
 prepare-eda-pr.yml: issues.opened / workflow_dispatch(issue_number)
   → default branch checkout (사용자 ref 입력 없음)
-  → 폼 YAML 의존성 설치와 EDA/intake/prepared-source 회귀
-  → app.research:
+  → 폼 YAML 의존성 설치
+  → app.research workflow:
       작성자 신뢰/수동 권한 + GitHub API JSON의 정확한 5필드 폼 검사
-      config의 고정 data_image만 pull
-      docker create/cp → data/assets → 컨테이너 삭제 (start/run 없음)
-      기존 manifest + 공개 schema/등록 입력 검증, 여기서는 EDA 미실행
-      research/reports/issue-{번호}/의 요청·사람 선택·schema·대기 보고서
-      고정 research/review-issue-{번호} branch → default branch 대상 draft PR
-      생성한 runtime directory만 finally 정리
+      Issue 대상만 전달, 데이터 추출·준비 PR 생성 없음
+  → native agent의 prepare-ai:
+      고정 data_image 추출·manifest/입력 검증·필요한 매핑
+      기본 EDA → AI 추가 선정 → 추가 실행 → 최종 지표 추천
+      결과 준비 후 research/review-issue-{번호} branch의 최초 PR 생성
 ```
 
 모델 이미지·raw 원본은 받지 않고 DB 서비스를 실행하지 않는다. 임의 ref/image/path/SQL/Python을 입력받지 않는다.
-권한은 contents write / pull-requests write / issues read다.
+준비 권한은 contents/PR/issues read다. 댓글 큐만 contents write를 사용하며 실제 PR 쓰기는 native safe outputs에 분리한다.
 Public data pull에는 packages write·새 자격증명이 필요 없다.
 OWNER/COLLABORATOR Issue만 자동 진행하고 다른 작성자는 수동 dispatch를 요구한다.
 수동 실행자는 API write/maintain/admin 권한을 확인한다.
 저장소·default branch는 event의 동적 값이고 본문은 event 파일/API JSON에서만 파싱한다.
 
-AI 후속 단계에서 실제 EDA와 추천을 같은 PR에 채운다. 초기 준비 PR은 EDA 미실행을 명시한다.
+최초 PR 생성 전에 실제 EDA와 추천을 완료한다. 댓글은 같은 PR을 대상으로 필요한 계산과 계획만 갱신한다.
 완성 PR은 원본 Issue·data digest/data_id/revision·코드 commit·실행 링크, 상태/집계 표/한계와 평가 계획을 담는다.
 추천은 실제 지표 계산이 아니다. 주지표/threshold는 사람이 정하며
 DCA는 임상 행동·threshold 범위, NRI는 비교모델·대응 입력이 없으면 blocked로 남긴다.
@@ -211,19 +219,21 @@ GHCR은 실행 DB가 아니라 재현할 이미지와 파일의 저장소다.
 | `db/` | PostgreSQL Dockerfile/init.sql/healthcheck.sh |
 | `app/Dockerfile` | `FROM scratch` 모델 artifact. 학습/추론 런타임 없음 |
 | `tests/test_prepared_source.py` | 새 자산 계약·모의 다운로드/runner·무학습/무추론 검증 |
-| `.github/workflows/ci.yml` | 전체 합성 회귀 검증. ML 의존성은 이전 fixture 테스트 때문에만 사용 |
+| `.github/workflows/ci.yml` | 전체 합성 회귀 검증. 지표 비교 테스트에는 고정 ML 의존성 사용 |
 | `.github/ISSUE_TEMPLATE/research-request.yml` | 기존 5필드·동의 유지, 자동 연결과 복사본 PR 생성 설정 안내 |
-| `.github/workflows/prepare-eda-pr.yml`, `app/research.py` | Issue intake→데이터 이미지 스키마→EDA 미실행 준비 draft PR |
+| `.github/workflows/prepare-eda-pr.yml`, `app/research.py` | 경량 Issue intake→정확한 대상 전달, native 기본 EDA→추가 점검→추천 이후 최초 PR |
 | `app/planning_eval.py`, `config/*-catalog.json`, `config/planning-policy.json` | 독립 카탈로그·정책·AI·사용자 선택 조합, 별도 승인 준비 판정 |
 | `app/blocks/metrics/` | 독립 결과 지표 15개와 입력 검증. 3단계에서는 계산하지 않음 |
 | `research-plan.md`, `research-plan.lock.yml`, `app/research.py` | 실제 gh-aw Copilot 엔진·공개 집계·추천 검증·기존 PR 안전 갱신 |
-| `review-eval-plan.yml`, `app/review_eval_plan.py` | 자연어 피드백 대기열·기존 명령·Merge 기반 불변 승인 기록 |
+| `review-eval-plan.yml`, `app/review_eval_plan.py` | 자연어 피드백 접수·AI 전달. 별도 명령 파서·Merge 승인 JSON 없음 |
+| `app/github_io.py` | 입력 매핑과 피드백 단계의 Git tree·blob 읽기 및 엄격한 JSON 파싱 공통화 |
 | `app/planning_eda.py`, `tests/test_pr1_intent.py`, `tests/test_eda_execution_plan.py` | 가벼운 목적·피드백 문맥, 등록 조율안·시작 입력 실행계획 계약·감사 hash |
 | `app/executor_eda.py` | 입력/출력 계약을 검증해 등록 EDA 블록 실행·집계·정확한 캐시 재사용 |
 | `app/executor_eval.py`, `tests/test_executor_eval.py` | 기존 15개 지표의 순수 실행·명시적 매개변수·출력 검증, Actions 미연결 |
-| `app/recommendation_events.py` | 선행 실행의 정확한 대상·출처를 검증하고 추천 job에 PR 번호 전달 |
+| `app/recommendation_events.py` | schema2의 Issue/기존 PR 대상·출처·작성자를 검증해 native job으로 전달 |
 | `app/input_contracts.py` | GHCR manifest의 입력 의미·무결성·확정/AI 매핑·표준 context·저장 매핑 검증. 저장소 profile registry 제거 |
-| `app/input_review.py` | 미확정 입력 PR·입력 역할 표시·데이터셋 중립 집계 보고서 |
+| `app/input_review.py` | 입력 역할 표시·데이터셋 중립 집계 보고서 |
+| `app/research_tools.py` | 비공개 runner 도구 어댑터·단일 프로세스 호출·표준 라이브러리 게시 재조회/post-check |
 | `tests/test_input_contracts.py`, `tests/test_input_pipeline.py` | 다른 컬럼 스키마·매핑 전 EDA 금지·두 단계 AI·승인 매핑 변조 거부 |
 | `tests/test_recommendation_events.py` | 합성 이벤트·실제 ZIP 파싱·출처/대상/만료/변조/경로 침범 거부. 실제 원격 실행 아님 |
 | `tests/test_research_workflow.py` | 입력/권한/이미지·GH 모의/멱등 갱신/closed PR/집계·추천 계약 회귀 |
@@ -239,8 +249,8 @@ GHCR은 실행 DB가 아니라 재현할 이미지와 파일의 저장소다.
 입력 사실은 선택한 digest의 이미지 안에 있다. 기존 `prepared-data-only` v2의 명세·컬럼 역할 계약은 그대로 지원하며 새 필드를 강제로 추가하지 않는다.
 다른 컬럼 구조의 `registered-prepared-input` v1은 manifest의 `input_metadata`에 의미 사전과 값 매핑을 명시한다.
 의미 메타데이터도 data_id에 포함한다. 실행 중 원본/의미가 바뀌면 기존 계약과 추천을 거부하며 자동 재계획하지 않는다.
-Merge 승인 시 같은 GHCR digest에서 manifest를 독립적으로 다시 읽어 PR이 주장하는 출처와 대조한다.
-자기 일관적인 PR JSON만으로 실제 이미지 출처 검증을 대체하지 않는다.
+입력 검증과 실행 시 고정 GHCR digest의 실제 자산·manifest·매핑을 검증한다.
+Merge 후 승인 스냅샷을 위한 별도 재다운로드와 감사 검증은 수행하지 않는다.
 이 경계는 원본 재전처리·모델 로딩/학습·지표 계산을 추가하지 않는다.
 
 - 데이터: HF `auphong2707/hospital-readmission-risk-data`, revision `4a61a3591f079628c72f5edbc7494ca7dda8741d`, `splits/`만 선택.

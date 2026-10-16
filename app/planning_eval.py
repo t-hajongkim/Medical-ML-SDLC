@@ -577,5 +577,10 @@ def build_plans(eda, data_manifest, selection, ai, *, catalogs=None, policy=None
     result = {stage: _plan(stage, selection[stage], catalogs[stage], policy[stage],
                            recommendations[stage], ai_status, planned)
               for stage in _STAGES}
+    source = data_manifest.get("prepared_source", {})
+    if source.get("dataset") != "auphong2707/hospital-readmission-risk-data":
+        result["evaluation"]["interpretation"] = (
+            "계산 계획은 임상 사용 승인이나 독립 성능 검증이 아닙니다. "
+            "이 데이터셋에서 확인한 관측·누수·전처리 이력 제한만 적용합니다.")
     result["recommendation_request"] = request
     return result

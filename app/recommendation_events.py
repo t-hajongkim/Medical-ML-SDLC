@@ -1,4 +1,4 @@
-"""Correlate a completed trusted workflow with its exact recommendation PR."""
+"""Correlate a completed trusted workflow with its exact Issue or review PR."""
 
 import io
 import json
@@ -15,8 +15,23 @@ from app.asset_contract import write_json
 TARGET_FILE = "research-ai-target.json"
 SOURCES = {
     ".github/workflows/prepare-eda-pr.yml": {"issues", "workflow_dispatch"},
-    ".github/workflows/review-eval-plan.yml": {"issue_comment", "pull_request"},
+    ".github/workflows/review-eval-plan.yml": {"issue_comment"},
 }
+
+
+def _target(value, *, legacy=False):
+    kind = value.get("target_kind", "pull_request" if legacy else None)
+    if kind not in ("issue", "pull_request"):
+        raise ValueError("추천 대상은 Issue 또는 기존 연구검토 PR이어야 합니다.")
+    number = research.issue_number(value.get(
+        "target_number", value.get("pull_request") if legacy else None))
+    aliases = ("issue", "issue_number") if kind == "issue" else ("pull_request",)
+    for key in aliases:
+        if key in value and research.issue_number(value[key]) != number:
+            raise ValueError("추천 대상 번호와 호환 필드가 일치하지 않습니다.")
+    if kind == "issue" and value.get("pull_request") is not None:
+        raise ValueError("최초 Issue 전달에는 PR 번호를 지정할 수 없습니다.")
+    return kind, number
 
 
 def write_target(outcome, repository):
@@ -35,23 +50,24 @@ def write_target(outcome, repository):
         raise ValueError("추천 전달 파일에 심볼릭 링크를 사용할 수 없습니다.")
     candidates = [
         outcome.get("ai_dispatch", {}),
-        outcome.get("refresh", {}).get("ai_dispatch", {}),
         outcome.get("recommendation", {}),
     ]
-    numbers = set()
+    targets = set()
     for candidate in candidates:
         if candidate.get("status") == "requested":
             if candidate.get("workflow") != "research-plan.lock.yml":
                 raise ValueError("등록되지 않은 추천 워크플로입니다.")
-            numbers.add(research.issue_number(candidate.get("pull_request")))
-    if len(numbers) > 1:
-        raise ValueError("하나의 검토 실행이 서로 다른 PR을 추천 대상으로 지정했습니다.")
+            targets.add(_target(candidate, legacy=True))
+    if len(targets) > 1:
+        raise ValueError("하나의 검토 실행이 서로 다른 추천 대상을 지정했습니다.")
     payload = {
-        "schema_version": 1, "repository": repository, "source_run_id": run,
-        "source_run_attempt": attempt, "source_head_sha": sha, "requested": bool(numbers),
+        "schema_version": 2, "repository": repository, "source_run_id": run,
+        "source_run_attempt": attempt, "source_head_sha": sha, "requested": bool(targets),
     }
-    if numbers:
-        payload["pull_request"] = numbers.pop()
+    if targets:
+        kind, number = targets.pop()
+        payload.update(target_kind=kind, target_number=number)
+        payload["issue_number" if kind == "issue" else "pull_request"] = number
     write_json(target, payload)
     return target
 
@@ -89,11 +105,12 @@ def _download_target(repository, identifier):
 
 
 def resolve_target(event, event_name, repository, requested=None):
-    """Resolve one exact PR, never the newest or an arbitrary open PR."""
+    """Resolve one authorized target, never guess the newest or any open PR."""
     research.repository_name(repository)
     if event.get("repository", {}).get("full_name") != repository:
         raise ValueError("추천 이벤트의 저장소가 일치하지 않습니다.")
     if event_name == "workflow_dispatch":
+        kind = "pull_request"
         number = research.issue_number(requested)
     elif event_name == "workflow_run":
         original = event.get("workflow_run", {})
@@ -111,10 +128,9 @@ def resolve_target(event, event_name, repository, requested=None):
             raise ValueError("같은 저장소·기본 브랜치의 등록된 선행 워크플로만 이어받습니다.")
         if source.get("status") != "completed" or source.get("conclusion") != "success":
             return {"ready": False, "reason": "선행 워크플로가 성공하지 않아 AI를 실행하지 않습니다."}
-        if source["path"] == ".github/workflows/review-eval-plan.yml" and source["event"] == "pull_request":
-            return {"ready": False, "reason": "병합된 승인 계획은 AI 추천을 다시 요청하지 않습니다."}
         if (source.get("head_branch") != default
-                or not re.fullmatch(r"[0-9a-f]{40}", source.get("head_sha", ""))):
+                or not re.fullmatch(r"[0-9a-f]{40}", source.get("head_sha", ""))
+                or ("head_sha" in original and original["head_sha"] != source["head_sha"])):
             raise ValueError("AI 추천은 기본 브랜치의 선행 실행만 이어받습니다.")
         attempt = research.run_identifier(str(source.get("run_attempt", "")))
         if str(original.get("run_attempt")) != attempt:
@@ -134,7 +150,10 @@ def resolve_target(event, event_name, repository, requested=None):
         payload = _download_target(repository, research.issue_number(matches[0]["id"]))
         fields = {"schema_version", "repository", "source_run_id", "source_run_attempt",
                   "source_head_sha", "requested", "pull_request"}
-        if (type(payload.get("schema_version")) is not int or payload["schema_version"] != 1
+        version = payload.get("schema_version")
+        if version == 2:
+            fields |= {"target_kind", "target_number", "issue_number"}
+        if (type(version) is not int or version not in (1, 2)
                 or set(payload) - fields
                 or payload.get("repository") != repository or payload.get("source_run_id") != run
                 or payload.get("source_run_attempt") != attempt
@@ -142,18 +161,55 @@ def resolve_target(event, event_name, repository, requested=None):
                 or type(payload.get("requested")) is not bool):
             raise ValueError("추천 전달 파일과 선행 실행의 출처가 일치하지 않습니다.")
         if not payload["requested"]:
+            if set(payload) & {"target_kind", "target_number", "issue_number", "pull_request"}:
+                raise ValueError("추천하지 않는 전달 파일에 대상이 포함되어 있습니다.")
             return {"ready": False, "reason": "선행 실행은 AI 추천을 요청하지 않았습니다."}
-        number = research.issue_number(payload.get("pull_request"))
+        kind, number = _target(payload, legacy=version == 1)
+        if (kind == "pull_request" and "issue_number" in payload
+                or kind == "issue" and "pull_request" in payload):
+            raise ValueError("추천 전달 파일에 다른 종류의 대상 번호가 포함되어 있습니다.")
+        if kind == "issue":
+            if source["path"] != ".github/workflows/prepare-eda-pr.yml":
+                raise ValueError("최초 Issue 추천은 등록된 Issue 접수 실행만 이어받습니다.")
+            actor = source.get("actor") or {}
+            login = actor.get("login")
+            if (actor.get("type") != "User" or not isinstance(login, str)
+                    or not re.fullmatch(r"[A-Za-z0-9-]+", login)):
+                raise ValueError("최초 Issue 추천의 source actor가 유효한 사람이 아닙니다.")
+            permission = research.gh_json(f"repos/{repository}/collaborators/{login}/permission")
+            if permission.get("permission") not in ("write", "maintain", "admin"):
+                raise ValueError("최초 Issue 추천에는 source actor의 쓰기 권한이 필요합니다.")
+            issue = research.gh_json(f"repos/{repository}/issues/{number}")
+            if (issue.get("number") != number or issue.get("state") != "open"
+                    or "pull_request" in issue
+                    or (source["event"] == "issues" and issue.get("user", {}).get("login") != login)
+                    or research.parse_issue(issue, repository) is None):
+                raise ValueError("추천 대상은 권한 검증한 열린 등록 연구 Issue여야 합니다.")
     else:
         raise ValueError("지원하지 않는 추천 시작 이벤트입니다.")
-    from app.research import _pull
-    _pull(research, repository, number)
-    return {"ready": True, "pull_request": number, "trigger": event_name}
+    if kind == "pull_request":
+        from app.research import _pull
+        _pull(research, repository, number)
+    result = {"ready": True, "target_kind": kind, "target_number": number,
+              "issue_number" if kind == "issue" else "pull_request": number,
+              "trigger": event_name}
+    if kind == "issue":
+        result["request_actor"] = login
+    return result
 
 
 def write_outputs(result):
+    if result["ready"]:
+        kind, number = _target(result, legacy=True)
+        if kind == "issue":
+            actor = result.get("request_actor")
+            if not isinstance(actor, str) or not re.fullmatch(r"[A-Za-z0-9-]+", actor):
+                raise ValueError("최초 Issue 추천에는 검증된 source actor가 필요합니다.")
     output = Path(os.environ["GITHUB_OUTPUT"])
     with output.open("a", encoding="utf-8") as handle:
         handle.write("ready=" + ("true" if result["ready"] else "false") + "\n")
         if result["ready"]:
-            handle.write(f"pull_request={result['pull_request']}\n")
+            handle.write(f"target_kind={kind}\ntarget_number={number}\n")
+            handle.write(f"{'issue_number' if kind == 'issue' else 'pull_request'}={number}\n")
+            if kind == "issue":
+                handle.write(f"request_actor={actor}\n")

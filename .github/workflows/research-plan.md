@@ -1,9 +1,9 @@
 ---
 name: 연구 점검·평가계획
-description: GitHub Copilot이 기존 연구검토 PR에 등록된 EDA 블록과 결과평가 블록을 추천합니다.
+description: 비공개 기본 EDA와 추가 점검·지표 추천 후 첫 연구검토 PR을 만들고 피드백은 같은 PR에 반영합니다.
 on:
   workflow_run:
-    workflows: ["Prepare research review", "Review evaluation plan and freeze approval"]
+    workflows: ["Prepare research review", "Review evaluation plan feedback"]
     types: [completed]
   workflow_dispatch:
     inputs:
@@ -17,6 +17,7 @@ on:
 if: needs.resolve_review.outputs.ready == 'true'
 permissions:
   contents: read
+  actions: read
   issues: read
   pull-requests: read
   packages: read
@@ -45,14 +46,19 @@ checkout:
   fetch-depth: 0
 jobs:
   resolve_review:
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && (github.event.workflow_run.event != 'issue_comment' || github.event.workflow_run.actor.type == 'User'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
       actions: read
+      issues: read
       pull-requests: read
     outputs:
       ready: ${{ steps.resolve.outputs.ready }}
+      target_kind: ${{ steps.resolve.outputs.target_kind }}
+      target_number: ${{ steps.resolve.outputs.target_number }}
+      issue_number: ${{ steps.resolve.outputs.issue_number }}
+      request_actor: ${{ steps.resolve.outputs.request_actor }}
       pull_request: ${{ steps.resolve.outputs.pull_request }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
@@ -62,7 +68,9 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
         with:
           python-version: "3.12"
-      - name: Resolve the exact PR from a trusted completed workflow
+      - name: Install Issue Form parser for target validation
+        run: python -B -m pip install --disable-pip-version-check -r requirements-workflow.txt
+      - name: Resolve the exact authorized Issue or PR from a trusted completed workflow
         id: resolve
         env:
           GH_TOKEN: ${{ github.token }}
@@ -78,32 +86,28 @@ pre-agent-steps:
       python-version: "3.12"
   - name: 신뢰할 수 있는 소스 전용 워크플로 의존성 준비
     run: python -B -m pip install --disable-pip-version-check -r requirements-workflow.txt
-  - name: PR 검증 및 집계 전용 추천 입력 준비
+  - name: Issue 또는 PR 검증 후 비공개 기본 EDA와 추천 입력 준비
     env:
       GH_TOKEN: ${{ github.token }}
-      REQUESTED_PR: ${{ needs.resolve_review.outputs.pull_request }}
+      TARGET_KIND: ${{ needs.resolve_review.outputs.target_kind }}
+      TARGET_NUMBER: ${{ needs.resolve_review.outputs.target_number }}
+      RESEARCH_REQUEST_ACTOR: ${{ needs.resolve_review.outputs.request_actor }}
     run: |
       set -euo pipefail
-      [[ "$REQUESTED_PR" =~ ^[1-9][0-9]*$ ]] || exit 1
+      [[ "$TARGET_NUMBER" =~ ^[1-9][0-9]*$ ]] || exit 1
+      [[ "$TARGET_KIND" == issue || "$TARGET_KIND" == pull_request ]] || exit 1
       mkdir -p "$RUNNER_TEMP/gh-aw/research-empty"
-      python -B -m app.research prepare-ai --pull-request "$REQUESTED_PR" --work /tmp/gh-aw/research-recommendation
+      python -B -m app.research prepare-ai --target-number "$TARGET_NUMBER" --target-kind "$TARGET_KIND" --work /tmp/gh-aw/research-recommendation
+      cp app/research_tools.py /tmp/gh-aw/research-recommendation/tools.py
 mcp-scripts:
   read-research-context:
     description: 공개 연구 목적·질문, 현재 선택·입력 계약, 권한 검증한 미반영 자연어 피드백을 읽습니다. 환자 행은 없습니다.
-    run: |
-      python -B - <<'PY'
-      from pathlib import Path
-      print(Path("/tmp/gh-aw/research-recommendation/RESEARCH_CONTEXT.json").read_text(encoding="utf-8"))
-      PY
+    run: cat /tmp/gh-aw/research-recommendation/RESEARCH_CONTEXT.json
   read-input-schema:
     description: 원본 행 없이 등록된 컬럼·타입·설명·의미 역할·허용 근거와 입력 매핑 필요 여부를 읽습니다.
-    run: |
-      python -B - <<'PY'
-      from pathlib import Path
-      print(Path("/tmp/gh-aw/research-recommendation/INPUT_SCHEMA_REQUEST.json").read_text(encoding="utf-8"))
-      PY
+    run: cat /tmp/gh-aw/research-recommendation/INPUT_SCHEMA_REQUEST.json
   apply-input-mapping:
-    description: AI 추천 매핑을 등록 스키마·의미·근거와 대조해 표준 입력 계약을 저장합니다. EDA는 계획 검증 후 execute-eda가 실행합니다.
+    description: AI 매핑을 등록 스키마·의미·근거와 대조해 저장한 뒤 비공개 기본 EDA를 실행하고 연구 맥락을 갱신합니다.
     timeout: 600
     inputs:
       mapping:
@@ -112,28 +116,8 @@ mcp-scripts:
         description: schema_version,provider,context_hash,status,bindings,reasons,evidence를 포함한 JSON 문자열
     env:
       GH_TOKEN: ${{ github.token }}
-      REQUESTED_PR: ${{ needs.resolve_review.outputs.pull_request }}
-    run: |
-      python -B - <<'PY'
-      import json
-      import os
-      from pathlib import Path
-      import subprocess
-      work = Path("/tmp/gh-aw/research-recommendation")
-      if (work / "publication.json").exists() or (work / "application.lock").exists():
-          raise SystemExit("게시 적용이 시작된 뒤에는 입력 매핑 도구를 다시 실행하지 않습니다.")
-      raw = os.environ["INPUT_MAPPING"]
-      if len(raw.encode("utf-8")) > 65536:
-          raise SystemExit("입력 매핑 JSON 크기가 허용 범위를 넘었습니다.")
-      (work / "input-mapping-proposal.json").write_text(raw, encoding="utf-8")
-      result = subprocess.run(
-          ["python", "-B", "-m", "app.research", "apply-input-mapping",
-           "--pull-request", os.environ["REQUESTED_PR"], "--work", str(work)],
-          capture_output=True, text=True, encoding="utf-8")
-      if result.returncode:
-          raise SystemExit("입력 매핑 검증 실패: 등록 컬럼·필수 역할·의미·근거·context hash를 확인하세요. EDA나 원격 게시를 진행하지 않았습니다.")
-      print(json.dumps(json.loads(result.stdout), ensure_ascii=False))
-      PY
+      TARGET_NUMBER: ${{ needs.resolve_review.outputs.target_number }}
+    run: python -B /tmp/gh-aw/research-recommendation/tools.py apply-input-mapping
   read-recommendation-context:
     description: execute-eda 완료 후 실제 EDA 집계, 공개 연구 목적, 현재 선택과 등록 카탈로그를 읽습니다.
     run: |
@@ -147,7 +131,7 @@ mcp-scripts:
       print(json.dumps(request, ensure_ascii=False))
       PY
   plan-eda:
-    description: planning_eda가 목적·입력 매핑·등록 Tool의 입력 계약으로 실행 계획을 검증합니다. EDA는 아직 실행하지 않습니다.
+    description: 기본 EDA 결과를 읽은 뒤 사용하지 않은 추가 점검만 계획합니다. eda_add가 빈 배열이어도 유효합니다.
     timeout: 600
     inputs:
       proposal:
@@ -156,30 +140,10 @@ mcp-scripts:
         description: schema_version,context_hash,eda_add,objectives,feedback_ids,selection_updates,reason을 포함한 JSON 문자열
     env:
       GH_TOKEN: ${{ github.token }}
-      REQUESTED_PR: ${{ needs.resolve_review.outputs.pull_request }}
-    run: |
-      python -B - <<'PY'
-      import json
-      import os
-      from pathlib import Path
-      import subprocess
-      work = Path("/tmp/gh-aw/research-recommendation")
-      if (work / "publication.json").exists() or (work / "application.lock").exists():
-          raise SystemExit("게시 적용이 시작된 뒤에는 계획 도구를 다시 실행하지 않습니다.")
-      raw = os.environ["INPUT_PROPOSAL"]
-      if len(raw.encode("utf-8")) > 65536:
-          raise SystemExit("연구 조율안이 허용 크기를 넘었습니다.")
-      (work / "coordination-proposal.json").write_text(raw, encoding="utf-8")
-      result = subprocess.run(
-          ["python", "-B", "-m", "app.research", "plan-eda",
-           "--pull-request", os.environ["REQUESTED_PR"], "--work", str(work)],
-          capture_output=True, text=True, encoding="utf-8")
-      if result.returncode:
-          raise SystemExit("연구 조율안 검증 실패: context hash·허용 ID/목적·피드백 ID·선택 매개변수를 확인하세요. 원격 게시하지 않았습니다.")
-      print(json.dumps(json.loads(result.stdout), ensure_ascii=False))
-      PY
+      TARGET_NUMBER: ${{ needs.resolve_review.outputs.target_number }}
+    run: python -B /tmp/gh-aw/research-recommendation/tools.py plan-eda
   execute-eda:
-    description: executor_eda가 검증된 plan_hash의 계획만 실행하고 실제 EDA 결과·출력 계약을 검증합니다.
+    description: 검증한 plan_hash의 추가 점검만 실행하고 기본 EDA 결과를 재사용해 집계·출력 계약을 검증합니다.
     timeout: 600
     inputs:
       plan_hash:
@@ -188,31 +152,10 @@ mcp-scripts:
         description: plan-eda가 반환한 동일한 64자리 SHA256 계획 hash
     env:
       GH_TOKEN: ${{ github.token }}
-      REQUESTED_PR: ${{ needs.resolve_review.outputs.pull_request }}
-    run: |
-      python -B - <<'PY'
-      import json
-      import os
-      import re
-      import subprocess
-      from pathlib import Path
-      work = Path("/tmp/gh-aw/research-recommendation")
-      if (work / "publication.json").exists() or (work / "application.lock").exists():
-          raise SystemExit("게시 적용이 시작된 뒤에는 EDA 실행 도구를 다시 실행하지 않습니다.")
-      plan = os.environ["INPUT_PLAN_HASH"]
-      if re.fullmatch(r"[0-9a-f]{64}", plan) is None:
-          raise SystemExit("검증한 EDA 계획 hash가 필요합니다.")
-      result = subprocess.run(
-          ["python", "-B", "-m", "app.research", "execute-eda",
-           "--pull-request", os.environ["REQUESTED_PR"],
-           "--work", str(work), "--plan-hash", plan],
-          capture_output=True, text=True, encoding="utf-8")
-      if result.returncode:
-          raise SystemExit("EDA 입력·계획·출력 계약 확인 또는 계산에 실패했습니다. 원격 게시하지 않았습니다.")
-      print(json.dumps(json.loads(result.stdout), ensure_ascii=False))
-      PY
+      TARGET_NUMBER: ${{ needs.resolve_review.outputs.target_number }}
+    run: python -B /tmp/gh-aw/research-recommendation/tools.py execute-eda
   apply-recommendations:
-    description: 신뢰할 수 있는 코드로 추천 JSON을 검증하고 계획·집계 EDA·기존 PR용 로컬 커밋을 준비합니다. 원격 게시하지 않습니다.
+    description: 완료된 EDA와 지표 추천을 검증해 첫 PR 생성 또는 같은 PR 갱신용 로컬 커밋·본문을 준비합니다. 원격 게시하지 않습니다.
     timeout: 600
     inputs:
       recommendations:
@@ -221,149 +164,11 @@ mcp-scripts:
         description: schema_version, provider, context_hash, status, eda, evaluation만 포함한 JSON 문자열
     env:
       GH_TOKEN: ${{ github.token }}
-      REQUESTED_PR: ${{ needs.resolve_review.outputs.pull_request }}
+      TARGET_KIND: ${{ needs.resolve_review.outputs.target_kind }}
+      TARGET_NUMBER: ${{ needs.resolve_review.outputs.target_number }}
       PYTHONDONTWRITEBYTECODE: "1"
       PYTHONUTF8: "1"
-    run: |
-      python -B - <<'PY'
-      import hashlib
-      import json
-      import os
-      import re
-      import subprocess
-      from pathlib import Path
-
-      work = Path("/tmp/gh-aw/research-recommendation")
-      root = Path(os.environ["GITHUB_WORKSPACE"]).resolve()
-      ready = work / "publication.json"
-      pr = os.environ["REQUESTED_PR"]
-      if not re.fullmatch(r"[1-9][0-9]*", pr):
-          raise SystemExit("Invalid PR number.")
-      session = json.loads((work / "session.json").read_text(encoding="utf-8"))
-      issue = session["issue_number"]
-      directory = f"research/reports/issue-{issue}"
-      names = {"ai-recommendations.json", "eda-plan.json", "evaluation-plan.json",
-               "eda.json", "report.md", "recommendation-request.json",
-               "input-schema.json", "input-mapping.json", "coordination-plan.json",
-               "feedback-applied.json", "selection.json", "execution-plan.json"}
-      allowed = {f"{directory}/{name}" for name in names}
-      if (type(issue) is not int or issue < 1 or session["pull_request"] != int(pr)
-              or session["repository"] != os.environ["GITHUB_REPOSITORY"]
-              or session["report_dir"] != directory
-              or session["head_branch"] != f"research/review-issue-{issue}"
-              or not re.fullmatch(r"[0-9a-f]{40}", session["head_sha"])
-              or not set(session["allowed_outputs"]).issubset(allowed)):
-          raise SystemExit("Invalid trusted recommendation session.")
-      request = json.loads((work / "AI_REQUEST.json").read_text(encoding="utf-8"))
-      raw = os.environ["INPUT_RECOMMENDATIONS"]
-      if len(raw.encode("utf-8")) > 65536:
-          raise SystemExit("Recommendation JSON is too large.")
-      recommendation = json.loads(raw)
-      if (set(recommendation) != {"schema_version", "provider", "context_hash", "status", "eda", "evaluation"}
-              or recommendation["schema_version"] != 1
-              or recommendation["provider"] != "github-copilot-cloud-agent"
-              or recommendation["status"] != "provided"
-              or recommendation["context_hash"] != request["context_hash"]):
-          raise SystemExit("Recommendation envelope does not match the validated request.")
-      recommendation_hash = hashlib.sha256(json.dumps(
-          recommendation, ensure_ascii=False, sort_keys=True,
-          separators=(",", ":")).encode("utf-8")).hexdigest()
-      def git(*args):
-          return subprocess.run(["git", *args], cwd=root, check=True,
-                                capture_output=True, text=True, encoding="utf-8").stdout.strip()
-      if ready.exists():
-          meta = json.loads(ready.read_text(encoding="utf-8"))
-          commit = meta.get("publication_commit")
-          refresh_body = meta.get("body_refresh_required")
-          if (meta.get("schema_version") != 1 or meta.get("repository") != session["repository"]
-                  or meta.get("pull_request") != int(pr) or meta.get("head_branch") != session["head_branch"]
-                  or meta.get("previous_head_sha") != session["head_sha"]
-                  or meta.get("recommendations_sha256") != recommendation_hash
-                  or type(refresh_body) is not bool
-                  or (commit is not None and not re.fullmatch(r"[0-9a-f]{40}", commit))
-                  or git("rev-parse", "HEAD") != (commit or session["head_sha"])
-                  or git("rev-parse", "HEAD^{tree}") != meta.get("expected_tree_sha")
-                  or hashlib.sha256((work / "pr-body.md").read_bytes()).hexdigest() != meta.get("body_sha256")):
-              raise SystemExit("Stored publication does not match this request; start a fresh run.")
-          if commit is not None:
-              changed = set(git("diff", "--name-only", session["head_sha"], commit, "--").splitlines())
-              if (git("rev-parse", commit + "^") != session["head_sha"]
-                      or git("symbolic-ref", "--short", "HEAD") != session["head_branch"]
-                      or not changed or not changed.issubset(session["allowed_outputs"])):
-                  raise SystemExit("Stored publication commit is not the validated PR update.")
-          current = json.loads(subprocess.run(
-              ["gh", "api", f"repos/{session['repository']}/pulls/{pr}"],
-              check=True, capture_output=True, text=True, encoding="utf-8").stdout)
-          if (current.get("state") != "open" or current.get("head", {}).get("sha") != session["head_sha"]
-                  or current["head"].get("ref") != session["head_branch"]
-                  or current["head"].get("repo", {}).get("full_name") != session["repository"]
-                  or hashlib.sha256((current.get("body") or "").encode("utf-8")).hexdigest()
-                  != meta.get("previous_body_sha256")):
-              raise SystemExit("PR changed after application; preserve human changes and start a fresh run.")
-          status = "validated_copilot_recommendations" if commit else ("body_refresh" if refresh_body else "unchanged")
-          print(json.dumps({"status": status, "pull_request": int(pr),
-                            "publication_ready": commit is not None or refresh_body,
-                            "push_required": commit is not None, "body_refresh_required": refresh_body}))
-          raise SystemExit(0)
-      lock = work / "application.lock"
-      try:
-          lock.mkdir()
-      except FileExistsError:
-          raise SystemExit("Application is already running or needs recovery. Retry the same request; do not apply concurrently.")
-      destination = root / directory / "ai-recommendations.json"
-      if destination.is_symlink() or destination.parent.is_symlink() or not destination.resolve().is_relative_to(root):
-          raise SystemExit("Unsafe recommendation output path.")
-      destination.write_text(json.dumps(recommendation, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-      previous = subprocess.run(
-          ["gh", "api", f"repos/{session['repository']}/pulls/{pr}"],
-          check=True, capture_output=True, text=True, encoding="utf-8")
-      previous_body = json.loads(previous.stdout).get("body") or ""
-      completed = subprocess.run(
-          ["python", "-B", "-m", "app.research", "apply-ai", "--pull-request", pr, "--work", str(work)],
-          cwd=root, capture_output=True, text=True, encoding="utf-8")
-      if completed.returncode:
-          if git("rev-parse", "HEAD") == session["code_commit"]:
-              lock.rmdir()
-          raise SystemExit("Trusted recommendation validation/application failed; nothing was published.")
-      result = json.loads(completed.stdout)
-      status = result["status"]
-      commit = result["publication_commit"]
-      if (result["pull_request"] != int(pr) or result["remote_publication_performed"] is not False
-              or (commit is not None and not re.fullmatch(r"[0-9a-f]{40}", commit))
-              or (commit is not None and status != "validated_copilot_recommendations")
-              or (commit is None and status not in {"body_refresh", "unchanged"})):
-          raise SystemExit("Unexpected trusted application result.")
-      if commit is not None:
-          changed = set(git("diff", "--name-only", session["head_sha"], commit, "--").splitlines())
-          if (git("rev-parse", "HEAD") != commit or git("rev-parse", commit + "^") != session["head_sha"]
-                  or not changed or not changed.issubset(allowed)):
-              raise SystemExit("Trusted application did not prepare the permitted PR-head commit.")
-      body = (work / "pr-body.md").read_bytes()
-      refresh_body = commit is not None or body != previous_body.encode("utf-8")
-      if commit is None and refresh_body != (status == "body_refresh"):
-          raise SystemExit("Unexpected trusted body-refresh result.")
-      expected_tree = git("rev-parse", (commit or session["head_sha"]) + "^{tree}")
-      if commit is not None:
-          # gh-aw bundle transport pins a named local branch, not detached HEAD.
-          git("update-ref", "refs/heads/" + session["head_branch"], commit)
-          git("update-ref", "refs/remotes/origin/" + session["head_branch"], session["head_sha"])
-          git("symbolic-ref", "HEAD", "refs/heads/" + session["head_branch"])
-      receipt = work / "publication.pending.json"
-      receipt.write_text(json.dumps({
-          "schema_version": 1, "repository": session["repository"], "pull_request": int(pr),
-          "head_branch": session["head_branch"],
-          "publication_commit": commit, "body_refresh_required": refresh_body,
-          "previous_head_sha": session["head_sha"],
-          "expected_tree_sha": expected_tree,
-          "previous_body_sha256": hashlib.sha256(previous_body.encode("utf-8")).hexdigest(),
-          "body_sha256": hashlib.sha256(body).hexdigest(),
-          "recommendations_sha256": recommendation_hash,
-      }), encoding="utf-8")
-      receipt.replace(ready)
-      print(json.dumps({"status": status, "pull_request": int(pr),
-                        "publication_ready": commit is not None or refresh_body,
-                        "push_required": commit is not None, "body_refresh_required": refresh_body}))
-      PY
+    run: python -B /tmp/gh-aw/research-recommendation/tools.py apply-recommendations
 post-steps:
   - name: 검증된 PR 본문과 게시 확인용 해시만 보관
     if: success()
@@ -374,31 +179,10 @@ post-steps:
         /tmp/gh-aw/research-recommendation/pr-body.md
         /tmp/gh-aw/research-recommendation/publication.json
       if-no-files-found: error
-      retention-days: 1
+      retention-days: 7
   - name: Fail when prepared publication was not requested
     if: success()
-    run: |
-      python -B - <<'PY'
-      import json
-      import os
-      from pathlib import Path
-      meta = json.loads(Path("/tmp/gh-aw/research-recommendation/publication.json").read_text(encoding="utf-8"))
-      output = json.loads(Path(os.environ["GH_AW_AGENT_OUTPUT"]).read_text(encoding="utf-8"))
-      items = output["items"]
-      if any(item.get("type") in ("report_incomplete", "missing_tool", "missing_data") for item in items):
-          raise SystemExit("Copilot reported an incomplete result; the review PR was not completed.")
-      pushes = [item for item in items if item.get("type") == "push_to_pull_request_branch"]
-      refreshes = [item for item in items if item.get("type") == "refresh_review_body"]
-      requires_push = meta["publication_commit"] is not None
-      if (len(pushes) != int(requires_push)
-              or len(refreshes) != int(meta["body_refresh_required"])
-              or any(item.get("branch") != meta["head_branch"]
-                     or str(item.get("pull_request_number", meta["pull_request"])) != str(meta["pull_request"])
-                     or item.get("repo", meta["repository"]) != meta["repository"] for item in pushes)
-              or any(item.get("confirmed") is not True or not isinstance(item.get("message"), str)
-                     or not item["message"].strip() for item in refreshes)):
-          raise SystemExit("Validated publication is missing its required push/body declarations; it was not completed.")
-      PY
+    run: python -B /tmp/gh-aw/research-recommendation/tools.py post-check
 safe-outputs:
   needs: [resolve_review]
   github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -411,6 +195,28 @@ safe-outputs:
     create-issue: false
   missing-data:
     create-issue: false
+  create-pull-request:
+    draft: true
+    preserve-branch-name: true
+    allowed-branches: ["research/review-issue-*"]
+    max: 1
+    fallback-as-issue: false
+    auto-close-issue: false
+    protected-files: blocked
+    allowed-files:
+      - research/reports/**/request.json
+      - research/reports/**/selection.json
+      - research/reports/**/ai-recommendations.json
+      - research/reports/**/eda-plan.json
+      - research/reports/**/evaluation-plan.json
+      - research/reports/**/eda.json
+      - research/reports/**/report.md
+      - research/reports/**/recommendation-request.json
+      - research/reports/**/input-schema.json
+      - research/reports/**/input-mapping.json
+      - research/reports/**/coordination-plan.json
+      - research/reports/**/feedback-applied.json
+      - research/reports/**/execution-plan.json
   push-to-pull-request-branch:
     target: ${{ needs.resolve_review.outputs.pull_request }}
     required-title-prefix: "연구검토 #"
@@ -420,7 +226,6 @@ safe-outputs:
     protected-files: blocked
     excluded-files:
       - research/reports/**/request.json
-      - research/reports/**/review-state.json
       - research/reports/**/feedback-requests.json
     allowed-files:
       - research/reports/**/ai-recommendations.json
@@ -478,12 +283,14 @@ safe-outputs:
               if (!/^[1-9][0-9]*$/.test(pr)) throw new Error("Invalid validated PR");
               const body = fs.readFileSync(path.join(artifact, "pr-body.md"), "utf8");
               const hash = value => crypto.createHash("sha256").update(value, "utf8").digest("hex");
-              if (meta.schema_version !== 1 || meta.pull_request !== Number(pr) || meta.body_refresh_required !== true
+              if (meta.schema_version !== 2 || meta.operation !== "update" || meta.target_kind !== "pull_request"
+                  || meta.target_number !== Number(pr) || meta.pull_request !== Number(pr) || meta.body_refresh_required !== true
                   || meta.repository !== process.env.GITHUB_REPOSITORY || hash(body) !== meta.body_sha256) {
                 throw new Error("Publication artifact does not match the requested PR");
               }
               const pushes = output.items.filter(item => item.type === "push_to_pull_request_branch");
-              if (pushes.length !== (meta.publication_commit === null ? 0 : 1)) {
+              if (output.items.some(item => item.type === "create_pull_request")
+                  || pushes.length !== (meta.publication_commit === null ? 0 : 1)) {
                 throw new Error("PR push requests do not match the trusted application result");
               }
               const {data: current} = await github.rest.pulls.get({...context.repo, pull_number: Number(pr)});
@@ -511,6 +318,9 @@ safe-outputs:
 # 연구 점검과 평가계획
 
 고정 목록이나 모의 응답이 아니라 **GitHub Copilot의 실제 추론**으로 추천하세요.
+최초 Issue에서는 비공개 기본 EDA → 사용하지 않은 추가 점검 선택·실행 → 최종 지표 추천을
+완료한 뒤에만 첫 PR1을 만듭니다. 분석 전 빈 PR이나 조기 draft PR을 만들지 마세요.
+피드백은 권한 검증한 자유형 자연어를 해석하고 기존의 같은 PR에만 반영합니다.
 먼저 `read-research-context`와 `read-input-schema`를 호출하세요. 연구 목적·상세 질문과 현재 입력 계약을 함께 읽고 조율합니다.
 status가 `input_mapping`이면 공개 스키마의 등록 컬럼·타입·설명·의미 역할만으로 입력 매핑을 추천합니다.
 환자 키를 유일한 입원 ID로 대체하지 말고, 같은 원본 컬럼을 서로 다른 역할에 중복 지정하지 마세요.
@@ -518,8 +328,13 @@ status가 `input_mapping`이면 공개 스키마의 등록 컬럼·타입·설�
 매핑 JSON은 schema_version=1, provider="github-copilot-cloud-agent", status="provided",
 현재 스키마 context_hash, bindings(표준 역할→원본 컬럼), reasons(역할별 한국어 설명),
 evidence(각 컬럼·역할의 allowed_evidence_ids)만 포함합니다.
-`apply-input-mapping`은 입력 매핑만 검증합니다. EDA는 아직 실행하지 않습니다. 근거가 부족하면 매핑을 추측하거나 성공으로 표시하지 마세요.
+매핑이 없으면 숫자 계산은 시작하지 않습니다. `apply-input-mapping`은 매핑 검증 후 비공개
+기본 EDA를 실행합니다. 완료 뒤 `read-research-context`를 다시 읽으세요.
+근거가 부족하면 매핑을 추측하거나 성공으로 표시하지 마세요.
 status가 `coordination`이면 config의 확정 매핑 또는 재검증된 매핑을 재사용합니다. config가 있다고 연구 목적 조율을 생략하지 마세요.
+RESEARCH_CONTEXT의 basic_eda와 executed_eda_ids를 먼저 읽고 available_eda_ids 중
+아직 실행하지 않은 추가 점검만 선택하세요. 이미 기본 실행한 점검을 다시 요청하지 마세요.
+추가 점검이 필요 없으면 eda_add=[]가 올바른 계획입니다.
 
 이후 `plan-eda`에 다음 조율 JSON을 문자열로 제출하세요:
 schema_version=1, RESEARCH_CONTEXT의 context_hash, eda_add(추가 점검 ID 배열),
@@ -531,7 +346,8 @@ selection_updates(허가된 피드백에서 요청한 변경만), reason(한국�
 필수 schema/patient_overlap을 끄거나 기존 선택을 통째로 초기화하지 마세요.
 모델 입력 특성·출처 이미지·raw 데이터·새 Python/SQL 코드는 변경 대상이 아닙니다.
 
-`plan-eda`는 계획만 검증하며 계산하지 않습니다. 반환한 plan_hash로 `execute-eda`를 호출하세요.
+`plan-eda`는 추가 계획만 검증하며 계산하지 않습니다. 반환한 plan_hash로 `execute-eda`를 호출하세요.
+추가 점검이 없어도 실행 도구로 완료 단계를 확정하며 기본 EDA 결과는 재사용합니다.
 계획 제출과 실행은 다른 도구입니다. execute-eda 완료 전에 다음 입력을 병렬로 읽지 마세요.
 계획/실행 도구의 응답만 끊기면 동일 조율안/plan_hash로 재조회할 수 있으며 이미 계산한 블록은 반복하지 않습니다.
 가벼운 Intent와 EDA 계획은 planning_eda, 등록 EDA 계산은 executor_eda,
@@ -556,6 +372,10 @@ selection_updates(허가된 피드백에서 요청한 변경만), reason(한국�
 해당 단계 카탈로그에 있는 ID만 선택하세요. **reason은 반드시 한국어**로 구체적인
 근거와 적용 한계를 설명하고, 비어 있지 않은 evidence는 `allowed_evidence_ids`에서만
 고르세요. 두 단계 키를 모두 유지하고 ID·사실·구현·새 코드를 만들지 마세요.
+최종 eda 배열은 AI_REQUEST.fixed_eda_recommendation_ids를 같은 순서로 정확히 되풀이해야 합니다.
+fixed_eda_ids는 기본·사람 선택까지 합친 전체 완료 점검이며 전부 AI 추천으로 표시하지 않습니다.
+이미 검증된 EDA 선택임을 reason에 설명할 수 있지만 새 점검 추가·제거·순서 변경은 금지합니다.
+이 마지막 단계에서 새로 선택하는 것은 evaluation의 지표 제안뿐입니다.
 입력 부족이나 적용 불가 조건은 성공 결과가 아닌 보류 사유로 설명하세요.
 주지표, 임계값, 매개변수, 임상 행동, 비교 모델을 사람 대신 확정하지 마세요.
 필수 데이터검증을 끄거나 임상적 blocked 상태를 pass로 바꾸지 마세요.
@@ -563,10 +383,9 @@ selection_updates(허가된 피드백에서 요청한 변경만), reason(한국�
 
 JSON 문자열로 `apply-recommendations`를 호출하세요. 신뢰할 수 있는 기본 브랜치의
 Python이 추천·맥락을 검증하고 조율 단계의 `selection.json`과 원본 `request.json`을 보존하며,
-단계별 계획을 조합하고 선택된 EDA 검사만 실행·재사용합니다.
-후단 eda 추천에는 앞단 조율안의 eda_add 중 사용자가 제외하지 않은 점검을 포함하세요.
+단계별 계획과 이미 완료한 EDA를 조합합니다. 이 도구는 EDA를 추가 실행하지 않습니다.
 선택 파일은 검증된 조율 단계만 업데이트할 수 있습니다. 추가로 직접 수정하지 마세요.
-변경이 있을 때만 검증된 PR head를 부모로 하는 로컬 커밋을 준비합니다.
+최초 생성은 신뢰한 기본 코드 SHA, 피드백 변경은 검증된 PR head를 부모로 하는 보고서 전용 로컬 커밋을 준비합니다.
 학습, 모델 로딩, 결과 지표 계산, 원격 push, GitHub 수정은 하지 않습니다.
 직접 파일을 수정하거나 git을 실행하지 마세요.
 게시 적용을 시작한 뒤에는 입력 매핑·계획·EDA 실행 도구를 다시 호출하지 마세요.
@@ -577,7 +396,13 @@ Python이 추천·맥락을 검증하고 조율 단계의 `selection.json`과 �
 아직 적용 중이라는 오류가 나오면 같은 요청의 완료를 확인하되 병렬 적용이나 새 워크플로를 시작하지 마세요.
 다른 JSON·변경된 PR·저장 결과 불일치는 새 검토가 필요하므로 report_incomplete로 중단합니다.
 
-반환 플래그를 정확히 따르세요. `push_required: true`일 때만 dispatch로 받은 PR에
+반환 플래그를 정확히 따르세요. `create_required: true`이면 반환한 pull_request_title,
+pull_request_body, head_branch를 한 글자도 바꾸지 말고 create_pull_request의
+title, body, branch로 정확히 한 번 요청한 뒤 멈추세요.
+branch는 신뢰 도구가 선택한 실제 로컬 브랜치 research/review-issue-{issue_number}와 같습니다.
+직접 branch를 만들거나 덮어쓰기·ref 재생성·force push를 요청하지 마세요.
+최초 생성에서는 push_to_pull_request_branch나 refresh_review_body를 호출하지 마세요.
+`create_required: false`이고 `push_required: true`일 때만 전달받은 기존 PR에
 `push_to_pull_request_branch`를 요청하세요. `body_refresh_required: true`일 때만
 필요한 push 요청 뒤에 `refresh_review_body`를 `confirmed: true`와 한국어 `message`로 요청하세요.
 message에는 변경 내용·한계·남은 선택과 사람의 승인 대기를 4,000바이트 이내로 요약하세요.
@@ -585,7 +410,7 @@ message에는 변경 내용·한계·남은 선택과 사람의 승인 대기를
 push나 본문 갱신을 요청하지 마세요.
 분리된 작업이 실제 PR 게시를 확인한 뒤 message를 댓글로 올립니다. 큐에 요청한 것만으로 원격 갱신 완료를 주장하지 마세요.
 본문 작업은 safe-output 처리 성공 후 필요한 push를 확인하고 AI 맥락 밖에서
-보존된 본문을 읽습니다. 새 PR 생성, 병합, 직접 push를 하지 마세요.
+보존된 본문을 읽습니다. 피드백에서 새 PR 생성, 병합, 직접 push를 하지 마세요.
 최종 응답에 입력·추천 JSON·본문을 복사하지 말고 한국어 상태 요약만 남기세요.
 
 공식 custom safe-output 작업을 분리한 이유: v0.86.2의 기본
@@ -594,6 +419,7 @@ push나 본문 갱신을 요청하지 마세요.
 아티팩트 해시, 고정 dispatch 대상, 생성 브랜치·제목, 기존 본문 해시를 검증하고
 본문 파일을 그대로 반영합니다. 소스와 준비 디렉터리는 읽기 전용 빈 마운트로
 AI 컨테이너에서 가리고 좁은 MCP 스크립트만 신뢰할 수 있는 호스트에서 실행합니다.
-request.json과 댓글 전달 기록은 게시 대상이 아닙니다. selection.json은 검증한 조율 변경만 게시합니다. v0.86.2는 기존 브랜치 이력도
+최초 생성에만 request.json을 포함하며 피드백에서는 request.json과 댓글 전달 기록을 게시하지 않습니다.
+selection.json은 검증한 조율 변경만 게시합니다. v0.86.2는 기존 브랜치 이력도
 `allowed-files`로 검사하므로 request·명령 감사·피드백 대기열은 전송 제외하고
 selection은 허용하되 Python의 조건부 출력 목록으로 실제 변경을 제한합니다.

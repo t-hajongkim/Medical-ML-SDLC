@@ -54,6 +54,24 @@ def refresh_schema_hash(schema):
         {key: value for key, value in schema.items() if key != "context_hash"})
 
 
+def basic_eda():
+    from test_planning import fixture_eda
+
+    return {
+        "schema_version": 1, "kind": "aggregate-eda", "report_generated": True,
+        "assessment_status": "failed", "data_id": "1" * 64,
+        "model_execution_performed": False, "training_performed": False,
+        "preprocessing_performed": False,
+        "results": [*fixture_eda()["results"],
+                    {"block": "demographics", "status": "completed", "details": {
+                        "distributions": {"test": {"group": {"admissions": 2}}},
+                        "count_unit": "rows"}},
+                    {"block": "cohort", "status": "unverifiable", "details": {
+                        "splits": {"test": {"admissions": 2, "event_rate": 0.5}},
+                        "reason": "Upstream population evidence is not supplied."}}],
+    }
+
+
 class IntentTests(unittest.TestCase):
     def setUp(self):
         self.request = public_request()
@@ -62,10 +80,11 @@ class IntentTests(unittest.TestCase):
         self.catalogs = {stage: planning.load_catalog(stage) for stage in ("eda", "evaluation")}
         self.policy = planning.load_policy()
 
-    def context(self, feedback=None, selection=None):
+    def context(self, feedback=None, selection=None, *, basic_eda=None):
         return pr1_intent.build_context(
             self.request, self.schema, self.selection if selection is None else selection,
-            [] if feedback is None else feedback, catalogs=self.catalogs, policy=self.policy)
+            [] if feedback is None else feedback, catalogs=self.catalogs, policy=self.policy,
+            basic_eda=basic_eda)
 
     def proposal(self, context, **updates):
         result = {
@@ -82,14 +101,6 @@ class IntentTests(unittest.TestCase):
             self.selection if selection is None else selection, proposal, context,
             catalogs=self.catalogs, policy=self.policy)
 
-    def validate(self, result, **overrides):
-        arguments = {
-            "record": result["record"], "selection": result["selection"],
-            "request": self.request, "schema_request": self.schema,
-            "catalogs": self.catalogs, "policy": self.policy,
-        }
-        arguments.update(overrides)
-        return pr1_intent.validate_record(**arguments)
 
     def test_four_raw_public_form_texts_reach_agent_without_issue_metadata(self):
         self.request.update(
@@ -131,6 +142,248 @@ class IntentTests(unittest.TestCase):
         self.assertNotEqual(context["request"]["research_goal"], self.request["research_goal"])
         self.assertEqual(self.selection["eda"]["add"], [])
         self.assertNotEqual(context["feedback"][0]["body"], feedback[1]["body"])
+
+    def test_basic_eda_none_preserves_the_complete_legacy_context_shape(self):
+        context = self.context()
+        legacy = pr1_intent.build_context(
+            self.request, self.schema, self.selection, [],
+            catalogs=self.catalogs, policy=self.policy)
+        self.assertEqual(context, legacy)
+        self.assertEqual(set(context), {
+            "schema_version", "stage", "request", "schema_request", "selection",
+            "catalogs", "policy", "allowed_objectives", "feedback", "request_hash",
+            "selection_hash", "schema_hash", "feedback_hash", "context_hash",
+        })
+        result = self.apply(context, self.proposal(context, eda_add=["numeric_contract"]))
+        self.assertEqual(result["record"]["eda_add"], ["schema"])
+
+    def test_basic_results_and_unused_registered_checks_are_hash_bound_public_copies(self):
+        measured = basic_eda()
+        context = self.context(basic_eda=measured)
+        self.assertEqual(context, self.context(basic_eda=copy.deepcopy(measured)))
+        self.assertEqual(context["basic_eda"], measured)
+        self.assertEqual(context["executed_eda_ids"],
+                         ["schema", "patient_overlap", "demographics", "cohort"])
+        self.assertEqual(context["available_eda_ids"],
+                         ["prediction_timing", "label_observability", "preprocessing_lineage"])
+        self.assertEqual(context["context_hash"], canonical_hash(
+            {key: value for key, value in context.items() if key != "context_hash"}))
+        measured["results"][0]["details"]["rows"] += 1
+        self.assertEqual(context["basic_eda"]["results"][0]["details"]["rows"], 8)
+        changed = self.context(basic_eda=measured)
+        self.assertNotEqual(changed["context_hash"], context["context_hash"])
+        self.assertEqual(changed["schema_hash"], context["schema_hash"])
+        with self.assertRaises(ValueError):
+            self.apply(changed, self.proposal(context))
+        context["basic_eda"]["results"][0]["details"]["rows"] = 99
+        self.assertEqual(measured["results"][0]["details"]["rows"], 9)
+
+    def test_unused_candidates_respect_selected_excluded_and_protected_checks(self):
+        self.selection["eda"].update(
+            add=["label-observability"], exclude=["prediction-timing"])
+        context = self.context(basic_eda=basic_eda())
+        self.assertEqual(context["available_eda_ids"], ["preprocessing_lineage"])
+        for identifier in ("timing", "label_observability"):
+            with self.subTest(identifier=identifier), self.assertRaises(ValueError):
+                self.apply(context, self.proposal(context, eda_add=[identifier]))
+        self.policy["eda"].update(required=[], defaults=[])
+        measured = basic_eda()
+        measured["results"] = measured["results"][2:]
+        context = self.context(basic_eda=measured)
+        self.assertNotIn("schema", context["available_eda_ids"])
+        self.assertNotIn("patient_overlap", context["available_eda_ids"])
+        self.assertEqual(context["available_eda_ids"], ["preprocessing_lineage"])
+
+    def test_ai_may_add_only_unused_checks_but_returned_ids_retain_basic_selections(self):
+        context = self.context(basic_eda=basic_eda())
+        before = copy.deepcopy(context)
+        for identifier in ("schema", "numeric_contract", "patient-overlap",
+                           "demographics", "cohort"):
+            with self.subTest(identifier=identifier), self.assertRaises(ValueError):
+                self.apply(context, self.proposal(context, eda_add=[identifier]))
+        result = self.apply(context, self.proposal(context, eda_add=["timing", "lineage"]))
+        self.assertEqual(result["record"]["eda_add"],
+                         ["prediction_timing", "preprocessing_lineage"])
+        self.assertEqual(result["eda_ids"], [
+            "schema", "patient_overlap", "demographics", "cohort",
+            "prediction_timing", "preprocessing_lineage"])
+        self.assertEqual(result["selection"]["eda"]["add"], [])
+        self.assertEqual(context, before)
+
+    def test_no_extra_checks_is_valid_including_an_empty_candidate_list(self):
+        measured = basic_eda()
+        for identifier in ("prediction_timing", "label_observability", "preprocessing_lineage"):
+            measured["results"].append(
+                {"block": identifier, "status": "unverifiable", "details": {
+                    "reason": "Optional evidence is not supplied."}})
+        for aggregate in (basic_eda(), measured):
+            with self.subTest(blocks=len(aggregate["results"])):
+                context = self.context(basic_eda=aggregate)
+                result = self.apply(context, self.proposal(context))
+                self.assertEqual(result["record"]["eda_add"], [])
+                self.assertEqual(result["eda_ids"],
+                                 ["schema", "patient_overlap", "demographics", "cohort"])
+        self.assertEqual(context["available_eda_ids"], [])
+
+    def test_failed_and_unverifiable_basic_diagnoses_are_not_execution_failures(self):
+        measured = basic_eda()
+        context = self.context(basic_eda=measured)
+        self.assertEqual([item["status"] for item in context["basic_eda"]["results"]],
+                         ["unverifiable", "failed", "completed", "unverifiable"])
+        result = self.apply(context, self.proposal(context))
+        self.assertEqual(result["eda_ids"][:2], ["schema", "patient_overlap"])
+        self.assertEqual(context["basic_eda"], measured)
+
+    def test_basic_eda_accepts_public_executor_provenance_and_reused_results(self):
+        measured = basic_eda()
+        measured.update(
+            status_meanings={
+                "passed": "The measured conditions are satisfied.",
+                "failed": "A measured violation was found.",
+                "unverifiable": "Required evidence is missing.",
+                "completed": "Descriptive aggregation is complete.",
+            },
+            interpretation="Report generation is not research suitability certification.",
+            prepared_revision=None, raw_source_sha256=None,
+            input_profile="synthetic_public", input_mapping_hash="3" * 64,
+            dataset_context={"target_definition": "공개 합성 이진 결과"},
+            coordination_hash="4" * 64, research_request_hash="5" * 64,
+            coordination_evidence={"schema": {"numeric_contract": "passed"}},
+            initial_execution_plan_hash="6" * 64, execution_plan_hash="7" * 64,
+            execution_mode="registered_execution_plan", execution_result_hash="8" * 64,
+            executed_ids=["demographics", "cohort"], reused_ids=["schema", "patient_overlap"],
+        )
+        context = self.context(basic_eda=measured)
+        self.assertEqual(context["basic_eda"], measured)
+        self.assertEqual(context["executed_eda_ids"],
+                         ["schema", "patient_overlap", "demographics", "cohort"])
+        self.assertEqual(context["available_eda_ids"],
+                         ["prediction_timing", "label_observability", "preprocessing_lineage"])
+        self.apply(context, self.proposal(context))
+
+    def test_basic_context_still_allows_feedback_to_change_existing_human_choices(self):
+        self.selection["eda"].update(add=["label_observability"], exclude=["prediction_timing"])
+        context = self.context([pending()], basic_eda=basic_eda())
+        self.assertEqual(context["available_eda_ids"], ["preprocessing_lineage"])
+        result = self.apply(context, self.proposal(context, selection_updates={
+            "eda": {"add": ["demographics", "timing"],
+                    "exclude": ["cohort", "label_observability"]},
+            "evaluation": {"add": ["f1"], "exclude": ["brier"], "primary_metric": "ap"},
+        }))
+        self.assertEqual(result["selection"]["eda"]["add"], ["demographics", "prediction_timing"])
+        self.assertEqual(result["selection"]["eda"]["exclude"], ["cohort", "label_observability"])
+        self.assertEqual(result["eda_ids"],
+                         ["schema", "patient_overlap", "demographics", "prediction_timing"])
+        self.assertEqual(result["selection"]["evaluation"]["add"], ["average_precision", "f1"])
+        self.assertEqual(result["selection"]["evaluation"]["exclude"], ["brier_score"])
+        for identifier in ("schema", "patient_overlap"):
+            with self.subTest(identifier=identifier), self.assertRaises(ValueError):
+                self.apply(context, self.proposal(
+                    context, selection_updates={"eda": {"exclude": [identifier]}}))
+
+    def test_metric_only_basic_context_changes_are_pure_and_do_not_add_eda(self):
+        before = {name for name in sys.modules if name.startswith("app.blocks.")}
+        context = self.context([pending()], basic_eda=basic_eda())
+        result = self.apply(context, self.proposal(context, selection_updates={
+            "evaluation": {"add": ["f1"], "primary_metric": "ap"}}))
+        self.assertEqual(result["selection"]["eda"], self.selection["eda"])
+        self.assertEqual(result["record"]["eda_add"], [])
+        self.assertEqual(result["eda_ids"], ["schema", "patient_overlap", "demographics", "cohort"])
+        self.assertNotIn("results", result)
+        self.assertEqual(before, {name for name in sys.modules if name.startswith("app.blocks.")})
+
+    def test_basic_eda_requires_a_matching_registered_aggregate_report(self):
+        mutations = (
+            lambda value: value.update(schema_version=True),
+            lambda value: value.update(kind="raw-eda"),
+            lambda value: value.update(report_generated=False),
+            lambda value: value.update(report_generated=1),
+            lambda value: value.update(data_id="2" * 64),
+            lambda value: value.update(data_id=None),
+            lambda value: value.update(data_id="not-a-digest"),
+            lambda value: value.update(results={}),
+            lambda value: value.update(results=[]),
+            lambda value: value.update(results=[None]),
+            lambda value: value["results"].append(copy.deepcopy(value["results"][0])),
+            lambda value: value["results"][0].update(block="numeric_contract"),
+            lambda value: value["results"][0].update(block="unknown_check"),
+            lambda value: value["results"][0].update(block=["schema"]),
+            lambda value: value["results"][0].update(status="error"),
+            lambda value: value["results"][0].update(status=[]),
+            lambda value: value["results"][0].update(details=[]),
+            lambda value: value["results"][0].update(extra="unsupported"),
+            lambda value: value.update(assessment_status=True),
+            lambda value: value.update(model_execution_performed=True),
+            lambda value: value.update(training_performed=0),
+            lambda value: value.update(preprocessing_performed=True),
+            lambda value: value.update(executed_ids=["schema", "schema"]),
+            lambda value: value.update(reused_ids=["unknown_check"]),
+            lambda value: value.update(reused_ids=[["schema"]]),
+            lambda value: value.pop("kind"),
+        )
+        for mutation in mutations:
+            measured = basic_eda()
+            mutation(measured)
+            with self.subTest(mutation=mutation), self.assertRaises(ValueError):
+                self.context(basic_eda=measured)
+        self.schema.pop("data_id")
+        with self.assertRaises(ValueError):
+            self.context(basic_eda=basic_eda())
+
+    def test_basic_eda_rejects_private_rows_vectors_secrets_and_nonfinite_values(self):
+        forbidden = {
+            "rows": [{"patient_key": "private-row"}], "raw_rows": [[1, 2]],
+            "metadata": [{"patient_key": "private-row"}], "patient_key": "private-row",
+            "Patient-IDs": ["private-row"], "row_keys": ["private-row"],
+            "feature_rows": [[1, 2]], "feature_values": [1, 2], "vectors": [[1, 2]],
+            "predictions": [0.2, 0.3], "y_probability": [0.2, 0.3],
+            "sample_ids": ["private-row"], "reference_probabilities": [0.2, 0.3],
+            "credentials": {"secret": "private-secret"}, "api_key": "private-secret",
+            "client_secret": "private-secret", "environment": {"key": "private-secret"},
+            "reason": "환자명: private-row", "contact": "person@example.test",
+            "credential_text": "ghp_" + "A" * 36, "value": float("nan"),
+            "maximum": float("inf"), "minimum": -float("inf"), "unsupported": object(),
+        }
+        for key, value in forbidden.items():
+            measured = basic_eda()
+            measured["results"][0]["details"]["nested"] = {key: value}
+            with self.subTest(key=key), self.assertRaises(ValueError):
+                self.context(basic_eda=measured)
+        measured = basic_eda()
+        measured["dataset_context"] = {"raw_metadata": [{"patient_key": "private-row"}]}
+        with self.assertRaises(ValueError):
+            self.context(basic_eda=measured)
+
+    def test_basic_eda_context_revalidation_rejects_modified_snapshots_and_candidates(self):
+        context = self.context(basic_eda=basic_eda())
+        mutations = (
+            lambda value: value["basic_eda"]["results"][0]["details"].update(rows=99),
+            lambda value: value["basic_eda"]["results"][1].update(status="passed"),
+            lambda value: value["executed_eda_ids"].append("prediction_timing"),
+            lambda value: value["available_eda_ids"].append("schema"),
+            lambda value: value["available_eda_ids"].clear(),
+            lambda value: value.pop("executed_eda_ids"),
+            lambda value: value.pop("basic_eda"),
+            lambda value: value.update(basic_eda=None),
+        )
+        for mutation in mutations:
+            changed = copy.deepcopy(context)
+            mutation(changed)
+            with self.subTest(mutation=mutation), self.assertRaises(ValueError):
+                self.apply(changed, self.proposal(changed))
+        for field in ("executed_eda_ids", "available_eda_ids"):
+            changed = copy.deepcopy(context)
+            changed[field] = []
+            changed["context_hash"] = canonical_hash(
+                {key: value for key, value in changed.items() if key != "context_hash"})
+            with self.subTest(rehashed_field=field), self.assertRaises(ValueError):
+                self.apply(changed, self.proposal(changed))
+        changed = copy.deepcopy(context)
+        changed["basic_eda"]["results"][0]["details"]["rows"] += 1
+        changed["context_hash"] = canonical_hash(
+            {key: value for key, value in changed.items() if key != "context_hash"})
+        with self.assertRaises(ValueError):
+            self.apply(changed, self.proposal(context))
 
     def test_request_hash_uses_only_four_form_fields_and_goal_changes_context(self):
         context = self.context()
@@ -268,7 +521,6 @@ class IntentTests(unittest.TestCase):
                 self.assertEqual(context["schema_hash"], canonical_hash(schema))
                 result = self.apply(context, self.proposal(context))
                 self.assertEqual(result["record"]["schema_hash"], canonical_hash(schema))
-                self.validate(result)
                 context["schema_request"]["feature_columns"].append("copy_only")
                 self.assertEqual(self.schema, schema)
 
@@ -291,9 +543,8 @@ class IntentTests(unittest.TestCase):
                 self.assertNotEqual(changed["schema_hash"], context["schema_hash"])
                 self.assertNotEqual(changed["context_hash"], context["context_hash"])
                 with self.assertRaises(ValueError):
-                    self.validate(result)
+                    self.apply(changed, self.proposal(context))
             self.schema[field] = original
-        self.validate(result)
 
     def test_opaque_input_schema_is_not_revalidated_by_the_intent_coordinator(self):
         self.schema = {
@@ -306,7 +557,6 @@ class IntentTests(unittest.TestCase):
         self.assertEqual(context["schema_request"], self.schema)
         self.assertEqual(context["schema_hash"], canonical_hash(self.schema))
         result = self.apply(context, self.proposal(context))
-        self.validate(result)
 
     def test_pending_feedback_shape_ids_actors_and_body_hash_are_verified(self):
         invalid = (
@@ -352,7 +602,6 @@ class IntentTests(unittest.TestCase):
             self.assertEqual(result["record"]["objectives"][stage],
                              result["selection"][stage]["objectives"])
         self.assertEqual(self.selection, before)
-        self.validate(result)
 
     def test_defaults_remain_four_and_ai_excluded_by_human_is_not_executed(self):
         self.selection["eda"]["exclude"] = ["prediction_timing"]
@@ -404,7 +653,6 @@ class IntentTests(unittest.TestCase):
         self.assertEqual(result["record"]["base_selection_hash"], canonical_hash(before))
         self.assertEqual(result["record"]["feedback_ids"], [])
         self.assertEqual(self.selection, before)
-        self.validate(result)
 
     def test_exact_all_pending_feedback_ids_are_required(self):
         context = self.context([pending(100), pending(102)])
@@ -447,7 +695,6 @@ class IntentTests(unittest.TestCase):
         self.assertEqual(plans["evaluation"]["parameters"]["threshold"], 0.3)
         f1_item = next(item for item in plans["evaluation"]["items"] if item["id"] == "f1")
         self.assertEqual(f1_item["sources"], ["user"])
-        self.validate(result)
 
     def test_sequential_feedback_preserves_previous_f1_and_other_parameters(self):
         first = self.context([pending()])
@@ -465,7 +712,6 @@ class IntentTests(unittest.TestCase):
         self.assertEqual(metric["parameters"], {"n_bins": 8, "top_fraction": 0.2})
         self.assertEqual(result["record"]["feedback_ids"], [101])
         self.assertNotIn("threshold", metric["parameters"])
-        self.validate(result)
 
     def test_add_exclude_patches_merge_and_remove_from_opposite_list(self):
         self.selection["evaluation"].update(add=["f1", "recall"], exclude=["precision"])
@@ -560,7 +806,6 @@ class IntentTests(unittest.TestCase):
                          ["decision_curve", "categorical_nri"])
         self.assertNotIn("results", result)
         self.assertEqual(before, {name for name in sys.modules if name.startswith("app.blocks.")})
-        self.validate(result)
 
     def test_unknown_fields_stages_roles_urls_and_model_input_edits_are_rejected(self):
         context = self.context([pending()])
@@ -633,13 +878,11 @@ class IntentTests(unittest.TestCase):
         self.assertEqual(result["selection"]["evaluation"]["threshold"], 0.3)
         self.assertEqual(result["selection"]["evaluation"]["parameters"],
                          {"n_bins": 6, "top_fraction": 0.1})
-        self.validate(result)
         cleared = self.apply(context, self.proposal(context, selection_updates={
             "evaluation": {"threshold": None}}))
         self.assertIsNone(cleared["selection"]["evaluation"]["threshold"])
         self.assertEqual(cleared["selection"]["evaluation"]["parameters"],
                          {"n_bins": 11, "top_fraction": 0.1})
-        self.validate(cleared)
 
     def test_sensitive_choice_context_and_agent_output_are_rejected(self):
         self.selection["evaluation"]["clinical_action"] = "환자명: 예시"
@@ -684,90 +927,9 @@ class IntentTests(unittest.TestCase):
         self.assertEqual(record["feedback_ids"], [100])
         self.assertEqual(record["reason"], self.proposal(context)["reason"])
         self.assertEqual(self.apply(context, self.proposal(context, eda_add=["timing"])), result)
-        validated = self.validate(result)
-        self.assertEqual(validated, record)
-        validated["eda_add"].append("schema")
-        self.assertEqual(record["eda_add"], ["prediction_timing"])
 
-    def test_record_freeze_validation_rejects_each_tampered_field(self):
-        context = self.context([pending()])
-        result = self.apply(context, self.proposal(context, eda_add=["timing"]))
-        for key in result["record"]:
-            record = copy.deepcopy(result["record"])
-            if key == "schema_version":
-                record[key] = True
-            elif key == "provider":
-                record[key] = "local-fallback"
-            elif key == "feedback_ids":
-                record[key] = [101]
-            elif key == "eda_add":
-                record[key] = ["schema"]
-            elif key == "objectives":
-                record[key]["eda"].append("outcome_observability")
-            elif key == "reason":
-                record[key] = "변경된 근거"
-            else:
-                record[key] = "f" * 64
-            with self.subTest(key=key), self.assertRaises(ValueError):
-                self.validate(result, record=record)
-        record = {**result["record"], "body": "원문"}
-        with self.assertRaises(ValueError):
-            self.validate(result, record=record)
-        for key in result["record"]:
-            record = copy.deepcopy(result["record"])
-            del record[key]
-            with self.subTest(missing=key), self.assertRaises(ValueError):
-                self.validate(result, record=record)
 
-    def test_freeze_cross_checks_goal_schema_selection_and_registered_configuration(self):
-        context = self.context()
-        result = self.apply(context, self.proposal(context, eda_add=["timing"]))
-        request = copy.deepcopy(self.request)
-        request["research_goal"] += " 변경된 연구 목적"
-        with self.assertRaises(ValueError):
-            self.validate(result, request=request)
-        schema = copy.deepcopy(self.schema)
-        schema["known_mapping"] = False
-        refresh_schema_hash(schema)
-        with self.assertRaises(ValueError):
-            self.validate(result, schema_request=schema)
-        for change in (
-                lambda value: value["evaluation"].update(threshold=0.3),
-                lambda value: value["evaluation"]["add"].append("f1"),
-                lambda value: value["eda"]["exclude"].append("schema"),
-                lambda value: value["eda"]["objectives"].append("cohort_definition")):
-            selection = copy.deepcopy(result["selection"])
-            change(selection)
-            with self.subTest(change=change), self.assertRaises(ValueError):
-                self.validate(result, selection=selection)
-        catalogs = copy.deepcopy(self.catalogs)
-        catalogs["eda"]["checks"][0]["description"] += " 추가 설명"
-        with self.assertRaises(ValueError):
-            self.validate(result, catalogs=catalogs)
-        policy = copy.deepcopy(self.policy)
-        policy["eda"]["defaults"] = ["schema", "patient_overlap"]
-        with self.assertRaises(ValueError):
-            self.validate(result, policy=policy)
 
-    def test_freeze_structural_checks_hold_even_after_recomputed_coordination_hash(self):
-        context = self.context()
-        result = self.apply(context, self.proposal(context, eda_add=["timing"]))
-        mutations = (
-            lambda record: record.update(eda_add=["timing"]),
-            lambda record: record.update(eda_add=["prediction_timing", "prediction_timing"]),
-            lambda record: record.update(feedback_ids=[1, 1]),
-            lambda record: record.update(feedback_ids=[],
-                                          feedback_hash=canonical_hash([{"not": "empty"}])),
-            lambda record: record["objectives"]["evaluation"].append("threshold_performance"),
-            lambda record: record.update(reason="English only"),
-        )
-        for mutation in mutations:
-            record = copy.deepcopy(result["record"])
-            mutation(record)
-            record["coordination_hash"] = pr1_intent._coordination_hash(
-                record, self.catalogs, self.policy)
-            with self.subTest(mutation=mutation), self.assertRaises(ValueError):
-                self.validate(result, record=record)
 
     def test_default_configuration_api_and_legacy_threshold_normalization(self):
         self.selection["evaluation"]["parameters"]["threshold"] = 0.3
@@ -775,12 +937,10 @@ class IntentTests(unittest.TestCase):
         self.assertEqual(context["selection"]["evaluation"]["threshold"], 0.3)
         self.assertEqual(context["selection"]["evaluation"]["parameters"], {})
         result = pr1_intent.apply_proposal(self.selection, self.proposal(context), context)
-        pr1_intent.validate_record(result["record"], result["selection"],
-                                   self.request, self.schema)
         selection = copy.deepcopy(result["selection"])
         selection["evaluation"]["parameters"]["threshold"] = 0.3
-        with self.assertRaises(ValueError):
-            self.validate(result, selection=selection)
+        with self.assertRaisesRegex(ValueError, "Duplicate threshold"):
+            pr1_intent.build_context(self.request, self.schema, selection, [])
 
 
 if __name__ == "__main__":

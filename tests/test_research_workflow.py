@@ -324,14 +324,16 @@ class AssetAndReportTests(unittest.TestCase):
         self.assertNotIn("decision_curve", plan["selected_ids"])
         self.assertTrue(all(entry["reason"] and entry["requires"] for entry in plan["items"]))
 
-    def test_generated_report_describes_natural_feedback_and_legacy_commands(self):
+    def test_generated_report_describes_free_form_feedback_and_merge_approval(self):
         context, _ = context_and_source()
         plans = planning.build_plans(report(context), context["data_manifest"],
                                      planning.default_selection(), None)
         text = "\n".join(research.plan_report_lines(plans))
         self.assertIn("자연어 피드백", text)
         self.assertIn("Python 검증", text)
-        self.assertIn("기존 `/plan`도 지원", text)
+        self.assertNotIn("/plan", text)
+        self.assertIn("Merge된 계획과 commit이 승인 기준", text)
+        self.assertNotIn("research/approved/", text)
         self.assertNotIn("일반 댓글·인용·코드블록은 선택을 바꾸지 않습니다", text)
 
     def test_gh_failure_is_explicit_and_sensitive_output_not_echoed(self):
@@ -415,16 +417,7 @@ class PayloadAndPublicationTests(unittest.TestCase):
             output = f"https://github.com/{REPOSITORY}/pull/19"
         return subprocess.CompletedProcess(arguments, code, output, "")
 
-    def publish(self, pulls=None):
-        with patch("app.research.command", side_effect=self.fake_command), \
-                patch("app.research.gh_json", return_value=[pulls or []]):
-            return research.publish_payload(self.root, self.request, self.eda, self.provenance, "main",
-                                            context=self.context)
 
-    def prepare_existing_branch(self):
-        self.remote = True
-        research.write_payload(self.root, self.request, self.eda, self.provenance, context=self.context)
-        (self.root / "user-authored.txt").write_text("Preserve user's unrelated file.", encoding="utf-8")
 
     def test_payload_paths_and_contents_are_aggregate_only(self):
         paths = research.write_payload(self.root, self.request, self.eda, self.provenance)
@@ -468,72 +461,15 @@ class PayloadAndPublicationTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "symlink"):
                 research.write_payload(self.root, self.request, self.eda, self.provenance)
 
-    def test_creates_draft_pr_despite_failed_assessment(self):
-        result = self.publish()
-        self.assertEqual(result["status"], "created")
-        self.assertEqual(result["assessment_status"], "failed")
-        creation = next(call for call in self.calls if call[:3] == ["gh", "pr", "create"])
-        self.assertIn("--draft", creation)
-        self.assertIn("--body-file", creation)
-        self.assertNotIn(self.request["title"], creation)
-        self.assertNotIn("--force", json.dumps(self.calls))
-        self.assertNotIn("--amend", json.dumps(self.calls))
-        self.assertFalse(any("Co-authored-by: Copilot" in part for call in self.calls for part in call))
 
-    def test_existing_pr_updates_without_recreating_or_overwriting_user_content(self):
-        self.prepare_existing_branch()
-        result = self.publish([pull()])
-        self.assertEqual(result["status"], "updated")
-        self.assertFalse(any(call[:2] == ["gh", "pr"] for call in self.calls))
-        self.assertEqual((self.root / "user-authored.txt").read_text(encoding="utf-8"),
-                         "Preserve user's unrelated file.")
-        staging = next(call for call in self.calls if call[:2] == ["git", "add"])
-        self.assertEqual(staging[3:], self.paths)
 
-    def test_no_change_produces_no_commit_or_push_or_new_pr(self):
-        self.prepare_existing_branch()
-        self.changed = False
-        existing = pull()
-        existing["body"] = research.merge_auto_body(
-            "", (self.root / self.paths[2]).read_text(encoding="utf-8"))
-        result = self.publish([existing])
-        self.assertEqual(result["status"], "unchanged")
-        self.assertFalse(any("commit" in call or "push" in call for call in self.calls))
-        self.assertFalse(any(call[:2] == ["gh", "pr"] for call in self.calls))
 
-    def test_closed_or_merged_pr_defers_before_branch_or_report_changes(self):
-        result = self.publish([pull("closed")])
-        self.assertEqual(result["status"], "deferred")
-        self.assertFalse(any("checkout" in call or "commit" in call for call in self.calls))
-        self.assertFalse((self.root / "research").exists())
 
-    def test_existing_pr_from_wrong_repository_is_rejected(self):
-        existing = pull()
-        existing["head"]["repo"]["full_name"] = "other-owner/other-repo"
-        with self.assertRaisesRegex(ValueError, "inconsistent"):
-            self.publish([existing])
 
-    def test_existing_reserved_branch_requires_ownership_marker(self):
-        self.remote = True
-        with self.assertRaisesRegex(ValueError, "generated"):
-            self.publish()
-        self.assertFalse(any("push" in call for call in self.calls))
 
-    def test_previous_push_with_failed_pr_creation_can_resume_without_new_commit(self):
-        self.prepare_existing_branch()
-        self.changed = False
-        result = self.publish()
-        self.assertEqual(result["status"], "created")
-        self.assertFalse(any("commit" in call or "push" in call for call in self.calls))
-        self.assertTrue(any(call[:3] == ["gh", "pr", "create"] for call in self.calls))
 
-    def test_commands_never_receive_issue_text_as_executable_arguments(self):
-        text = "$(touch bad)\n### Unrecognized heading\n> quote\n`echo bad`"
-        self.request = research.parse_issue(issue({"research_question": text}), REPOSITORY)
-        self.publish()
-        self.assertNotIn(text, json.dumps(self.calls))
 
-    def test_pipeline_uses_only_data_image_and_cleans_owned_runtime(self):
+    def test_intake_hands_off_issue_without_pulling_assets_or_creating_pr(self):
         from test_input_contracts import legacy_profile_fixture
         (self.root / "config").mkdir()
         write_json(self.root / "config" / "assets.json",
@@ -549,19 +485,18 @@ class PayloadAndPublicationTests(unittest.TestCase):
                 patch("app.research.image_assets", side_effect=image_assets) as assets, \
                 patch("app.input_contracts.profile_for_data", return_value=legacy_profile_fixture()), \
                 patch("app.research.load_context", return_value=self.context), \
-                patch("app.research.publish_payload", return_value={"status": "created"}) as publish, \
+                patch("app.research.write_payload", return_value={"status": "created"}) as publish, \
                 patch("app.research.report", side_effect=AssertionError("EDA before AI coordination")), \
                 patch.dict(os.environ, {"GITHUB_RUN_ID": "38722808263"}):
             result = research.run_workflow(opened_event(), "issues", REPOSITORY, "synthetic-collaborator", "main", work)
-        self.assertEqual(result["status"], "created")
-        assets.assert_called_once_with(DATA_IMAGE, work / "assets")
-        self.assertIsNone(publish.call_args.args[2])
-        self.assertEqual(publish.call_args.kwargs["input_phase"], "coordination")
-        self.assertEqual(publish.call_args.kwargs["input_request"], self.context["_input_schema_request"])
-        self.assertTrue(publish.call_args.args[3]["workflow_run_url"].endswith("/38722808263"))
+        self.assertEqual(result["status"], "prepared")
+        self.assertEqual(result["ai_dispatch"]["target_kind"], "issue")
+        self.assertEqual(result["ai_dispatch"]["target_number"], 14)
+        assets.assert_not_called()
+        publish.assert_not_called()
         self.assertFalse(work.exists())
 
-    def test_pipeline_input_corruption_blocks_pr_and_cleans_runtime(self):
+    def test_intake_does_not_load_unverified_data_before_agent_preparation(self):
         from test_input_contracts import legacy_profile_fixture
         (self.root / "config").mkdir()
         write_json(self.root / "config" / "assets.json", {"schema_version": 1, "data_image": DATA_IMAGE})
@@ -576,30 +511,15 @@ class PayloadAndPublicationTests(unittest.TestCase):
                 patch("app.research.image_assets", side_effect=image_assets), \
                 patch("app.input_contracts.profile_for_data", return_value=legacy_profile_fixture()), \
                 patch("app.research.load_context", side_effect=ValueError("damaged input package")), \
-                patch("app.research.publish_payload") as publish, \
+                patch("app.research.write_payload") as publish, \
                 patch.dict(os.environ, {"GITHUB_RUN_ID": "12"}):
-            with self.assertRaisesRegex(ValueError, "damaged"):
-                research.run_workflow(opened_event(), "issues", REPOSITORY, "synthetic-collaborator", "main", work)
+            outcome = research.run_workflow(
+                opened_event(), "issues", REPOSITORY, "synthetic-collaborator", "main", work)
+        self.assertFalse(outcome["pull_request_created"])
         publish.assert_not_called()
         self.assertFalse(work.exists())
 
-    def test_dirty_checkout_is_not_overwritten(self):
-        with patch("app.research.command", return_value=subprocess.CompletedProcess([], 0, "user changes", "")):
-            with self.assertRaisesRegex(ValueError, "clean checkout"):
-                research.publish_payload(self.root, self.request, self.eda, self.provenance, "main")
 
-    def test_unexpected_staged_file_blocks_commit(self):
-        original = self.fake_command
-        def unexpected(arguments, **kwargs):
-            result = original(arguments, **kwargs)
-            if arguments == ["git", "diff", "--cached", "--name-only"]:
-                result.stdout += "\nuser-authored.txt"
-            return result
-        with patch("app.research.command", side_effect=unexpected), \
-                patch("app.research.gh_json", return_value=[[]]):
-            with self.assertRaisesRegex(ValueError, "Only generated"):
-                research.publish_payload(self.root, self.request, self.eda, self.provenance, "main")
-        self.assertFalse(any("commit" in call for call in self.calls))
 
     def write_composed(self, eda=None):
         return research.write_payload(self.root, self.request, eda or self.eda, self.provenance,
@@ -733,23 +653,6 @@ class PayloadAndPublicationTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "markers"):
                 research.merge_review_body(body, "new report")
 
-    def test_existing_pr_body_patch_uses_stdin_and_preserves_title(self):
-        self.prepare_existing_branch()
-        existing = pull()
-        existing["body"] = "Keep this human note."
-        inputs = []
-        def execute(arguments, **kwargs):
-            if arguments[:4] == ["gh", "api", "--method", "PATCH"]:
-                inputs.append(json.loads(kwargs["input_text"]))
-            return self.fake_command(arguments, **kwargs)
-        with patch("app.research.command", side_effect=execute), \
-                patch("app.research.gh_json", return_value=[[existing]]):
-            result = research.publish_payload(self.root, self.request, self.eda, self.provenance,
-                                              "main", context=self.context)
-        self.assertTrue(result["body_updated"])
-        self.assertEqual(len(inputs), 1)
-        self.assertTrue(inputs[0]["body"].endswith("\n\nKeep this human note."))
-        self.assertEqual(set(inputs[0]), {"body"})
 
     def test_pending_and_stale_dispatch_uses_default_branch_and_pr_number(self):
         for status in ("pending", "stale"):
@@ -790,7 +693,10 @@ class PayloadAndPublicationTests(unittest.TestCase):
                     patch.dict(os.environ, {"GITHUB_ACTIONS": "true"}), patch("builtins.print"):
                 research.main()
             expected = (19, self.folder, "a" * 64) if mode == "execute-eda" else (19, self.folder)
-            handler.assert_called_once_with(*expected)
+            if mode == "prepare-ai":
+                handler.assert_called_once_with(*expected, target_kind="pull_request")
+            else:
+                handler.assert_called_once_with(*expected)
 
     def test_cloud_cli_refuses_local_remote_mode(self):
         with patch.object(sys, "argv", ["research", "prepare-ai", "--pull-request", "19",
@@ -803,8 +709,8 @@ class PayloadAndPublicationTests(unittest.TestCase):
 class WorkflowSourceTests(unittest.TestCase):
     def test_workflow_has_minimum_permissions_and_trusted_dynamic_checkout(self):
         content = (ROOT / ".github" / "workflows" / "prepare-eda-pr.yml").read_text(encoding="utf-8")
-        for expected in ("types: [opened]", "workflow_dispatch:", "contents: write",
-                         "pull-requests: write", "issues: read", "cancel-in-progress: false",
+        for expected in ("types: [opened]", "workflow_dispatch:", "contents: read",
+                         "pull-requests: read", "issues: read", "cancel-in-progress: false",
                          "ref: ${{ github.event.repository.default_branch }}", "persist-credentials: false"):
             self.assertIn(expected, content)
         for forbidden in ("github.event.issue.body", "github.event.issue.title", "continue-on-error",

@@ -1,4 +1,5 @@
 import json
+import ast
 import hashlib
 import contextlib
 import io
@@ -17,16 +18,46 @@ from app import research
 
 
 class CloudContractTests(unittest.TestCase):
+    def tool_script(self, name):
+        path = Path(__file__).resolve().parents[1] / "app" / "research_tools.py"
+        return ('__name__ = "trusted_adapter_fixture"\n' + path.read_text(encoding="utf-8")
+                + "\n" + name.replace("-", "_") + "()\n")
+
     def workflow_config(self):
         import yaml
         root = Path(__file__).resolve().parents[1]
         text = (root / ".github" / "workflows" / "research-plan.md").read_text(encoding="utf-8")
         return yaml.load(text.split("---", 2)[1], Loader=yaml.BaseLoader)
 
+    def test_stage_adapters_use_one_python_process_and_call_handlers_directly(self):
+        config = self.workflow_config()
+        for name, handler, environment in (
+                ("apply-input-mapping", "apply_input_mapping", {"INPUT_MAPPING": "{}"}),
+                ("plan-eda", "plan_eda", {"INPUT_PROPOSAL": "{}"}),
+                ("execute-eda", "execute_eda", {"INPUT_PLAN_HASH": "a" * 64})):
+            with self.subTest(name=name), tempfile.TemporaryDirectory(prefix="single-stage-") as folder:
+                work = Path(folder)
+                script = self.tool_script(name).replace(
+                    'Path("/tmp/gh-aw/research-recommendation")', f"Path({str(work)!r})")
+                self.assertEqual(config["mcp-scripts"][name]["run"].count("python "), 1)
+                with patch.dict(os.environ, {
+                        "GITHUB_WORKSPACE": str(research.ROOT), "TARGET_NUMBER": "7", **environment}), \
+                        patch.object(research, handler, return_value={"status": "done"}) as call, \
+                        patch("subprocess.run", side_effect=AssertionError("nested process")), \
+                        contextlib.redirect_stdout(io.StringIO()):
+                    exec(compile(script, "<single-process-stage>", "exec"), {})
+                expected = (7, work, "a" * 64) if name == "execute-eda" else (7, work)
+                call.assert_called_once_with(*expected)
+        self.assertTrue(config["mcp-scripts"]["read-research-context"]["run"].startswith("cat "))
+        self.assertTrue(config["mcp-scripts"]["read-input-schema"]["run"].startswith("cat "))
+        source = (research.ROOT / "app" / "research_tools.py").read_text(encoding="utf-8")
+        self.assertFalse(any(isinstance(node, ast.ImportFrom) and node.module == "app"
+                             for node in ast.parse(source).body))
+
     def test_publication_retry_returns_verified_flags_without_running_application(self):
         from app.asset_contract import write_json
         config = self.workflow_config()
-        script = config["mcp-scripts"]["apply-recommendations"]["run"].split("<<'PY'\n", 1)[1].rsplit("\nPY", 1)[0]
+        script = self.tool_script("apply-recommendations")
         with tempfile.TemporaryDirectory(prefix="publication-retry-") as temporary:
             folder = Path(temporary)
             work, root = folder / "work", folder / "checkout"
@@ -39,6 +70,7 @@ class CloudContractTests(unittest.TestCase):
                 "schema_version": 1, "provider": "github-copilot-cloud-agent",
                 "status": "provided", "context_hash": "d" * 64, "eda": [], "evaluation": []}
             session = {
+                "schema_version": 2, "target_kind": "pull_request", "target_number": 7,
                 "repository": repo, "pull_request": 7, "issue_number": 2,
                 "report_dir": directory, "head_branch": branch, "head_sha": head,
                 "code_commit": "e" * 40, "allowed_outputs": [directory + "/report.md"]}
@@ -47,7 +79,10 @@ class CloudContractTests(unittest.TestCase):
             body = b"Synthetic generated review"
             (work / "pr-body.md").write_bytes(body)
             meta = {
-                "schema_version": 1, "repository": repo, "pull_request": 7, "head_branch": branch,
+                "schema_version": 2, "operation": "update", "target_kind": "pull_request",
+                "target_number": 7, "issue_number": 2,
+                "pull_request_title": "연구검토 #2: 합성 연구",
+                "repository": repo, "pull_request": 7, "head_branch": branch,
                 "previous_head_sha": head, "publication_commit": commit,
                 "expected_tree_sha": tree, "body_refresh_required": True,
                 "body_sha256": hashlib.sha256(body).hexdigest(),
@@ -55,7 +90,7 @@ class CloudContractTests(unittest.TestCase):
                 "recommendations_sha256": hashlib.sha256(json.dumps(
                     payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()).hexdigest()}
             write_json(work / "publication.json", meta)
-            current = {"state": "open", "body": "Human note",
+            current = {"number": 7, "state": "open", "body": "Human note", "title": "연구검토 #2: 합성 연구",
                        "head": {"sha": head, "ref": branch, "repo": {"full_name": repo}}}
             git_results = {
                 ("rev-parse", "HEAD"): commit, ("rev-parse", "HEAD^{tree}"): tree,
@@ -64,6 +99,8 @@ class CloudContractTests(unittest.TestCase):
                 ("diff", "--name-only", head, commit, "--"): directory + "/report.md"}
             def cli(arguments, **kwargs):
                 if arguments[0] == "git":
+                    if arguments[1] in ("update-ref", "symbolic-ref") and len(arguments) == 4:
+                        return SimpleNamespace(stdout="")
                     return SimpleNamespace(stdout=git_results[tuple(arguments[1:])])
                 if arguments[:2] == ["gh", "api"]:
                     return SimpleNamespace(stdout=json.dumps(current))
@@ -74,7 +111,8 @@ class CloudContractTests(unittest.TestCase):
                 output = io.StringIO()
                 with patch.dict(os.environ, {
                     "GITHUB_WORKSPACE": str(root), "GITHUB_REPOSITORY": repo,
-                    "REQUESTED_PR": "7", "INPUT_RECOMMENDATIONS": json.dumps(value, indent=2)}), \
+                    "TARGET_NUMBER": "7", "TARGET_KIND": "pull_request",
+                    "INPUT_RECOMMENDATIONS": json.dumps(value, indent=2)}), \
                         patch("subprocess.run", side_effect=cli), contextlib.redirect_stdout(output):
                     with self.assertRaises(SystemExit) as stopped:
                         exec(compile(program, "<trusted-mcp-retry>", "exec"), {})
@@ -83,7 +121,11 @@ class CloudContractTests(unittest.TestCase):
             self.assertEqual(code, 0)
             self.assertEqual(json.loads(output), {
                 "status": "validated_copilot_recommendations", "pull_request": 7,
-                "publication_ready": True, "push_required": True, "body_refresh_required": True})
+                "operation": "update", "target_kind": "pull_request", "target_number": 7,
+                "issue_number": 2, "head_branch": branch, "publication_commit": commit,
+                "publication_ready": True, "create_required": False,
+                "push_required": True, "body_refresh_required": True,
+                "pull_request_title": meta["pull_request_title"], "pull_request_body": body.decode()})
             self.assertNotEqual(execute({**payload, "eda": [{"id": "schema"}]})[0], 0)
             for change in ({"repository": "other/repo"}, {"expected_tree_sha": "f" * 40},
                            {"body_sha256": "f" * 64}):
@@ -100,14 +142,21 @@ class CloudContractTests(unittest.TestCase):
     def test_incomplete_or_unrequested_publication_fails_post_step(self):
         from app.asset_contract import write_json
         config = self.workflow_config()
-        script = config["post-steps"][-1]["run"].split("<<'PY'\n", 1)[1].rsplit("\nPY", 1)[0]
+        script = self.tool_script("post-check")
         with tempfile.TemporaryDirectory(prefix="publication-audit-") as temporary:
             folder = Path(temporary)
             meta_path, output_path = folder / "publication.json", folder / "agent.json"
-            write_json(meta_path, {
+            body = b"Synthetic generated report"
+            (folder / "pr-body.md").write_bytes(body)
+            meta = {
+                "schema_version": 2, "operation": "update", "target_kind": "pull_request",
+                "target_number": 7, "issue_number": 2,
+                "body_sha256": hashlib.sha256(body).hexdigest(),
                 "publication_commit": "a" * 40, "body_refresh_required": True,
                 "pull_request": 7, "repository": "fixture-owner/workshop",
-                "head_branch": "research/review-issue-2"})
+                "head_branch": "research/review-issue-2",
+                "pull_request_title": "연구검토 #2: 합성 연구"}
+            write_json(meta_path, meta)
             program = script.replace(
                 'Path("/tmp/gh-aw/research-recommendation/publication.json")', f"Path({str(meta_path)!r})")
             push = {"type": "push_to_pull_request_branch", "branch": "research/review-issue-2",
@@ -128,12 +177,165 @@ class CloudContractTests(unittest.TestCase):
                 exec(compile(program, "<publication-audit>", "exec"), {})
                 write_json(output_path, {"items": [{**push, "pull_request_number": 7}, refresh]})
                 exec(compile(program, "<publication-audit>", "exec"), {})
+                create_meta = {**meta, "operation": "create", "target_kind": "issue",
+                               "target_number": 2, "pull_request": None, "body_refresh_required": False}
+                write_json(meta_path, create_meta)
+                create = {"type": "create_pull_request", "title": meta["pull_request_title"],
+                          "body": body.decode(), "branch": meta["head_branch"]}
+                for items in ([], [create, create], [create, push], [create, refresh],
+                              [{**create, "body": body.decode() + "\nAI edit"}],
+                              [{**create, "title": "Changed title"}],
+                              [{**create, "branch": "other"}],
+                              [{**create, "repo": "other/repo"}], [push, refresh]):
+                    with self.subTest(items=items):
+                        write_json(output_path, {"items": items})
+                        with self.assertRaises(SystemExit):
+                            exec(compile(program, "<initial-publication-audit>", "exec"), {})
+                write_json(output_path, {"items": [create]})
+                exec(compile(program, "<initial-publication-audit>", "exec"), {})
+                write_json(meta_path, meta)
+                write_json(output_path, {"items": [create, push, refresh]})
+                with self.assertRaises(SystemExit):
+                    exec(compile(program, "<update-publication-audit>", "exec"), {})
+
+    def test_initial_application_prepares_one_native_creation_and_replays_without_python(self):
+        from app.asset_contract import write_json
+        raw = self.workflow_config()["mcp-scripts"]["apply-recommendations"]["run"]
+        script = self.tool_script("apply-recommendations")
+        with tempfile.TemporaryDirectory(prefix="initial-publication-") as temporary:
+            folder = Path(temporary)
+            root, work = folder / "checkout", folder / "work"
+            directory, repo = "research/reports/issue-2", "fixture-owner/workshop"
+            (root / directory).mkdir(parents=True)
+            work.mkdir()
+            head, commit, tree = "b" * 40, "a" * 40, "c" * 40
+            branch = "research/review-issue-2"
+            payload = {"schema_version": 1, "provider": "github-copilot-cloud-agent",
+                       "status": "provided", "context_hash": "d" * 64, "eda": [], "evaluation": []}
+            session = {
+                "schema_version": 2, "repository": repo, "target_kind": "issue", "target_number": 2,
+                "pull_request": None, "issue_number": 2, "head_sha": head, "code_commit": head,
+                "head_branch": branch, "report_dir": directory,
+                "allowed_outputs": [directory + "/" + name for name in
+                                    ("request.json", "selection.json", "report.md", "ai-recommendations.json")]}
+            write_json(work / "session.json", session)
+            write_json(work / "AI_REQUEST.json", {"context_hash": payload["context_hash"]})
+            body = research.AUTO_START + "\nComplete synthetic report\n" + research.AUTO_END
+            result = {
+                "status": "validated_copilot_recommendations", "operation": "create",
+                "target_kind": "issue", "target_number": 2, "pull_request": None, "issue_number": 2,
+                "head_branch": branch, "publication_commit": commit, "publication_ready": True,
+                "create_required": True, "push_required": False, "body_refresh_required": False,
+                "pull_request_title": "연구검토 #2: 합성 연구", "pull_request_body": body}
+            calls, remote_refs = [], []
+            state = {"head": head, "selected": False, "applications": 0}
+            def apply(number, target):
+                self.assertFalse(state["selected"])
+                self.assertEqual((number, target), (2, work))
+                state["applications"] += 1
+                state["head"] = commit
+                (work / "pr-body.md").write_bytes(body.encode("utf-8"))
+                return result
+            def cli(arguments, **kwargs):
+                calls.append(arguments)
+                if arguments[0] == "gh":
+                    self.assertEqual(arguments, [
+                        "gh", "api", f"repos/{repo}/git/matching-refs/heads/{branch}"])
+                    return SimpleNamespace(stdout=json.dumps(remote_refs))
+                if arguments[0] == "python":
+                    self.assertFalse(state["selected"])
+                    self.assertEqual(arguments[1:7],
+                                     ["-B", "-m", "app.research", "apply-ai", "--target-number", "2"])
+                    state["applications"] += 1
+                    state["head"] = commit
+                    (work / "pr-body.md").write_bytes(body.encode("utf-8"))
+                    return SimpleNamespace(returncode=0, stdout=json.dumps(result))
+                self.assertEqual(arguments[0], "git")
+                command = tuple(arguments[1:])
+                values = {
+                    ("rev-parse", "HEAD"): state["head"],
+                    ("rev-parse", "HEAD^{tree}"): tree,
+                    ("rev-parse", commit + "^{tree}"): tree,
+                    ("rev-parse", commit + "^"): head,
+                    ("diff", "--name-only", head, commit, "--"):
+                        "\n".join(session["allowed_outputs"]),
+                }
+                if command == ("update-ref", "refs/heads/" + branch, commit):
+                    return SimpleNamespace(stdout="")
+                if command == ("symbolic-ref", "HEAD", "refs/heads/" + branch):
+                    state["selected"] = True
+                    return SimpleNamespace(stdout="")
+                return SimpleNamespace(stdout=values[command])
+            program = script.replace(
+                'Path("/tmp/gh-aw/research-recommendation")', f"Path({str(work)!r})")
+            def execute(value=payload):
+                output = io.StringIO()
+                with patch.dict(os.environ, {
+                    "GITHUB_WORKSPACE": str(root), "GITHUB_REPOSITORY": repo,
+                    "TARGET_KIND": "issue", "TARGET_NUMBER": "2",
+                    "INPUT_RECOMMENDATIONS": json.dumps(value)}), \
+                        patch("subprocess.run", side_effect=cli), \
+                        patch.object(research, "apply_ai", side_effect=apply), contextlib.redirect_stdout(output):
+                    try:
+                        exec(compile(program, "<initial-application-wrapper>", "exec"), {})
+                    except SystemExit as stopped:
+                        if stopped.code != 0:
+                            raise
+                return json.loads(output.getvalue())
+            first = execute()
+            self.assertTrue(first["create_required"])
+            self.assertFalse(first["push_required"])
+            self.assertFalse(first["body_refresh_required"])
+            self.assertIsNone(first["pull_request"])
+            self.assertEqual(first["head_branch"], branch)
+            self.assertEqual(first["pull_request_body"], body)
+            meta = json.loads((work / "publication.json").read_text(encoding="utf-8"))
+            self.assertEqual(meta["schema_version"], 2)
+            self.assertEqual(meta["operation"], "create")
+            self.assertEqual(meta["expected_tree_sha"], tree)
+            self.assertEqual(meta["body_sha256"], hashlib.sha256(body.encode()).hexdigest())
+            self.assertEqual(execute(), first)
+            self.assertEqual(state["applications"], 1)
+            self.assertFalse(any(call[0] == "python" for call in calls))
+            self.assertFalse(any(call[:2] in (["git", "push"], ["gh", "pr"], ["gh", "workflow"])
+                                 for call in calls))
+            with self.assertRaises(SystemExit):
+                execute({**payload, "evaluation": [{"id": "spoof"}]})
+            remote_refs.append({"ref": "refs/heads/" + branch})
+            with self.assertRaisesRegex(SystemExit, "never overwrite"):
+                execute()
+
+    def test_native_creation_is_report_scoped_and_feedback_preserves_queue_exclusions(self):
+        config = self.workflow_config()
+        native = config["safe-outputs"]["create-pull-request"]
+        self.assertEqual(native["draft"], "true")
+        self.assertEqual(native["preserve-branch-name"], "true")
+        self.assertEqual(native["allowed-branches"], ["research/review-issue-*"])
+        self.assertEqual(native["max"], "1")
+        self.assertEqual(native["auto-close-issue"], "false")
+        self.assertEqual(native["fallback-as-issue"], "false")
+        self.assertNotIn("recreate-ref", native)
+        self.assertNotIn("allow-empty", native)
+        self.assertTrue(all(path.startswith("research/reports/**/") for path in native["allowed-files"]))
+        self.assertIn("research/reports/**/request.json", native["allowed-files"])
+        self.assertIn("research/reports/**/selection.json", native["allowed-files"])
+        feedback = config["safe-outputs"]["push-to-pull-request-branch"]
+        self.assertEqual(feedback["target"], "${{ needs.resolve_review.outputs.pull_request }}")
+        self.assertIn("research/reports/**/request.json", feedback["excluded-files"])
+        self.assertIn("research/reports/**/feedback-requests.json", feedback["excluded-files"])
+        self.assertNotIn("research/reports/**/feedback-requests.json", native["allowed-files"])
+        prepare = config["pre-agent-steps"][-1]
+        self.assertIn("--target-kind", prepare["run"])
+        self.assertIn("--target-number", prepare["run"])
+        self.assertEqual(prepare["env"]["RESEARCH_REQUEST_ACTOR"],
+                         "${{ needs.resolve_review.outputs.request_actor }}")
+        self.assertNotIn("VALIDATED_CONTEXT.json", str(config["post-steps"]))
 
     def test_only_receipt_replay_is_allowed_after_publication_seals_the_workspace(self):
         config = self.workflow_config()
         for tool in ("apply-input-mapping", "plan-eda", "execute-eda"):
             raw = config["mcp-scripts"][tool]["run"]
-            script = raw.split("<<'PY'\n", 1)[1].rsplit("\nPY", 1)[0]
+            script = self.tool_script(tool)
             for marker in ("publication.json", "application.lock"):
                 with self.subTest(tool=tool, marker=marker), \
                         tempfile.TemporaryDirectory(prefix="sealed-publication-") as folder:
@@ -157,7 +359,7 @@ class CloudContractTests(unittest.TestCase):
         self.assertNotIn("roles", trigger)
         self.assertIn("workflow_dispatch", trigger)
         self.assertEqual(trigger["workflow_run"]["workflows"],
-                         ["Prepare research review", "Review evaluation plan and freeze approval"])
+                         ["Prepare research review", "Review evaluation plan feedback"])
         self.assertEqual(trigger["workflow_run"]["types"], ["completed"])
         self.assertNotIn("pull_request_target", trigger)
         self.assertNotIn("repository_dispatch", trigger)
@@ -239,7 +441,8 @@ process.env.GITHUB_REPOSITORY = "fixture-owner/workshop";
 const body = "Preserved human note\nSynthetic report";
 fs.writeFileSync(path.join(artifact, "pr-body.md"), body);
 const meta = {
-  schema_version: 1, repository: process.env.GITHUB_REPOSITORY, pull_request: 7,
+  schema_version: 2, operation: "update", target_kind: "pull_request", target_number: 7,
+  repository: process.env.GITHUB_REPOSITORY, pull_request: 7,
   head_branch: "research/review-issue-2", publication_commit: "a".repeat(40),
   previous_head_sha: "b".repeat(40), expected_tree_sha: "c".repeat(40),
   body_refresh_required: true, body_sha256: hash(body), previous_body_sha256: hash("Human note")
@@ -380,6 +583,19 @@ class PublicationGitFixtureTests(unittest.TestCase):
         repository = "fixture-owner/fixture-workshop"
         image = "ghcr.io/fixture-owner/fixture-db@sha256:" + "a" * 64
         context, _ = context_and_source()
+        context["input_contract"] = {
+            "provider": "registered-config",
+            "profile_id": "synthetic_context", "data_id": context["data_manifest"]["data_id"],
+            "bindings": {name: name for name in ("row_key", "patient_key", "split", "target")},
+            "split_values": {"train": "train", "validation": "validation", "test": "test"},
+            "target_values": {"0": 0, "1": 1}, "profile_snapshot": {},
+        }
+        context["dataset_context"] = {
+            "legacy": True, "id": "synthetic_context", "profile_id": "synthetic_context",
+            "data_id": context["data_manifest"]["data_id"],
+            "target_definition": "합성 컨트롤러 검증용 정답",
+            "source_selection": "Synthetic fixture", "limitations": ["Not clinical data"],
+        }
         original = issue({"research_goal": "PUBLIC_SYNTHETIC_GOAL"})
         original["number"] = 2
         request = research.parse_issue(original, repository)
@@ -417,7 +633,8 @@ class PublicationGitFixtureTests(unittest.TestCase):
         self.git("checkout", "-q", "main")
         (self.root / "config").mkdir()
         write_json(self.root / "config" / "assets.json",
-                   {"schema_version": 1, "data_image": image})
+                   {"schema_version": 1, "data_image": image,
+                    "model_image": "ghcr.io/fixture-owner/model@sha256:" + "c" * 64})
         self.report.mkdir(parents=True, exist_ok=True)
         write_json(self.report / "feedback-requests.json", {"stale_default_branch_record": True})
         self.git("add", "--", "config/assets.json", self.directory)
@@ -446,6 +663,11 @@ class PublicationGitFixtureTests(unittest.TestCase):
             write_json(path / "data_manifest.json", {
                 "feature_columns": context["feature_columns"], "data_id": aggregate["data_id"]})
         measured_schema = Mock(wraps=cloud.CHECKS["schema"])
+        def cache_context(work, session, value):
+            cloud._cache_planning_context(work, session, value)
+            session["signature_context"] = {key: value[key] for key in (
+                "data_manifest", "feature_columns", "expected_feature_columns",
+                "target_mapping", "input_contract")}
         with patch.object(cloud, "ROOT", self.root), \
                 patch.object(cloud, "_runtime", return_value=(research, repository)), \
                 patch.object(research, "gh_json", side_effect=api), \
@@ -453,6 +675,8 @@ class PublicationGitFixtureTests(unittest.TestCase):
                 patch.dict(cloud.CHECKS, {"schema": measured_schema}), \
                 patch("app.input_contracts.profile_for_data", return_value=legacy_profile_fixture()), \
                 patch.object(cloud, "load_context", return_value=context), \
+                patch.object(cloud, "_cache_input_context", side_effect=cache_context), \
+                patch.object(cloud, "_context_for_session", return_value=context), \
                 patch.dict(os.environ, {"GITHUB_RUN_ID": "38722808263"}):
             prepared = cloud.prepare_ai(7, work)
             self.assertEqual(prepared["phase"], "coordination")
@@ -461,7 +685,7 @@ class PublicationGitFixtureTests(unittest.TestCase):
             self.assertEqual(coordination["request"]["research_goal"], "PUBLIC_SYNTHETIC_GOAL")
             write_json(work / "coordination-proposal.json", {
                 "schema_version": 1, "context_hash": coordination["context_hash"],
-                "eda_add": ["prediction_timing"],
+                "eda_add": ["prediction_timing", "label_observability"],
                 "objectives": {"eda": [], "evaluation": []},
                 "feedback_ids": [17] if feedback else [],
                 "selection_updates": {"evaluation": {
@@ -472,7 +696,7 @@ class PublicationGitFixtureTests(unittest.TestCase):
             planned = cloud.plan_eda(7, work)
             self.assertEqual(planned["status"], "eda_plan_validated")
             self.assertEqual(cloud.plan_eda(7, work), planned)
-            self.assertEqual(measured_schema.call_count, 0, "Planning must not execute a block")
+            self.assertEqual(measured_schema.call_count, 1, "Basic EDA must precede planning")
             self.assertFalse((work / "AI_REQUEST.json").exists())
             with self.assertRaisesRegex(ValueError, "hash"):
                 cloud.execute_eda(7, work, "f" * 64)
@@ -482,7 +706,7 @@ class PublicationGitFixtureTests(unittest.TestCase):
             write_json(work / "EDA_PLAN.json", modified_plan)
             with self.assertRaisesRegex(ValueError, "계획"):
                 cloud.execute_eda(7, work, planned["plan_hash"])
-            self.assertEqual(measured_schema.call_count, 0)
+            self.assertEqual(measured_schema.call_count, 1)
             write_json(work / "EDA_PLAN.json", original_plan)
             coordinated = cloud.execute_eda(7, work, planned["plan_hash"])
             self.assertEqual(cloud.execute_eda(7, work, planned["plan_hash"]), coordinated)
@@ -493,10 +717,8 @@ class PublicationGitFixtureTests(unittest.TestCase):
             recommendation = {
                 "schema_version": 1, "provider": "github-copilot-cloud-agent",
                 "status": "provided", "context_hash": coordinated["context_hash"],
-                "eda": [{"id": "prediction_timing", "reason": "합성 AI 응답: 시점 근거 확인",
-                         "evidence": [evidence]},
-                        {"id": "label_observability", "reason": "합성 AI 응답: 관찰 근거 추가 점검",
-                         "evidence": [evidence]}],
+                "eda": [{"id": identifier, "reason": "합성 AI 응답: 검증한 점검 보존",
+                         "evidence": [evidence]} for identifier in ai_request["fixed_eda_recommendation_ids"]],
                 "evaluation": [{"id": "precision", "reason": "합성 AI 응답: 운영 판정 검토",
                                 "evidence": [evidence]}],
             }
@@ -621,15 +843,17 @@ class FeedbackContextTests(unittest.TestCase):
         self.write(self.folder / "feedback-applied.json", {
             "schema_version": 1, "repository": self.repo, "pull_request": 7,
             "comment_ids": [17], "coordination_hash": "f" * 64})
-        cloud._verify_research_inputs(self.flow, self.repo, 7, self.folder, work, session)
-        self.comment["body"] = "게시 직전 편집된 합성 피드백"
-        with self.assertRaises(ValueError):
+        session["pull_request"] = 7
+        with patch.object(cloud, "_session_target"):
             cloud._verify_research_inputs(self.flow, self.repo, 7, self.folder, work, session)
+            self.comment["body"] = "게시 직전 편집된 합성 피드백"
+            with self.assertRaises(ValueError):
+                cloud._verify_research_inputs(self.flow, self.repo, 7, self.folder, work, session)
 
     def test_request_change_stops_data_checks(self):
         from app.asset_contract import canonical_hash
         self.write(self.folder / "request.json", {"changed": True})
-        with self.assertRaisesRegex(ValueError, "연구 요청"):
+        with patch.object(cloud, "_session_target"), self.assertRaisesRegex(ValueError, "연구 요청"):
             cloud._verify_research_inputs(self.flow, self.repo, 7, self.folder,
                                          Path(self.temporary.name),
                                          {"request_hash": canonical_hash({"original": True})})

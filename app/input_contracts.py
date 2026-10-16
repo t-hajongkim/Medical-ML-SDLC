@@ -1,6 +1,6 @@
 """GHCR manifest의 이진분류 입력 메타데이터를 표준 EDA 문맥으로 연결합니다.
 
-공개 API는 load_profile, inspect_inputs, apply_mapping, validate_saved_binding입니다.
+공개 API는 load_profile, read_manifest, inspect_inputs, apply_mapping입니다.
 AI에는 bundle 전체가
 아닌 schema_request만 전달합니다. 추천 bindings는 역할별 원본 컬럼명이며 reasons는
 같은 역할별 한국어 설명, evidence는 요청의 column:<순번>:<역할> 근거 ID 목록입니다.
@@ -435,6 +435,14 @@ def _ready(directory, records, bundle, bindings, provider, recommendation=None):
         "profile_hash": canonical_hash(profile), "schema_request": deepcopy(request),
         "recommendation": deepcopy(recommendation),
     }
+    context = planning_context(manifest, profile, binding, request)
+    context.update(metadata=metadata, feature_rows=lambda: _feature_rows(directory, manifest),
+                   asset_integrity_verified=True)
+    return {**bundle, "status": "ready", "binding": binding, "context": context}
+
+
+def planning_context(manifest, profile, binding, request):
+    """Assemble row-free metadata from a previously validated input binding."""
     legacy = profile["source_kind"] == "legacy_prepared_v2"
     context_manifest = deepcopy(manifest)
     if not legacy:
@@ -449,12 +457,12 @@ def _ready(directory, records, bundle, bindings, provider, recommendation=None):
             "probability_output_planned": profile.get("probability_output_planned") is True,
         }
     context = {
-        "metadata": metadata, "feature_columns": list(manifest["feature_columns"]),
+        "feature_columns": list(manifest["feature_columns"]),
         "expected_feature_columns": list(context_manifest["prepared_source"]["features"]),
-        "feature_rows": lambda: _feature_rows(directory, manifest),
         "target_mapping": deepcopy(context_manifest["prepared_source"]["target_mapping"]),
-        "data_manifest": context_manifest, "asset_integrity_verified": True,
+        "data_manifest": context_manifest,
         "input_contract": deepcopy(binding),
+        "_input_schema_request": deepcopy(request),
         "dataset_context": {
             "id": profile["profile_id"], "profile_id": profile["profile_id"],
             "data_id": profile["data_id"], "target_definition": profile["target_definition"],
@@ -462,7 +470,7 @@ def _ready(directory, records, bundle, bindings, provider, recommendation=None):
             "limitations": list(profile["limitations"]), "legacy": legacy,
         },
     }
-    return {**bundle, "status": "ready", "binding": binding, "context": context}
+    return context
 
 
 def inspect_inputs(assets: Path, *, profile=None):
@@ -507,90 +515,3 @@ def _validate_recommendation(recommendation, profile, request):
     indexes = {entry["name"]: index for index, entry in enumerate(request["columns"])}
     if any(f"column:{indexes[column]}:{role}" not in evidence for role, column in bindings.items()):
         _fail("선택한 각 컬럼과 역할을 직접 뒷받침하는 등록 근거가 필요합니다.")
-
-
-def _validate_request(profile, request):
-    if (not isinstance(request, dict) or not isinstance(request.get("columns"), list)
-            or type(request.get("schema_version")) is not int
-            or type(request.get("known_mapping")) is not bool):
-        _fail("저장된 공개 스키마 요청의 구조가 올바르지 않습니다.")
-    names = []
-    for column in request["columns"]:
-        if (not isinstance(column, dict) or set(column) != {
-                "name", "description", "semantic_roles", "data_type", "missing_count"}
-                or not isinstance(column["name"], str) or column["name"] not in profile["columns"]
-                or type(column["missing_count"]) is not int or column["missing_count"] < 0
-                or column["data_type"] not in ("unknown", "string", "integer", "number", "boolean")):
-            _fail("저장된 컬럼 스키마 또는 집계가 올바르지 않습니다.")
-        registered = profile["columns"][column["name"]]
-        if (column["description"] != registered["description"]
-                or column["semantic_roles"] != registered["semantic_roles"]):
-            _fail("저장된 컬럼 의미가 운영자 등록과 다릅니다.")
-        if ({"row_key", "patient_key"}.intersection(registered["semantic_roles"])
-                and column["data_type"] != "string"):
-            _fail("저장된 환자 키와 입원 키 스키마는 문자열이어야 합니다.")
-        names.append(column["name"])
-    if (len(names) != len(set(names)) or set(names) != set(profile["columns"])
-            or request != _schema_request(profile, request["columns"])):
-        _fail("저장된 스키마 요청, 근거 또는 정규화 해시가 등록 profile과 다릅니다.")
-
-
-def validate_saved_binding(binding, profile, schema_request):
-    """자산 I/O 없이 freeze용 스냅샷을 검증하고 독립 복사본을 반환합니다.
-
-    파일 무결성 검증의 대체가 아닙니다. 재실행 시 inspect_inputs 또는 저장된
-    recommendation에 대한 apply_mapping으로 실제 자산을 다시 검증해야 합니다.
-    """
-    if not isinstance(profile, dict):
-        _fail("검증할 등록 profile 스냅샷이 필요합니다.")
-    _validate_profile(profile)
-    _validate_request(profile, schema_request)
-    fields = {
-        "schema_version", "provider", "profile_id", "data_id", "context_hash", "status",
-        "bindings", "split_values", "target_values", "profile_snapshot", "source_manifest",
-        "profile_hash", "schema_request", "recommendation",
-    }
-    if (not isinstance(binding, dict) or set(binding) != fields
-            or type(binding["schema_version"]) is not int or binding["schema_version"] != 1
-            or binding["status"] != "validated" or binding["profile_id"] != profile["profile_id"]
-            or binding["data_id"] != profile["data_id"]
-            or binding["profile_snapshot"] != profile
-            or canonical_hash(binding["profile_snapshot"]) != canonical_hash(profile)
-            or binding["profile_hash"] != canonical_hash(profile)
-            or binding["context_hash"] != schema_request["context_hash"]
-            or binding["schema_request"] != schema_request
-            or canonical_hash(binding["schema_request"]) != canonical_hash(schema_request)
-            or binding["split_values"] != profile["split_values"]
-            or binding["target_values"] != profile["target_values"]
-            or canonical_hash(binding["target_values"]) != canonical_hash(profile["target_values"])):
-        _fail("저장된 매핑의 profile, 식별자, 해시 또는 값 매핑이 현재 등록과 다릅니다.")
-    _validate_bindings(binding["bindings"], profile)
-    manifest = binding["source_manifest"]
-    if not isinstance(manifest, dict) or manifest.get("data_id") != profile["data_id"]:
-        _fail("저장된 원본 manifest의 data_id가 등록과 다릅니다.")
-    if load_profile(manifest=manifest) != profile:
-        _fail("저장된 입력 의미가 원본 이미지 manifest와 다릅니다.")
-    _validate_feature_roles(manifest, profile)
-    if profile["source_kind"] == "registered_prepared_v1":
-        _validate_registered_manifest(manifest)
-    else:
-        try:
-            if (type(manifest.get("schema_version")) is not int or manifest["schema_version"] != 2
-                    or manifest.get("kind") != "prepared-data-only"
-                    or manifest.get("training_performed") is not False
-                    or manifest.get("preprocessing_performed") is not False
-                    or prepared.data_identifier(manifest) != profile["data_id"]):
-                _fail("저장된 기존 준비 manifest의 식별자가 올바르지 않습니다.")
-        except (KeyError, TypeError):
-            _fail("저장된 기존 준비 manifest의 내용이 올바르지 않습니다.")
-    if profile["bindings"] is not None:
-        if (binding["provider"] != "registered-config" or binding["recommendation"] is not None
-                or binding["bindings"] != profile["bindings"]):
-            _fail("저장된 매핑이 설정의 확정 매핑과 다릅니다.")
-    else:
-        if binding["provider"] != PROVIDER:
-            _fail("저장된 AI 매핑 제공자가 올바르지 않습니다.")
-        _validate_recommendation(binding["recommendation"], profile, schema_request)
-        if binding["recommendation"]["bindings"] != binding["bindings"]:
-            _fail("저장된 매핑이 검증된 원래 AI 추천과 다릅니다.")
-    return deepcopy(binding)
