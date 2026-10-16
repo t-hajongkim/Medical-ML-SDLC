@@ -139,64 +139,112 @@ class CloudContractTests(unittest.TestCase):
             (work / "application.lock").mkdir()
             self.assertIn("already running", execute(payload)[0])
 
-    def test_incomplete_or_unrequested_publication_fails_post_step(self):
-        from app.asset_contract import write_json
+    def test_publication_validation_runs_before_writes_and_uses_native_normalization(self):
         config = self.workflow_config()
-        script = self.tool_script("post-check")
+        script = config["safe-outputs"]["steps"][-1]["with"]["script"]
+        body = "정답 인코딩(&lt;30=1)"
+        normalized = "정답 인코딩(<30=1)"
+        meta = {
+            "schema_version": 2, "operation": "create", "target_kind": "issue",
+            "target_number": 2, "issue_number": 2, "pull_request": None,
+            "repository": "fixture-owner/workshop", "head_branch": "research/review-issue-2",
+            "publication_commit": "a" * 40, "body_refresh_required": False,
+            "pull_request_title": "연구검토 #2: 합성 연구",
+            "body_sha256": hashlib.sha256(body.encode()).hexdigest()}
+        create = {"type": "create_pull_request", "title": meta["pull_request_title"],
+                  "branch": meta["head_branch"], "body": normalized}
+        cases = [{"name": "native_entity_normalization", "meta": meta, "items": [create], "valid": True}]
+        for name, item in (
+                ("content_changed", {**create, "body": "정답 인코딩(<30=0)"}),
+                ("extra_text", {**create, "body": normalized + "\nAI edit"}),
+                ("wrong_title", {**create, "title": "Changed title"}),
+                ("wrong_branch", {**create, "branch": "other"}),
+                ("wrong_repo", {**create, "repo": "other/repo"}),
+                ("null_repo", {**create, "repo": None})):
+            cases.append({"name": name, "meta": meta, "items": [item], "valid": False})
+        for name, items in (
+                ("no_create", []), ("two_creates", [create, create]),
+                ("incomplete", [{"type": "report_incomplete"}]),
+                ("mixed_operations", [create, {"type": "push_to_pull_request_branch"}])):
+            cases.append({"name": name, "meta": meta, "items": items, "valid": False})
+        for name, change in (
+                ("receipt_repository", {"repository": "other/repo"}),
+                ("receipt_schema", {"schema_version": 1}),
+                ("receipt_hash", {"body_sha256": "f" * 64}),
+                ("receipt_target", {"target_number": 3}),
+                ("empty_initial_commit", {"publication_commit": None})):
+            cases.append({"name": name, "meta": {**meta, **change}, "items": [create], "valid": False})
+        cases.append({"name": "stored_body_modified", "meta": meta, "items": [create],
+                      "body": body + "\nmodified", "valid": False})
+        update = {**meta, "operation": "update", "target_kind": "pull_request",
+                  "target_number": 7, "pull_request": 7, "body_refresh_required": True}
+        push = {"type": "push_to_pull_request_branch", "branch": meta["head_branch"],
+                "pull_request_number": "7"}
+        refresh = {"type": "refresh_review_body", "confirmed": True, "message": "합성 변경 안내"}
+        cases.append({"name": "valid_update", "meta": update, "items": [push, refresh], "valid": True})
+        for name, value in (
+                ("wrong_pr", "8"), ("noncanonical_pr", "07"), ("fractional_pr", 7.5),
+                ("boolean_pr", True), ("null_pr", None)):
+            cases.append({"name": name, "meta": update,
+                          "items": [{**push, "pull_request_number": value}, refresh], "valid": False})
+        for name, items in (
+                ("missing_push", [refresh]), ("missing_refresh", [push]),
+                ("update_wrong_branch", [{**push, "branch": "other"}, refresh]),
+                ("empty_summary", [push, {**refresh, "message": ""}]),
+                ("update_with_create", [create, push, refresh])):
+            cases.append({"name": name, "meta": update, "items": items, "valid": False})
+        cases.append({"name": "valid_noop", "meta": {
+            **update, "publication_commit": None, "body_refresh_required": False},
+            "items": [], "valid": True})
+        harness = r"""
+const fs = require("node:fs"), path = require("node:path"), assert = require("node:assert/strict");
+const fixture = JSON.parse(fs.readFileSync(0, "utf8"));
+const directory = path.join(fixture.folder, "research-review-body"); fs.mkdirSync(directory);
+const output = path.join(fixture.folder, "agent-output.json");
+process.env.RUNNER_TEMP = fixture.folder;
+process.env.GITHUB_REPOSITORY = fixture.repository || "fixture-owner/workshop";
+process.env.GH_AW_AGENT_OUTPUT = output;
+process.env.GH_AW_ACTIONS_DIR = fixture.official_dir || path.join(fixture.folder, "trusted-actions");
+const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
+const execute = new AsyncFunction("require", "core", fixture.script);
+const results = [];
+(async () => {
+  for (const item of fixture.cases) {
+    let writes = 0;
+    fs.writeFileSync(path.join(directory, "publication.json"), JSON.stringify(item.meta));
+    fs.writeFileSync(path.join(directory, "pr-body.md"), item.body ?? fixture.body);
+    fs.writeFileSync(output, JSON.stringify({items: item.items}));
+    const trustedRequire = name => {
+      if (name.endsWith("sanitize_content.cjs")) {
+        assert.equal(name, path.join(process.env.GH_AW_ACTIONS_DIR, "sanitize_content.cjs"));
+        if (fixture.official_dir) return require(name);
+        return {sanitizeContent: value => {
+          assert.equal(value, fixture.body);
+          return fixture.normalized;
+        }};
+      }
+      return require(name);
+    };
+    let passed = false, error = null;
+    try {
+      await execute(trustedRequire, {info: () => {}});
+      writes++;
+      passed = true;
+    } catch (failure) { error = failure.message; }
+    results.push({name: item.name, passed, writes, error});
+    assert.equal(passed, item.valid, item.name + ": " + error);
+    assert.equal(writes, item.valid ? 1 : 0, item.name);
+  }
+  console.log(JSON.stringify(results));
+})().catch(error => {console.error(error); process.exit(1);});
+"""
         with tempfile.TemporaryDirectory(prefix="publication-audit-") as temporary:
-            folder = Path(temporary)
-            meta_path, output_path = folder / "publication.json", folder / "agent.json"
-            body = b"Synthetic generated report"
-            (folder / "pr-body.md").write_bytes(body)
-            meta = {
-                "schema_version": 2, "operation": "update", "target_kind": "pull_request",
-                "target_number": 7, "issue_number": 2,
-                "body_sha256": hashlib.sha256(body).hexdigest(),
-                "publication_commit": "a" * 40, "body_refresh_required": True,
-                "pull_request": 7, "repository": "fixture-owner/workshop",
-                "head_branch": "research/review-issue-2",
-                "pull_request_title": "연구검토 #2: 합성 연구"}
-            write_json(meta_path, meta)
-            program = script.replace(
-                'Path("/tmp/gh-aw/research-recommendation/publication.json")', f"Path({str(meta_path)!r})")
-            push = {"type": "push_to_pull_request_branch", "branch": "research/review-issue-2",
-                    "pull_request_number": "7"}
-            refresh = {"type": "refresh_review_body", "confirmed": True, "message": "합성 변경 안내"}
-            with patch.dict(os.environ, {"GH_AW_AGENT_OUTPUT": str(output_path)}):
-                for items in ([{"type": "report_incomplete"}], [], [push], [refresh],
-                              [{**push, "branch": "other"}, refresh],
-                              [{**push, "pull_request_number": "8"}, refresh],
-                              [{**push, "pull_request_number": "07"}, refresh],
-                              [{**push, "pull_request_number": 7.0}, refresh],
-                              [{**push, "pull_request_number": True}, refresh]):
-                    with self.subTest(items=items):
-                        write_json(output_path, {"items": items})
-                        with self.assertRaises(SystemExit):
-                            exec(compile(program, "<publication-audit>", "exec"), {})
-                write_json(output_path, {"items": [push, refresh]})
-                exec(compile(program, "<publication-audit>", "exec"), {})
-                write_json(output_path, {"items": [{**push, "pull_request_number": 7}, refresh]})
-                exec(compile(program, "<publication-audit>", "exec"), {})
-                create_meta = {**meta, "operation": "create", "target_kind": "issue",
-                               "target_number": 2, "pull_request": None, "body_refresh_required": False}
-                write_json(meta_path, create_meta)
-                create = {"type": "create_pull_request", "title": meta["pull_request_title"],
-                          "body": body.decode(), "branch": meta["head_branch"]}
-                for items in ([], [create, create], [create, push], [create, refresh],
-                              [{**create, "body": body.decode() + "\nAI edit"}],
-                              [{**create, "title": "Changed title"}],
-                              [{**create, "branch": "other"}],
-                              [{**create, "repo": "other/repo"}], [push, refresh]):
-                    with self.subTest(items=items):
-                        write_json(output_path, {"items": items})
-                        with self.assertRaises(SystemExit):
-                            exec(compile(program, "<initial-publication-audit>", "exec"), {})
-                write_json(output_path, {"items": [create]})
-                exec(compile(program, "<initial-publication-audit>", "exec"), {})
-                write_json(meta_path, meta)
-                write_json(output_path, {"items": [create, push, refresh]})
-                with self.assertRaises(SystemExit):
-                    exec(compile(program, "<update-publication-audit>", "exec"), {})
+            result = subprocess.run(["node", "-e", harness], input=json.dumps({
+                "script": script, "folder": temporary, "body": body,
+                "normalized": normalized, "cases": cases}), capture_output=True,
+                text=True, encoding="utf-8", timeout=30)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(len(json.loads(result.stdout)), len(cases))
 
     def test_initial_application_prepares_one_native_creation_and_replays_without_python(self):
         from app.asset_contract import write_json
@@ -380,6 +428,15 @@ class CloudContractTests(unittest.TestCase):
         self.assertIn("resolve_review", config["jobs"]["safe_outputs"]["needs"])
         self.assertIn("needs.resolve_review.outputs.ready", config["jobs"]["activation"]["if"])
         self.assertNotIn("resolve_review", config["jobs"]["refresh_review_body"]["needs"])
+        steps = config["jobs"]["safe_outputs"]["steps"]
+        guard = next(index for index, step in enumerate(steps)
+                     if step.get("name") == "Validate prepared publication before writing")
+        writer = next(index for index, step in enumerate(steps) if step.get("id") == "process_safe_outputs")
+        self.assertLess(guard, writer)
+        self.assertNotIn("continue-on-error", steps[guard])
+        self.assertNotIn("always()", steps[writer].get("if", ""))
+        self.assertEqual(len(config["jobs"]), 8)
+        self.assertNotIn("needs.agent.result == 'success'", config["jobs"]["safe_outputs"]["if"])
 
     def test_runtime_rejects_local_execution(self):
         with patch.dict(os.environ, {"GITHUB_ACTIONS": "false"}):

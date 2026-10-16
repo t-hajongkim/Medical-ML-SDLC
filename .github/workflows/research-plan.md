@@ -180,9 +180,6 @@ post-steps:
         /tmp/gh-aw/research-recommendation/publication.json
       if-no-files-found: error
       retention-days: 7
-  - name: Fail when prepared publication was not requested
-    if: success()
-    run: python -B /tmp/gh-aw/research-recommendation/tools.py post-check
 safe-outputs:
   needs: [resolve_review]
   github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -195,6 +192,71 @@ safe-outputs:
     create-issue: false
   missing-data:
     create-issue: false
+  steps:
+    - uses: actions/download-artifact@v8
+      with:
+        name: research-review-body-${{ github.run_id }}-${{ github.run_attempt }}
+        path: ${{ runner.temp }}/research-review-body
+    - name: Validate prepared publication before writing
+      uses: actions/github-script@v9
+      env:
+        GH_AW_ACTIONS_DIR: ${{ runner.temp }}/gh-aw/actions
+        GH_AW_AGENT_OUTPUT: /tmp/gh-aw/agent_output.json
+      with:
+        script: |
+          const fs = require("node:fs");
+          const path = require("node:path");
+          const crypto = require("node:crypto");
+          const { sanitizeContent } = require(path.join(process.env.GH_AW_ACTIONS_DIR, "sanitize_content.cjs"));
+          const directory = path.join(process.env.RUNNER_TEMP, "research-review-body");
+          const meta = JSON.parse(fs.readFileSync(path.join(directory, "publication.json"), "utf8"));
+          const body = fs.readFileSync(path.join(directory, "pr-body.md"), "utf8");
+          const hash = value => crypto.createHash("sha256").update(value, "utf8").digest("hex");
+          if (meta.schema_version !== 2 || meta.repository !== process.env.GITHUB_REPOSITORY
+              || hash(body) !== meta.body_sha256) {
+            throw new Error("Invalid trusted publication metadata or body");
+          }
+          const output = JSON.parse(fs.readFileSync(process.env.GH_AW_AGENT_OUTPUT, "utf8"));
+          const items = output.items;
+          if (!Array.isArray(items) || items.some(item =>
+              ["report_incomplete", "missing_tool", "missing_data"].includes(item.type))) {
+            throw new Error("Copilot did not prepare a complete publication");
+          }
+          const creates = items.filter(item => item.type === "create_pull_request");
+          const pushes = items.filter(item => item.type === "push_to_pull_request_branch");
+          const refreshes = items.filter(item => item.type === "refresh_review_body");
+          if (meta.operation === "create") {
+            if (meta.target_kind !== "issue" || !Number.isSafeInteger(meta.target_number)
+                || meta.target_number !== meta.issue_number || meta.pull_request !== null
+                || typeof meta.publication_commit !== "string"
+                || !/^[0-9a-f]{40}$/.test(meta.publication_commit)
+                || meta.body_refresh_required !== false
+                || creates.length !== 1 || pushes.length || refreshes.length
+                || creates[0].title !== meta.pull_request_title
+                || creates[0].body !== sanitizeContent(body)
+                || creates[0].branch !== meta.head_branch
+                || ("repo" in creates[0] ? creates[0].repo : meta.repository) !== meta.repository) {
+              throw new Error("Initial creation must declare the validated title, normalized body and branch once");
+            }
+          } else if (meta.operation === "update") {
+            const canonicalPR = value => Number.isSafeInteger(value) && value > 0 ? value :
+              typeof value === "string" && /^[1-9][0-9]{0,9}$/.test(value) ? Number(value) : null;
+            if (meta.target_kind !== "pull_request" || !Number.isSafeInteger(meta.pull_request)
+                || meta.pull_request < 1 || meta.target_number !== meta.pull_request
+                || creates.length || typeof meta.body_refresh_required !== "boolean"
+                || pushes.length !== Number(meta.publication_commit !== null)
+                || refreshes.length !== Number(meta.body_refresh_required)
+                || pushes.some(item => item.branch !== meta.head_branch
+                  || canonicalPR("pull_request_number" in item ? item.pull_request_number : meta.pull_request) !== meta.pull_request
+                  || ("repo" in item ? item.repo : meta.repository) !== meta.repository)
+                || refreshes.some(item => item.confirmed !== true
+                  || typeof item.message !== "string" || !item.message.trim())) {
+              throw new Error("Validated update is missing its exact push/body declarations");
+            }
+          } else {
+            throw new Error("Invalid publication operation");
+          }
+          core.info("Prepared publication verified before any report push or PR creation");
   create-pull-request:
     draft: true
     preserve-branch-name: true

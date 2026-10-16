@@ -25,7 +25,9 @@ body:
         **제출 후 등록된 입력 매핑을 확인합니다. 새 등록 스키마의 매핑이 없으면 Copilot 추천과 Python 검증을 먼저 거친 뒤 데이터 점검을 실행합니다.**
         점검 후에는 Copilot이 등록된 점검·평가 지표를 추천하고 검토용 draft PR을 갱신합니다.
         PR 댓글에 원하는 추가·제외·지표 변경을 자유롭게 적습니다. 사람이 Merge한 계획이 교육용 승인 기준입니다.
-        복사한 저장소에서는 Actions의 PR 생성 허용 설정을 먼저 확인해 주세요.
+        복사한 저장소에서는 **Settings → Actions → General → Workflow permissions**에서
+        **Allow GitHub Actions to create and approve pull requests**를 체크하고 Save해 주세요.
+        원본 템플릿의 설정은 복사본에 상속되지 않습니다.
         환자명·연락처·실제 진료정보·개인 파일을 입력하거나 첨부하지 마세요.
   - type: textarea
     id: research_goal

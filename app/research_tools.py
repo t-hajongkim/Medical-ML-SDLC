@@ -273,64 +273,11 @@ def apply_recommendations():
     respond(json.loads(ready.read_text(encoding="utf-8")))
 
 
-def post_check():
-    import hashlib
-    import json
-    import os
-    import re
-    from pathlib import Path
-    receipt = Path("/tmp/gh-aw/research-recommendation/publication.json")
-    meta = json.loads(receipt.read_text(encoding="utf-8"))
-    body = (receipt.parent / "pr-body.md").read_bytes()
-    if (type(meta.get("schema_version")) is not int or meta["schema_version"] != 2
-            or hashlib.sha256(body).hexdigest() != meta["body_sha256"]):
-        raise SystemExit("Invalid trusted publication metadata or body.")
-    output = json.loads(Path(os.environ["GH_AW_AGENT_OUTPUT"]).read_text(encoding="utf-8"))
-    items = output["items"]
-    if any(item.get("type") in ("report_incomplete", "missing_tool", "missing_data") for item in items):
-        raise SystemExit("Copilot reported an incomplete result; the review PR was not completed.")
-    pushes = [item for item in items if item.get("type") == "push_to_pull_request_branch"]
-    refreshes = [item for item in items if item.get("type") == "refresh_review_body"]
-    creates = [item for item in items if item.get("type") == "create_pull_request"]
-    if meta["operation"] == "create":
-        if (meta["target_kind"] != "issue" or type(meta["target_number"]) is not int
-                or meta["target_number"] != meta["issue_number"]
-                or meta["pull_request"] is not None or meta["publication_commit"] is None
-                or meta["body_refresh_required"] is not False
-                or len(creates) != 1 or pushes or refreshes
-                or creates[0].get("title") != meta["pull_request_title"]
-                or creates[0].get("body") != body.decode("utf-8")
-                or creates[0].get("branch") != meta["head_branch"]
-                or creates[0].get("repo", meta["repository"]) != meta["repository"]):
-            raise SystemExit("Initial creation must declare the exact validated title, body and local branch once.")
-    elif meta["operation"] == "update":
-        def canonical_pr(value):
-            if type(value) is int and value > 0:
-                return value
-            if isinstance(value, str) and re.fullmatch(r"[1-9][0-9]{0,9}", value):
-                return int(value)
-            return None
-        if (meta["target_kind"] != "pull_request" or type(meta["pull_request"]) is not int
-                or type(meta["target_number"]) is not int or meta["target_number"] != meta["pull_request"]
-                or creates or len(pushes) != int(meta["publication_commit"] is not None)
-                or type(meta["body_refresh_required"]) is not bool
-                or len(refreshes) != int(meta["body_refresh_required"])
-                or any(item.get("branch") != meta["head_branch"]
-                       or canonical_pr(item.get("pull_request_number", meta["pull_request"])) != meta["pull_request"]
-                       or item.get("repo", meta["repository"]) != meta["repository"] for item in pushes)
-                or any(item.get("confirmed") is not True or not isinstance(item.get("message"), str)
-                       or not item["message"].strip() for item in refreshes)):
-            raise SystemExit("Validated update is missing its exact push/body declarations.")
-    else:
-        raise SystemExit("Validated publication is missing its required push/body declarations; it was not completed.")
-
-
 def main():
     if os.environ.get("GITHUB_ACTIONS") != "true":
         raise SystemExit("Research tools are restricted to the Actions runner.")
     handlers = {"apply-input-mapping": apply_input_mapping, "plan-eda": plan_eda,
-                "execute-eda": execute_eda, "apply-recommendations": apply_recommendations,
-                "post-check": post_check}
+                "execute-eda": execute_eda, "apply-recommendations": apply_recommendations}
     handlers[sys.argv[1]]()
 
 

@@ -354,34 +354,17 @@ class ResolutionTests(unittest.TestCase):
 
 
 class TrustedImportTests(unittest.TestCase):
-    def test_private_post_check_never_imports_report_tree_code(self):
-        with tempfile.TemporaryDirectory(prefix="trusted-review-code-") as folder:
-            root = Path(folder)
-            shutil.copytree(research.ROOT / "app", root / "app",
-                            ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
-            work = root / "private"
-            work.mkdir()
-            source = (research.ROOT / "app" / "research_tools.py").read_text(encoding="utf-8")
-            source = source.replace(
-                'Path("/tmp/gh-aw/research-recommendation/publication.json")',
-                f"Path({str(work / 'publication.json')!r})")
-            (work / "tools.py").write_text(source, encoding="utf-8")
-            for path in (root / "app").rglob("*.py"):
-                path.write_text('raise RuntimeError("UNTRUSTED_PR_CODE")', encoding="utf-8")
-            body = b"Synthetic report"
-            (work / "pr-body.md").write_bytes(body)
-            (work / "publication.json").write_text(json.dumps({
-                "schema_version": 2, "operation": "update", "target_kind": "pull_request",
-                "target_number": 7, "pull_request": 7, "publication_commit": None,
-                "body_refresh_required": False,
-                "body_sha256": hashlib.sha256(body).hexdigest()}), encoding="utf-8")
-            output = work / "agent.json"
-            output.write_text('{"items":[]}', encoding="utf-8")
-            result = subprocess.run([sys.executable, "-S", "-B", str(work / "tools.py"), "post-check"],
-                                    cwd=root, env={**os.environ, "PYTHONPATH": str(root),
-                                                   "GITHUB_ACTIONS": "true", "GH_AW_AGENT_OUTPUT": str(output)},
-                                    capture_output=True, text=True, encoding="utf-8", timeout=30)
-            self.assertEqual(result.returncode, 0, result.stderr)
+    def test_publication_validation_does_not_execute_report_tree_python(self):
+        import yaml
+        text = (research.ROOT / ".github" / "workflows" / "research-plan.md").read_text(encoding="utf-8")
+        config = yaml.load(text.split("---", 2)[1], Loader=yaml.BaseLoader)
+        guard = config["safe-outputs"]["steps"][-1]
+        self.assertEqual(guard["env"]["GH_AW_ACTIONS_DIR"], "${{ runner.temp }}/gh-aw/actions")
+        self.assertIn("sanitize_content.cjs", guard["with"]["script"])
+        self.assertNotIn("app.research", guard["with"]["script"])
+        self.assertNotIn("python", guard["with"]["script"])
+        tools = (research.ROOT / "app" / "research_tools.py").read_text(encoding="utf-8")
+        self.assertNotIn("def post_check(", tools)
 
     def test_module_entrypoint_keeps_one_trusted_research_identity(self):
         with tempfile.TemporaryDirectory(prefix="trusted-entrypoint-") as folder:

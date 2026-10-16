@@ -1,5 +1,15 @@
 # GHCR 자산·조합형 EDA·평가 계획 승인 구조
 
+## 2026-10-17: native 정규화와 게시 직전 단일 검사
+
+`agent` 종료 시점의 Python `post_check`는 제거하고 공식 `safe-outputs.steps`로 같은 검사를 옮겼다.
+게시 job은 기존 본문·receipt artifact를 읽어 원본 hash와 대상·선언을 확인한 뒤에만 native 쓰기를 진행한다.
+본문은 고정된 gh-aw Actions의 `sanitizeContent`를 직접 재사용해 비교한다.
+HTML 엔티티 정규화 때문에 정상 본문을 거부하지 않으며, 별도 Python 정규화 구현이나 새 승인 상태를 만들지 않는다.
+검사가 실패하면 뒤의 `Process Safe Outputs`는 기본 success 조건으로 건너뛴다.
+정상 자료가 있는 경우에 `agent`의 부수 실패만으로 게시를 일괄 차단하는 조건은 추가하지 않았다.
+원래 상세 PR 본문과 8개 native job 경계는 유지하며 긴 본문 전달 방식 변경은 별도 범위다.
+
 ## 2026-10-17: 같은 runner 안의 반복 준비 축소
 
 - 최초 Issue는 실제 입력 검증과 기본 EDA를 먼저 실행한다. 이 순서는 유지한다.
@@ -8,7 +18,8 @@
   새 EDA 블록이 필요하면 같은 job에서 자산을 한 번 준비하고 실제 파일·입력을 검증한 뒤 새 블록만 계산한다.
 - 최종 게시 준비는 `PLANNING_CONTEXT.json`을 사용한다. 계산용 `VALIDATED_CONTEXT.json`과 실제 자산은 게시 단계에서 다시 읽지 않는다.
 - `research_tools.py`를 AI 시작 전 비공개 runner 경로에 복사한다. 각 MCP 도구는 한 Python 프로세스에서 함수를 직접 호출한다.
-  보고서 tree 선택 후 재조회·post-check는 이 사본의 표준 라이브러리 코드만 실행하고 저장소 코드를 import하지 않는다.
+  보고서 tree 선택 후 재조회는 이 사본의 표준 라이브러리 코드만 실행하고 저장소 코드를 import하지 않는다.
+  게시 자료 검사는 실제 쓰기 job에서 신뢰된 워크플로와 공식 Actions 모듈로 실행한다.
 - Docker는 데이터 파일 추출에만 `create/cp/rm`으로 사용한다. 연구 요청 처리에서 DB `start/run`이나 모델 실행은 없다.
 - 구형 `publish_payload`·`write_pending`·`read_binding`·`run-data-checks`와 선행 import 장치를 제거한다.
   현재 입력 역할 표·중립 보고서, 이미지 제작 코드와 후속 지표 실행기는 유지한다.
@@ -233,7 +244,7 @@ GHCR은 실행 DB가 아니라 재현할 이미지와 파일의 저장소다.
 | `app/recommendation_events.py` | schema2의 Issue/기존 PR 대상·출처·작성자를 검증해 native job으로 전달 |
 | `app/input_contracts.py` | GHCR manifest의 입력 의미·무결성·확정/AI 매핑·표준 context·저장 매핑 검증. 저장소 profile registry 제거 |
 | `app/input_review.py` | 입력 역할 표시·데이터셋 중립 집계 보고서 |
-| `app/research_tools.py` | 비공개 runner 도구 어댑터·단일 프로세스 호출·표준 라이브러리 게시 재조회/post-check |
+| `app/research_tools.py` | 비공개 runner 도구 어댑터·단일 프로세스 호출·표준 라이브러리 게시 재조회 |
 | `tests/test_input_contracts.py`, `tests/test_input_pipeline.py` | 다른 컬럼 스키마·매핑 전 EDA 금지·두 단계 AI·승인 매핑 변조 거부 |
 | `tests/test_recommendation_events.py` | 합성 이벤트·실제 ZIP 파싱·출처/대상/만료/변조/경로 침범 거부. 실제 원격 실행 아님 |
 | `tests/test_research_workflow.py` | 입력/권한/이미지·GH 모의/멱등 갱신/closed PR/집계·추천 계약 회귀 |
