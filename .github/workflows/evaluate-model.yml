@@ -1,0 +1,72 @@
+name: Evaluate merged research plan
+
+on:
+  pull_request:
+    types: [closed]
+  workflow_dispatch:
+    inputs:
+      pull_request:
+        description: Exact merged research PR number
+        required: true
+        type: string
+      split:
+        description: Frozen evaluation split (test is an explicit choice)
+        required: true
+        type: choice
+        default: validation
+        options: [validation, test]
+
+permissions:
+  contents: read
+  pull-requests: read
+  packages: read
+
+concurrency:
+  group: evaluate-plan-${{ github.repository }}-${{ github.event.pull_request.number || inputs.pull_request }}-${{ inputs.split || 'validation' }}
+  cancel-in-progress: false
+
+env:
+  PYTHONDONTWRITEBYTECODE: "1"
+  PYTHONUTF8: "1"
+  OMP_NUM_THREADS: "1"
+  OPENBLAS_NUM_THREADS: "1"
+  MKL_NUM_THREADS: "1"
+
+jobs:
+  evaluate:
+    if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'research/review-issue-') && github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out trusted default-branch execution code
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements-inference.txt
+      - name: Install the saved model's pinned inference runtime
+        run: python -B -m pip install --disable-pip-version-check -r requirements-inference.txt
+      - name: Infer frozen probabilities and execute the merged evaluation plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RESEARCH_PR: ${{ github.event.pull_request.number || inputs.pull_request }}
+          EVALUATION_SPLIT: ${{ inputs.split || 'validation' }}
+        run: |
+          set -euo pipefail
+          [[ "$RESEARCH_PR" =~ ^[1-9][0-9]*$ ]] || exit 1
+          python -B -m app.model_evaluation --pull-request "$RESEARCH_PR" \
+            --split "$EVALUATION_SPLIT" --output "$RUNNER_TEMP/research-evaluation"
+      - name: Save only aggregate metrics and the result report
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: model-evaluation-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/research-evaluation/evaluation.json
+            ${{ runner.temp }}/research-evaluation/report.md
+          if-no-files-found: error
+          retention-days: 7

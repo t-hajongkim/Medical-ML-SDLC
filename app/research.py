@@ -253,7 +253,7 @@ def image_assets(reference, destination):
     created = False
     try:
         docker("pull", reference)
-        docker("create", "--name", container, "--network", "none", reference)
+        docker("create", "--name", container, "--network", "none", reference, "/bin/true")
         created = True
         docker("cp", container + ":/opt/workshop/assets", str(destination))
     finally:

@@ -1,5 +1,79 @@
 # GHCR 자산·조합형 EDA·평가 계획 승인 구조
 
+## 고정 추론 → 기존 15개 지표 연결 (2026-10-17)
+
+사용자 승인 계약: [고정 추론·평가 PRD](prd/2026-10-17-fixed-inference-evaluation.md).
+아래 경로는 로컬 구현과 실제 고정 validation 추론을 확인했다.
+코드 게시와 원격 실행 검증은 구분한다. 원격 성공은 해당 run·artifact·결과 PR로 확인한다.
+
+```text
++---------------------------+      +-------------------------------+
+| Target → 기본/추가 EDA     | ---> | 저장된 평가계획 PR → 사람 Merge |
++---------------------------+      +-------------------------------+
+                                                |
+                                                v
++-----------------------------------------------------------------+
+| evaluate-model.yml: merged research PR / 수동 exact merged PR    |
+| 신뢰 default 코드 checkout → 실제 merge SHA의 보고서 JSON만 읽기 |
++-----------------------------------------------------------------+
+                                |
+                                v
++-----------------------------------------------------------------+
+| model_evaluation.py: PR·계획·EDA·입력·digest·현재 소스 계약 검증   |
+| 고정 Public DATA/MODEL 파일 추출 (Docker create/cp/rm, DB 미기동) |
++-----------------------------------------------------------------+
+                                |
+                                v
++-----------------------------------------------------------------+
+| inference.py: 기존 prepared data/model 검증 → joblib.load        |
+| row_key/split/position 연결 → 113-feature LR → class 1 확률       |
+| validation 기본 / test 명시, labels·확률·벡터는 비공개 메모리     |
++-----------------------------------------------------------------+
+                                |
+                                v
++-----------------------------------------------------------------+
+| executor_eval.execute_plan(저장 계획, 비공개 context)              |
+| 기존 15개 지표 중 선택 항목만 → 집계 JSON/Markdown artifact·Summary |
++-----------------------------------------------------------------+
+```
+
+- 새 상위 호출자만 모델/IO/사람 Merge 출처를 담당한다. 기존 네 Planner/Executor의 계산·계획 경계와 15개 지표 수학 라이브러리는 유지한다. 계획을 재추천하거나 threshold를 채우지 않는다.
+- 모델은 기존 `config/assets.json`의 두 digest·113 입력·classes `[0,1]`·positive `1`로 제한한다. 파일/manifest 검증은 역직렬화보다 먼저 수행한다. 모델 URL/경로 자유 입력·fit·scaler·재분할·raw 다운로드는 없다.
+- 단일 hosted job, contents/PR/packages read-only, Python 3.11/sklearn 1.2.2 전용 pinned 의존성. 보고서 코드 checkout/실행·분석 댓글 trigger·별도 승인 JSON·자동 PR2/Pages는 없다.
+- source/계약 stale·정렬·무결성 오류는 명시적 실패다. 지표별 선행조건 부족은 기존 `not_applicable`을 보존한다. 행/식별자/벡터는 로그·artifact에 남기지 않고 비공개 중간 파일과 컨테이너는 항상 정리한다.
+- README와 HTML은 박스형 흐름 그림과 GitHub 합성 CI/실제 자산 실행을 구분한다. 원격 성공 증거는 해당 run의 집계 artifact/Summary로만 확인한다.
+- Merge는 교육용 계획 승인이다. validation 재사용·환자 중복·전처리 이력·조건부 모델 등록 한계를 유지하며 임상·누수 없는 독립 평가를 주장하지 않는다.
+
+## PR2 결과 검토 (2026-10-17)
+
+계약: [PR2 결과 검토 PRD](prd/2026-10-17-pr2-result-review.md).
+현재 고정 추론·평가와 별도 PR2 게시기를 로컬에 구현했다. 신규 17개/전체 555개 테스트와
+실제 validation 15,265행 smoke는 기존 로컬 확인 기록이지 원격 실행 증거가 아니다.
+기존 원본359688/Test3 안정79b176e의 PR1 #3과 새 코드 기준의 전체 흐름 검증은 구분한다.
+threshold null·F1/Recall/Precision blocked를 임의로 해소하거나 PR1을 Merge하지 않는다.
+
+```text
+현재: PR1 사람 Merge → evaluate-model.yml의 read-only evaluate → 집계 두 파일 artifact/Summary
+evaluate-model.yml 성공 완료 → 별도 publish-evaluation.yml의 workflow_run
+        → trusted default checkout → source workflow ID/name/path/event/repo/success/code 검증
+        → source run/attempt의 유일한 비만료 artifact ID → 정확한 두 파일 → app/result_review.py
+        → merged PR1·merge/plan/EDA/digest/source/runtime·집계 검증 → JSON 정본으로 보고서 재생성
+        → research/result-issue-{issue}-{split}의 두 결과 파일 → 사람 검토용 draft PR2
+```
+
+- 기존 계산 workflow의 단일 read-only job·테스트 계약은 변경하지 않는다.
+  별도 publisher 한 job만 actions read/contents+PR write를 가지며 모델·AI·ML 의존성 없이 실행한다.
+- 결과는 `research/results/issue-{issue}/{split}/evaluation.json`·`report.md`만 저장한다.
+  validation/test는 별도 PR이며 제목은 `평가결과 #{issue}: 고정 모델 · {split}`이다.
+- 같은 open PR/branch 재사용·blob 비교 no-op·검증된 기존 run 링크 보존·non-force 갱신을 적용한다.
+  closed/merged PR2는 deferred, 소유권 불명/추가 편집/경쟁 변경은 중단하며 사람 본문은 `merge_auto_body`로 보존한다.
+- 게시 workflow를 저장소별 직렬화하며 쓰기 직전 head·PR 상태/본문을 재조회한다. 사람 제목·Ready 상태를 초기화하지 않는다.
+  기존 Markdown도 JSON의 renderer와 대조하고 이전 source run을 재검증해 오래된 run의 덮어쓰기를 거부한다.
+- threshold 부족은 not_applicable과 이유로 남기고 EDA failed·환자 중복·validation 재사용 한계를 유지한다.
+  자동 Merge·Pages·임상 승인·환자/예측/특성 벡터 게시는 없다.
+- 실제 PR2 연결은 새 코드 게시의 별도 명시적 승인·반영과 사람의 PR1 Merge 뒤에만 가능하다.
+  PR1 피드백 지연·요약 정확성 공백은 후속으로 남으며 해당 질문이 PR1 변경을 승인한 것은 아니다.
+
 ## 2026-10-17: native 정규화와 게시 직전 단일 검사
 
 `agent` 종료 시점의 Python `post_check`는 제거하고 공식 `safe-outputs.steps`로 같은 검사를 옮겼다.
@@ -48,8 +122,9 @@ raw metadata·숫자 벡터는 Python context 안에 있고 AI 계획 JSON에 �
 최초 실행계획 hash는 평가계획 문맥에 고정하고 최종 실행계획은 같은 PR의 생성 파일에 보존한다.
 입력 서명·코드·도구/정책·매개변수가 다른 결과는 재사용하지 않는다.
 
-`executor_eval`은 기존 지표 15개를 호출하는 순수 수치 라이브러리이며 현재 MCP/Actions 경로에서는 호출하지 않는다.
-계획의 planning_complete는 사람 승인 증거가 아니다. 모델 로딩·predict·PR2 승인·최종 평가/Pages 자동 연결은 여전히 후속이다.
+`executor_eval`은 기존 지표 15개를 호출하는 순수 수치 라이브러리이며 PR1 MCP 경로에서는 호출하지 않는다.
+로컬의 별도 Merge 후 평가 workflow가 `model_evaluation.py`를 통해 이 라이브러리를 호출한다.
+계획의 planning_complete는 사람 승인 증거가 아니다. 실제 Merge를 확인한 뒤에만 계산·PR2를 진행하며 최종 Pages는 후속이다.
 실행 중 데이터 교체·자동 재계획·새 전처리 fit은 추가하지 않는다.
 `research-plan.md`는 AI/도구/권한 원본, `.lock.yml`은 공식 compiler의 생성 결과다.
 `review-eval-plan.yml`/`review_eval_plan.py`는 권한 확인한 자연어 피드백을 AI에 전달한다.

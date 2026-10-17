@@ -2,8 +2,10 @@
 
 Calling these calculation functions grants neither human approval nor clinical
 use approval. A future upper-level caller must verify any required approval.
-This executor is not connected to the current Actions path: it does not load
-models, predict, train, access the network/GitHub, or implement a PR2 workflow.
+This executor is not connected to the current Actions path for PR1 planning.
+The separate merged-plan runner in model_evaluation verifies the merge and calls
+this library. It does not load models, predict, train, access the network/GitHub,
+or implement a PR2 workflow.
 ``planning_complete`` only prevents calculation of incomplete metadata plans;
 it is not evidence of human approval, authorship, or clinical performance.
 """
@@ -317,8 +319,8 @@ def execute_plan(plan, context):
 
     Require schema_version=1, stage=evaluation, ai_status=provided and literal
     planning_complete=True solely to reject incomplete plans, not to establish
-    human approval. A future upper-level caller must check approval separately;
-    this function is not connected to the current Actions path.
+    human approval. The merged-plan controller checks approval separately;
+    PR1 recommendation tools do not call this calculation function.
 
     Flat plan parameters are routed only to applicable selected blocks. Explicit
     plan descriptions can supply missing context, never replace conflicting

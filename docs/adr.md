@@ -1,5 +1,53 @@
 # 현재 결정 기록
 
+## 2026-10-17: PR1부터 PR2까지 원격 실습 완주
+
+- 결정자: 사용자가 “5까지 흐름완주해줘 최종 결과 Pages 연동은 나중에 하자”라고 원본·Test3 코드 반영과 새 Issue/PR1·댓글·Merge·추론·평가·PR2 검증을 승인했다.
+- 기존 PR1 #3과 Issue·결과 브랜치는 보존하고 새 코드 기준의 새 Issue로 시작한다.
+- validation 분할과 AP 주지표를 사용한다. 기존 7개 지표를 유지하되 F1·Recall·Precision의 동작 확인 임계값은 교육용 0.5로 명시한다.
+  이 값은 임상 표준·최적 임계값이 아니며 실습용 변경 요청에만 사용한다.
+- 승인된 완주 범위 안에서 PR1을 검토 후 정상 Merge한다. PR2는 검토용 draft로 생성하고 자동 Merge하지 않는다.
+- Pages와 cloud agent 댓글 전환은 구현하지 않는다. 향후 Pages는 최종 결과 한 번 게시가 아닌 단계별 진행 상태·결과 누적 갱신으로 설계한다.
+- 성공 여부는 실제 PR1/댓글 적용 기록·Merge commit·추론 artifact·PR2 파일과 출처를 대조해 기록한다.
+
+## 2026-10-17: 성공한 고정 모델 평가를 별도 PR2로 검토
+
+- 결정자: 사용자가 PR2 구현과 별도 publisher workflow를 승인했다. 새 승인 JSON·프레임워크는 추가하지 않는다.
+- 기존 `evaluate-model.yml`의 단일 read-only job과 기존 테스트 계약은 바꾸지 않는다.
+  `publish-evaluation.yml` 한 job만 actions read/contents+PR write를 가지며 trusted default 코드를 실행한다.
+- source workflow ID/이름/경로·repo·run/attempt·성공·코드 비교를 artifact 조회보다 먼저 검사한다.
+  정확한 이름의 유일한 비만료 artifact ID만 내려받고, 두 일반 집계 파일 외에는 허용하지 않는다.
+- `result_review.py`는 기존 merged PR/보고서·Git blob·집계 검증·Markdown renderer·non-force commit 도우미를 재사용한다.
+  고정 model ID는 검증한 DATA manifest와 checkpoint/readme/NOTICE 계약으로 대조하며 모델을 받거나 로드하지 않는다.
+- 지표의 저장 threshold·선행조건·집계 행수를 확인한다. threshold null과 실제 not_applicable 이유를 보존하고 임의 수치를 만들지 않는다.
+  top-k 결과는 이미 제거된 행 위치를 다시 요구하지 않으며, 전달된 위치 벡터는 계속 거부한다.
+- Issue/split별 고정 branch와 결과 두 파일만 소유한다. 기존 JSON·canonical Markdown·source run·변경 경로를 확인한 뒤
+  같은 의미면 기존 run URL/파일을 유지한다. 사람 제목·자동 영역 밖 본문·review 상태는 초기화하지 않는다.
+- 게시를 저장소별 직렬화하고 최신 branch head·PR 상태/본문을 쓰기 직전에 재조회한다.
+  이전 run의 새 결과 덮어쓰기·force 갱신·closed/merged PR 재생성을 금지하며 실패한 PR 생성의 branch는 복구용으로 유지한다.
+- 원격 코드는 미게시이고 Test3 PR1 #3은 OPEN draft다. 실제 PR2 생성·원격 실행·cloud-agent migration은 하지 않았다.
+  기존 PR1 피드백 지연·요약 정확성 공백은 후속 항목이며 이 변경에서 고치지 않는다.
+
+## 2026-10-17: 고정 모델 추론과 실제 평가 연결
+
+- 결정자: 사용자가 고정 모델 로딩·추론과 기존 15개 평가 지표의 Actions 연결을 구현하도록 승인했다.
+- 입력은 이미 등록된 GHCR DATA/MODEL과 113-feature 순서만 사용한다. 모델 저장 버전과 같은 Python 3.11/sklearn 1.2.2 환경을 분리한다.
+  학습·추가 scaler·재분할·새 원자료 다운로드는 하지 않는다. 임의 pickle/모델 URL을 받지 않는다.
+- `inference.py`는 data/model manifest·source/hash를 검증한 뒤에만 역직렬화하며, 이름 있는 특성은 DataFrame 이름/순서를 맞춘다.
+  metadata의 순서를 믿지 않고 row_key/split/row_position으로 정답을 연결한다.
+- `model_evaluation.py`는 실제 Merge된 PR의 immutable merge SHA에 있는 저장 계획만 읽고 현재 trusted default 코드로 실행한다.
+  Merge가 사람의 교육용 계획 승인이다. 별도 승인 snapshot이나 추가 수동 게이트는 만들지 않는다.
+- 기본은 validation이고 test는 명시적 선택만 허용한다. threshold·참조 확률·임상 행동은 저장 계획 외에 생성하지 않는다.
+  기존 `executor_eval.execute_plan`의 집계·not_applicable 계약은 변경하지 않는다.
+- 단일 읽기 전용 hosted job에서 자산 추출·추론·지표 계산을 한 번 연결한다. 확률/정답/키/특성은 공개하지 않고 집계 두 파일만 artifact/Summary로 남긴다.
+- scratch 모델 이미지는 CMD가 없으므로 기존 파일 추출기의 `docker create`에 실행하지 않을 `/bin/true`를 명시했다.
+  컨테이너 start/run으로 모델 이미지를 실행하지 않는다.
+- 실제 고정 validation 15,265행의 추론·기본 네 지표를 Python 3.11/sklearn 1.2.2에서 로컬 검증했다.
+  원격 Merge Actions 실행 증거나 독립 임상 검증으로 표현하지 않는다.
+- 사용자가 Test3를 우선 기존 PR1 안정 버전으로 업데이트하도록 명확히 요청했다.
+  Test3는 원본359688과 동일한 소스의79b176e로 갱신하고 PR 생성 허용만 켰다. 새 추론/평가 코드는 아직 로컬이며 Test3에 푸시하지 않았다.
+- 다시 볼 조건: 새 모델 포맷/새 데이터셋 지원, 모델 저장 버전 변경, 실제 원격 Merge 실행 연결 검증, PR2/Pages 추가.
+
 ## 2026-10-17: native 본문 정규화 호환과 게시 경계 정리
 
 - 질문: 정상 본문이 `&lt;30`에서 `<30`으로 정규화되어 게시 검사가 실패한 문제를 어떻게 고칠 것인가?
