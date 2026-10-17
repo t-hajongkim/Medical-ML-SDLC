@@ -15,6 +15,14 @@
 무엇을 계산했는지, 무엇을 재사용했는지, 무엇은 확인할 수 없는지를 함께 남깁니다.
 대시보드는 처음에는 비어 있고, 각 단계의 실제 산출물이 생기면 해당 내용만 채워집니다.
 
+### 빈 대시보드 먼저 보기
+
+[대시보드 템플릿 열기](https://t-hajongkim.github.io/Medical-ML-SDLC/)
+
+원본 템플릿의 Pages는 실습 전에 화면을 살펴볼 수 있도록 **항상 빈 대시보드**로 유지합니다.
+Test3이나 다른 실습 저장소의 연구 요청·평가 결과를 이 데모에 연결하지 않습니다.
+실제 데이터가 채워지는 실습 화면과는 별개입니다.
+
 ## 워크숍 목적
 
 이 워크숍은 모델의 성능 수치만 확인하는 데 그치지 않고,
@@ -66,7 +74,7 @@ flowchart TD
 
 PR1은 연구자가 검토하고 Merge합니다. PR2도 검토용으로 만들 뿐 자동으로 승인하거나 Merge하지 않습니다.
 계획 Merge는 교육용 계산의 실행 승인이지 임상 사용 승인이 아닙니다.
-**현재 대시보드는 Actions와 연결되어 있으며, GitHub Pages 배포는 포함하지 않습니다.**
+**실습 대시보드의 데이터는 Actions로 갱신합니다. 원본의 빈 Pages 데모와 실습 저장소의 웹배포는 구분합니다.**
 
 ### 1. 접수
 
@@ -198,7 +206,8 @@ Invoke-Item .\dashboard\index.html
 기본 브랜치의 `dashboard/`는 데이터가 없는 원본 화면입니다.
 실제 자동 갱신 화면은 `dashboard-data` 브랜치의 `dashboard/` 또는 Actions artifact에 있습니다.
 GitHub 저장소의 파일 미리보기 자체가 HTML 웹페이지를 실행하는 것은 아닙니다.
-**Pages 설정과 웹주소 배포는 후속 단계에서 진행합니다.**
+원본 템플릿의 Pages 설정은 복사한 저장소에 상속되지 않습니다.
+**실습 저장소별 Pages 설정과 결과 화면의 웹배포는 후속 단계에서 진행합니다.**
 
 기존 Issue의 집계를 다시 표시하려면 **Update stage dashboard**를 해당 `issue_number`로 수동 실행하세요.
 이 작업은 보고서를 읽을 뿐 EDA나 모델을 다시 실행하지 않습니다.
@@ -229,6 +238,7 @@ python -B -m unittest discover -s tests -p "test_*.py" -q
 │       ├── evaluate-model.yml         # Merge된 계획의 실제 추론·평가
 │       ├── publish-evaluation.yml     # 집계 결과 PR2
 │       ├── update-dashboard.yml       # 단계별 스냅샷·artifact 갱신
+│       ├── deploy-template-preview.yml # 원본 전용 빈 Pages 데모
 │       ├── ci.yml                     # 코드와 계약 회귀 검사
 │       └── publish-db-image.yml       # 운영자용 공통 자산 게시
 ├── app/
