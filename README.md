@@ -1,5 +1,8 @@
 # Medical ML SDLC Workshop
 
+처음 실습하신다면 **[단계별 사용자 가이드](instruction.md)**를 따라가세요.
+저장소 준비부터 댓글 수정, Actions 실행 승인, PR Merge, 대시보드 확인까지 화면 이동 순서대로 설명합니다.
+
 ### 주의
 
 이 샘플은 의료 ML의 연구·검토 과정을 실습하기 위해 준비했습니다. 실제 진료나 임상 의사결정에 사용하지 마세요.
@@ -20,13 +23,8 @@
 [대시보드 템플릿 열기](https://t-hajongkim.github.io/Medical-ML-SDLC/)
 
 원본 템플릿의 Pages는 실습 전에 화면을 살펴볼 수 있도록 **항상 빈 대시보드**로 유지합니다.
-Test3이나 다른 실습 저장소의 연구 요청·평가 결과를 이 데모에 연결하지 않습니다.
+개별 실습 저장소의 연구 요청·평가 결과를 이 데모에 연결하지 않습니다.
 실제 데이터가 채워지는 실습 화면과는 별개입니다.
-
-[Test3 실제 결과 대시보드 열기](https://t-hajongkim.github.io/Medical-ML-SDLC-Test3/)
-
-Test3는 실제 Actions 결과가 채워지는 별도 실습 사이트입니다.
-원본의 빈 데모와 주소·데이터를 분리하며, 이후 파이프라인 결과도 같은 화면에서 갱신됩니다.
 
 ## 워크숍 목적
 
@@ -240,6 +238,7 @@ python -B -m unittest discover -s tests -p "test_*.py" -q
 
 ```text
 .
+├── instruction.md                     # 참가자용 단계별 웹 실습 안내
 ├── .github/
 │   ├── ISSUE_TEMPLATE/research-request.yml
 │   └── workflows/
