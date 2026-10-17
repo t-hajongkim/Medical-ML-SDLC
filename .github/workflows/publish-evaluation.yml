@@ -42,6 +42,18 @@ jobs:
         run: |
           python -B -m app.result_review resolve-source \
             --run-id "$SOURCE_RUN" --attempt "$SOURCE_ATTEMPT"
+      - name: Save the verified evaluation target for the dashboard
+        env:
+          TARGET_NUMBER: ${{ github.event.workflow_run.id }}
+          SOURCE_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+        run: python -B -m app.dashboard target --kind evaluation_run --evaluation-attempt "$SOURCE_ATTEMPT"
+      - name: Preserve dashboard routing metadata only
+        uses: actions/upload-artifact@v7
+        with:
+          name: dashboard-target-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/dashboard-target.json
+          if-no-files-found: error
+          retention-days: 30
       - name: Read aggregate files only from the verified source run
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:

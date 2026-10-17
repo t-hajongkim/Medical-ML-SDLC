@@ -50,7 +50,7 @@ def verify_code(code):
         raise ValueError("The merged plan is stale for the current execution code or asset configuration.")
 
 
-def validate_reports(reports, config, repository, issue):
+def validate_reports(reports, config, repository, issue, *, require_complete=True):
     request, execution, eda, binding = (reports[name] for name in (
         "request.json", "execution-plan.json", "eda.json", "input-mapping.json"))
     if (request.get("repository") != repository or request.get("issue_number") != issue
@@ -83,7 +83,7 @@ def validate_reports(reports, config, repository, issue):
     if (rebuilt["eda"] != reports["eda-plan.json"]
             or rebuilt["evaluation"] != reports["evaluation-plan.json"]
             or rebuilt["evaluation"]["ai_status"] != "provided"
-            or rebuilt["evaluation"]["planning_complete"] is not True):
+            or (require_complete and rebuilt["evaluation"]["planning_complete"] is not True)):
         raise ValueError("Merged evaluation plan is incomplete or differs from its saved selection and evidence.")
     return manifest
 

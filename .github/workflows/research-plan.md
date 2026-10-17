@@ -76,6 +76,19 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REQUESTED_PR: ${{ inputs.pull_request }}
         run: python -B -m app.research resolve-ai-target
+      - name: Save the exact authorized dashboard target
+        env:
+          TARGET_READY: ${{ steps.resolve.outputs.ready }}
+          TARGET_KIND: ${{ steps.resolve.outputs.target_kind }}
+          TARGET_NUMBER: ${{ steps.resolve.outputs.target_number }}
+        run: python -B -m app.dashboard target
+      - name: Preserve dashboard routing metadata only
+        uses: actions/upload-artifact@v7
+        with:
+          name: dashboard-target-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/dashboard-target.json
+          if-no-files-found: error
+          retention-days: 30
 tools:
   github: false
   bash: false

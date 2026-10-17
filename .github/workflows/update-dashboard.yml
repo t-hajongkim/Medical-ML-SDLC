@@ -1,0 +1,62 @@
+name: Update stage dashboard
+
+on:
+  workflow_run:
+    workflows:
+      - Prepare research review
+      - Review evaluation plan feedback
+      - 연구 점검·평가계획
+      - Evaluate merged research plan
+      - Prepare evaluation result PR2
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: "기존 연구 Issue 번호. 비우면 최초 빈 대시보드를 준비합니다."
+        required: false
+        type: string
+
+permissions:
+  actions: read
+  contents: write
+  issues: read
+  pull-requests: read
+
+concurrency:
+  group: stage-dashboard-${{ github.repository }}
+  cancel-in-progress: false
+
+env:
+  PYTHONDONTWRITEBYTECODE: "1"
+  PYTHONUTF8: "1"
+
+jobs:
+  snapshot:
+    if: (github.event_name == 'workflow_dispatch' && github.ref_name == github.event.repository.default_branch) || (github.event_name == 'workflow_run' && github.event.workflow_run.repository.full_name == github.repository && github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out trusted dashboard code and assets
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: "3.12"
+      - name: Install the existing Issue Form parser
+        run: python -B -m pip install --disable-pip-version-check -r requirements-workflow.txt
+      - name: Validate and publish aggregate-only stage data
+        id: snapshot
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REQUESTED_ISSUE: ${{ inputs.issue_number }}
+        run: python -B -m app.dashboard publish --output "$RUNNER_TEMP/stage-dashboard"
+      - name: Save the complete offline dashboard
+        if: steps.snapshot.outputs.ready == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: stage-dashboard-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/stage-dashboard/
+          if-no-files-found: error
+          retention-days: 30

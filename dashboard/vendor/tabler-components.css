@@ -1,0 +1,23 @@
+/*!
+ * Adapted from Tabler @tabler/core 1.6.1, commit ec33733290bd0f314ca19f6be58bc69a6ab3e4fa.
+ * Copyright (c) 2018-2026 The Tabler Authors. MIT License.
+ * Full license: ../licenses/tabler-LICENSE.txt
+ * Sources: core/scss/ui/_nav.scss, _tables.scss, _badges.scss (copies in ../licenses/).
+ * Modified: resolved SCSS mixins/variables to a small standalone, monochrome subset;
+ * omitted colors, animation, framework JavaScript, and all demo/chart dependencies.
+ */
+.nav{--nav-link-hover-bg:#f5f5f5;--nav-link-active-color:#000;display:flex;flex-wrap:wrap;padding-left:0;margin:0;list-style:none;font-size:14px}
+.nav-vertical,.nav-vertical .nav{flex-direction:column;flex-wrap:nowrap}
+.nav-link{display:flex;align-items:center;text-decoration:none;color:inherit}
+.nav-link:hover,.nav-link:focus{background-color:var(--nav-link-hover-bg)}
+.nav-vertical .nav-link.active{font-weight:600;color:var(--nav-link-active-color)}
+.table{width:100%;margin-bottom:16px;border-collapse:collapse;font:inherit}
+.table thead th{padding-top:10px;padding-bottom:10px;white-space:nowrap;background:#f5f5f5}
+.table>:not(caption)>*>*{padding:12px 16px;text-align:left;border-bottom:1px solid #ddd}
+.table-vcenter>:not(caption)>*>*{vertical-align:middle}
+.table-responsive{max-width:100%;overflow-x:auto}
+.table-responsive .table{margin-bottom:0}
+.table-nowrap>:not(caption)>*>*{white-space:nowrap}
+.badge{display:inline-flex;gap:4px;align-items:center;justify-content:center;min-width:1em;padding:4px 7px;font-size:11px;font-weight:500;line-height:1.1;color:#000;text-align:center;white-space:nowrap;vertical-align:middle;background:#f5f5f5;border:1px solid transparent;border-radius:3px}
+.badge-outline{background-color:transparent;border:1px solid currentColor}
+@media print{.table thead{display:table-header-group}.table tr{break-inside:avoid}.table thead th{background:transparent}}

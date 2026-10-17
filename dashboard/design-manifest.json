@@ -1,0 +1,163 @@
+{
+  "purpose": "Progressive read-only analytics frontend for actual GitHub Actions snapshot publications. The default shell is empty; no Pages deployment or browser execution control.",
+  "design": {
+    "audience": "Clinical research reviewers checking fixed public data, evaluation intent and reproducible inference.",
+    "reference": "https://me.muz.li/wavespaceagency/agent-analytics-dashboard-2",
+    "inspected_image": "https://files.muzli.cloud/67726df7-db82-4f11-be97-097d0161c7da-1788932440123_thumbnail.jpg",
+    "reference_observation": "Narrow left navigation, four compact KPIs, a large analysis plot beside a smaller plot, and a full-width evidence table.",
+    "tokens": {
+      "paper": "#ffffff",
+      "ink": "#000000",
+      "muted": "#666666",
+      "line": "#dddddd",
+      "subtle": "#f5f5f5",
+      "secondary_series": "#aaaaaa"
+    },
+    "typography": {
+      "family": "Segoe UI, Malgun Gothic, system sans-serif",
+      "rationale": "Use the installed Windows clinical-workstation typefaces; no font network calls.",
+      "body_px": 14,
+      "heading_px": 26,
+      "kpi_px": 29,
+      "numerals": "tabular"
+    },
+    "layout": {
+      "sidebar_px": 216,
+      "topbar_px": 64,
+      "desktop_content_padding_px": 28,
+      "analysis_columns": "8:4",
+      "mobile": "off-canvas navigation, two-column KPI strip, single-column plots, internally scrolling tables"
+    },
+    "brief_review": {
+      "rejected": [
+        "Purple/orange reference palette: client requires strictly neutral colors.",
+        "Decorative circular progress and identical rounded metric cards: no measured progress exists.",
+        "Architecture step-card layout: this is an analytics workspace.",
+        "Oversized hero and excessive explanatory prose: charts and evidence should dominate."
+      ],
+      "chosen": "A single compact KPI strip and restrained plot/table surfaces; black selected navigation and patterned monochrome data marks.",
+      "motion": "No unsolicited animation; support reduced motion.",
+      "source_separation": "PR1 data/plan is distinct from Local smoke and any later remote inference snapshot."
+    }
+  },
+  "libraries": {
+    "echarts": {
+      "version": "6.1.0",
+      "source_commit": "c5a48f5f97d23e5379720870b8444cd05b50ffb4",
+      "source": "https://raw.githubusercontent.com/apache/echarts/c5a48f5f97d23e5379720870b8444cd05b50ffb4/dist/echarts.min.js",
+      "sha256": "b66b25aeb4df84e33199dc21694014d336d222cbd9deb0e5a7c14bd6aa0d0fd0",
+      "license": "Apache-2.0",
+      "renderer": "svg",
+      "runtime_delivery": "local vendor file; no CDN",
+      "retained_dependency_licenses": {
+        "d3": "BSD-3-Clause",
+        "zrender_6.1.0": "BSD-3-Clause",
+        "tslib_2.3.0": "0BSD"
+      }
+    },
+    "tabler": {
+      "version": "1.6.1",
+      "source_commit": "ec33733290bd0f314ca19f6be58bc69a6ab3e4fa",
+      "license": "MIT",
+      "components": [
+        "nav-vertical/nav-link",
+        "table/table-vcenter/table-responsive",
+        "badge/badge-outline"
+      ],
+      "delivery": "Small attributed CSS adaptation of pinned official SCSS and documented markup; no Tabler JavaScript or ApexCharts.",
+      "docs": [
+        "https://docs.tabler.io/ui/components/table",
+        "https://docs.tabler.io/ui/layout"
+      ]
+    },
+    "design_guidance": {
+      "scope": "session-local guidance only",
+      "skill_git_blob": "a5333457c414d20d625f307df945842c0952ecc3",
+      "skill_sha256": "d91970639e9f5c37682ac7ab60094d35f1c7c1f38d731bd56396563aee10c1d3",
+      "license": "Apache-2.0"
+    }
+  },
+  "data_policy": {
+    "delivery": "An empty local JavaScript envelope supports direct file URLs. An explicitly configured public repository enables unauthenticated raw.githubusercontent.com JSON reads.",
+    "no_individual_records": true,
+    "initial_data": "Empty schema-1 shell; no repository, Issue, scalar metrics, local smoke or chart measurements.",
+    "default_inference_source": "remote",
+    "public_poll_seconds": 60,
+    "poll_only_while_visible": true,
+    "manual_refresh": true,
+    "private_or_unconfigured": "No browser network request; retain the included offline snapshot.",
+    "network_error": "Visible error/stale notice; preserve the last validated snapshot.",
+    "not_published_404": "Explicit awaiting state; no fake values.",
+    "provenance_checks": ["repository", "target/PR1/evaluation Issue", "dataset/plan/evaluation data_id", "selected metrics/primary/threshold", "strictly advancing generated_at"],
+    "case_update": "Replace the entire snapshot. A new Issue resets view filters/source selection and cannot inherit earlier evaluation or PR2.",
+    "evaluation_view": "Shows actual computed metrics using the same metricTable helper as Result.",
+    "no_run_controls": true,
+    "unsupported_charts": [
+      "ROC curve from scalar AUC",
+      "PR curve without points",
+      "threshold sweep without aggregates",
+      "subgroup model performance without aggregates"
+    ],
+    "states": [
+      "empty",
+      "pending",
+      "blocked",
+      "unverifiable",
+      "diagnostic_failed",
+      "execution_failed",
+      "view_error"
+    ]
+  },
+  "critique": [
+    {
+      "observation": "Reference is a KPI/chart/table workspace, not a sequence of explanatory cards.",
+      "action": "Kept a 4-KPI strip, 8:4 desktop plots and full-width evidence tables; omitted fake rings, orange/purple and export/run theater."
+    },
+    {
+      "observation": "First screenshots had an unnecessary heading-focus frame.",
+      "action": "Removed heading-only focus decoration; retained black visible focus for interactive controls and a functional skip link."
+    },
+    {
+      "observation": "Mobile diagnostic text wrapped too tightly; tablet plots became narrow.",
+      "action": "Minimum evidence-cell widths create internal table scrolling, and tablet plots switch to one column."
+    },
+    {
+      "observation": "Initial chart/header spacing pushed all table rows below the desktop fold.",
+      "action": "Reduced chart/header spacing without shrinking KPI or body type; the first evidence table begins in the desktop fold."
+    },
+    {
+      "observation": "Keyboard navigation could preserve a prior document scroll offset.",
+      "action": "Stage navigation now returns to the top; screenshot capture starts at document top."
+    },
+    {
+      "observation": "Windows ClearType can add chromatic glyph fringes despite neutral CSS.",
+      "action": "Screenshot verification disables LCD text rendering and checks original RGB pixels as well as visible CSS/SVG colors."
+    },
+    {
+      "observation": "Previously embedded example results made an initial page appear already evaluated.",
+      "action": "Production defaults to an empty shell. Only actual published stages fill it; Local smoke is neither embedded nor an automatic fallback."
+    }
+  ],
+  "validation": {
+    "status": "passed",
+    "scope": "Frontend regression with mocked raw delivery and actual backend-exported aggregate fixtures; not live workflow execution.",
+    "proof": "External session artifact: dashboard-progressive-frontend-proof/validation.json",
+    "empty_view_combinations": 18,
+    "actual_view_combinations": 18,
+    "screenshots": 50,
+    "widths": [1440, 768, 390],
+    "javascript_errors": 0,
+    "page_overflows": 0,
+    "non_neutral_screenshot_pixels": 0,
+    "no_test_dependencies_in_dashboard": true
+  },
+  "snapshot": {
+    "initial_state": "empty",
+    "generated_at": null,
+    "repository": null,
+    "issue_number": null,
+    "default_inference_source": "remote",
+    "threshold": null,
+    "primary_metric": null
+  }
+}

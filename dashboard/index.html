@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' file:; script-src 'self' file:; style-src 'self' file: 'unsafe-inline'; img-src 'self' file: data:; font-src 'self' file:; connect-src https://raw.githubusercontent.com; object-src 'none'; base-uri 'none'">
+  <meta name="description" content="GitHub Actions가 게시한 연구 요청, EDA, 평가 계획과 실제 추론 결과를 조회하는 읽기 전용 대시보드">
+  <title>EDA | Medical ML 연구 분석</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="vendor/tabler-components.css">
+  <link rel="stylesheet" href="assets/dashboard.css">
+  <script defer src="vendor/echarts-6.1.0.min.js"></script>
+  <script defer src="assets/dashboard-source.js"></script>
+  <script defer src="assets/dashboard-data.js"></script>
+  <script defer src="assets/dashboard-snapshot.js"></script>
+  <script defer src="assets/dashboard.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">본문으로 이동</a>
+  <button class="sidebar-scrim" id="sidebar-scrim" type="button" aria-label="메뉴 닫기" hidden></button>
+  <aside class="sidebar" id="sidebar" aria-label="연구 단계">
+    <div class="brand">
+      <svg viewBox="0 0 28 28" width="28" height="28" aria-hidden="true"><rect x="1" y="1" width="26" height="26" rx="5" fill="#000"/><path d="M7 18V10l7 8V10m4 0v8h4" fill="none" stroke="#fff" stroke-width="1.5"/></svg>
+      <div><strong>Medical ML</strong><span>연구 분석</span></div>
+      <button id="sidebar-close" class="icon-button mobile-only" type="button" aria-label="메뉴 닫기">×</button>
+    </div>
+    <div class="workspace-name"><span class="workspace-symbol" aria-hidden="true">M</span><div><strong id="workspace-name">연구 대기</strong><small id="workspace-context">등록된 Issue 없음</small></div></div>
+    <nav class="nav nav-vertical" id="stage-nav" aria-label="분석 단계"></nav>
+    <div class="sidebar-bottom">
+      <span class="badge badge-outline">읽기 전용</span>
+      <p>게시된 결과만 조회합니다.<br>실행·승인·배포하지 않습니다.</p>
+      <details class="status-key">
+        <summary>상태 안내</summary>
+        <dl>
+          <dt>산출물 없음</dt><dd>파일에 값이 없습니다.</dd>
+          <dt>대기</dt><dd>결정 또는 산출물 대기</dd>
+          <dt>차단</dt><dd>필수 선행 조건 미충족</dd>
+          <dt>확인 불가</dt><dd>검증 근거 부족</dd>
+          <dt>진단 실패</dt><dd>실행됐으나 점검 기준 미충족</dd>
+          <dt>실행 실패</dt><dd>추론 또는 workflow 실행 오류</dd>
+        </dl>
+      </details>
+    </div>
+  </aside>
+  <div class="page">
+    <header class="topbar">
+      <div class="topbar-title"><button id="sidebar-toggle" class="icon-button mobile-only" type="button" aria-controls="sidebar" aria-expanded="false" aria-label="단계 메뉴 열기"><svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></button><span class="topbar-project" id="topbar-project">Medical ML</span><span class="topbar-separator">/</span><strong id="topbar-stage">EDA</strong></div>
+      <div class="topbar-meta"><button id="snapshot-refresh" type="button" disabled>새로고침</button><a href="design-manifest.json" target="_blank" rel="noopener">설계·출처</a></div>
+    </header>
+    <main id="main" tabindex="-1">
+      <div id="snapshot-status" class="snapshot-status" role="status" aria-live="polite">파이프라인 결과를 기다립니다. 자동 조회는 설정되지 않았습니다.</div>
+      <div id="view"></div>
+      <noscript><div class="notice">분석 차트를 보려면 JavaScript를 활성화하세요. 원자료는 assets/dashboard-data.json에서 확인할 수 있습니다.</div></noscript>
+      <footer class="page-footer">
+        <span>연구용 공개 데이터. 독립 holdout·임상 배포 검증이 아닙니다.</span>
+        <span><a href="licenses/echarts-LICENSE.txt" target="_blank" rel="noopener">ECharts 6.1.0 / Apache-2.0</a><a href="licenses/tabler-LICENSE.txt" target="_blank" rel="noopener">Tabler patterns / MIT</a></span>
+      </footer>
+    </main>
+  </div>
+</body>
+</html>
