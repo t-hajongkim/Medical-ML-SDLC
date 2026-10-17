@@ -1,0 +1,102 @@
+name: Publish research dashboard
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - dashboard/**
+      - .github/workflows/deploy-dashboard.yml
+  workflow_run:
+    workflows: ["Update stage dashboard"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: research-dashboard-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    if: github.repository != 't-hajongkim/Medical-ML-SDLC' && github.ref_name == github.event.repository.default_branch && (github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.repository.full_name == github.repository && github.event.workflow_run.head_repository.full_name == github.repository))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: "3.12"
+      - name: Bind the latest aggregate snapshot and public live source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python -B - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          from app import dashboard, research
+          from app.github_io import read_file, read_object, read_tree
+
+          repository = research.repository_name(os.environ["GITHUB_REPOSITORY"])
+          metadata = research.gh_json(f"repos/{repository}")
+          if metadata.get("private") is not False:
+              raise ValueError("Web publication is restricted to public workshop repositories.")
+          if os.environ.get("GITHUB_EVENT_NAME") == "workflow_run":
+              event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text(encoding="utf-8"))
+              expected = event["workflow_run"]
+              run_id = research.run_identifier(str(expected["id"]))
+              completed = research.gh_json(f"repos/{repository}/actions/runs/{run_id}")
+              registered = research.gh_json(
+                  f"repos/{repository}/actions/workflows/update-dashboard.yml")
+              if (completed.get("workflow_id") != registered.get("id")
+                      or completed.get("path") != ".github/workflows/update-dashboard.yml"
+                      or completed.get("name") != "Update stage dashboard"
+                      or completed.get("status") != "completed"
+                      or completed.get("conclusion") != "success"
+                      or completed.get("repository", {}).get("full_name") != repository
+                      or completed.get("head_repository", {}).get("full_name") != repository
+                      or completed.get("head_branch") != metadata["default_branch"]
+                      or completed.get("run_attempt") != expected.get("run_attempt")):
+                  raise ValueError("Pages requires the exact successful registered dashboard workflow.")
+          refs = research.gh_json(
+              f"repos/{repository}/git/matching-refs/heads/{dashboard.BRANCH}")
+          matches = [item for item in refs
+                     if item.get("ref") == "refs/heads/" + dashboard.BRANCH]
+          if len(matches) > 1:
+              raise ValueError("The dashboard snapshot branch is ambiguous.")
+          if matches:
+              tree = read_tree(repository, matches[0]["object"]["sha"], research.gh_json)
+              payload = read_object(read_file(
+                  repository, tree, dashboard.DATA_PATH, research.gh_json, max_bytes=2_000_000))
+              if (payload.get("schema") != 1
+                      or payload.get("pipeline", {}).get("repository") != repository):
+                  raise ValueError("The dashboard snapshot belongs to a different repository.")
+          else:
+              payload = dashboard.empty_snapshot(repository)
+          dashboard.check_public(payload)
+          assets = Path("dashboard") / "assets"
+          (assets / "dashboard-data.json").write_bytes(dashboard.encoded(payload))
+          (assets / "dashboard-data.js").write_bytes(
+              b"window.DASHBOARD_DATA = " + dashboard.encoded(payload) + b";\n")
+          source = {"repository": repository, "branch": dashboard.BRANCH,
+                    "path": dashboard.DATA_PATH, "poll_seconds": 60, "public": True}
+          (assets / "dashboard-source.js").write_bytes(
+              b"window.DASHBOARD_SOURCE = " + dashboard.encoded(source) + b";\n")
+          PY
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9
+        with:
+          path: dashboard
+      - name: Publish the live research dashboard
+        id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346

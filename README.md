@@ -23,6 +23,11 @@
 Test3이나 다른 실습 저장소의 연구 요청·평가 결과를 이 데모에 연결하지 않습니다.
 실제 데이터가 채워지는 실습 화면과는 별개입니다.
 
+[Test3 실제 결과 대시보드 열기](https://t-hajongkim.github.io/Medical-ML-SDLC-Test3/)
+
+Test3는 실제 Actions 결과가 채워지는 별도 실습 사이트입니다.
+원본의 빈 데모와 주소·데이터를 분리하며, 이후 파이프라인 결과도 같은 화면에서 갱신됩니다.
+
 ## 워크숍 목적
 
 이 워크숍은 모델의 성능 수치만 확인하는 데 그치지 않고,
@@ -71,10 +76,11 @@ flowchart TD
 | 4. 추론·평가 | `evaluate-model.yml` | PR1 Merge · 수동 | `evaluation.json`, `report.md`, Actions Summary |
 | 5. 결과 검토 | `publish-evaluation.yml` | 평가 성공 | 집계 결과 두 파일의 draft PR2 |
 | 6. 화면 갱신 | `update-dashboard.yml` | 관련 실행 완료 · 수동 | `dashboard-data` 브랜치와 대시보드 artifact |
+| 7. 웹에서 보기 | `deploy-dashboard.yml` | 대시보드 갱신 성공 · 화면 코드 변경 · 수동 | 공개 실습 저장소의 실제 결과 Pages |
 
 PR1은 연구자가 검토하고 Merge합니다. PR2도 검토용으로 만들 뿐 자동으로 승인하거나 Merge하지 않습니다.
 계획 Merge는 교육용 계산의 실행 승인이지 임상 사용 승인이 아닙니다.
-**실습 대시보드의 데이터는 Actions로 갱신합니다. 원본의 빈 Pages 데모와 실습 저장소의 웹배포는 구분합니다.**
+**Actions가 실습 대시보드 데이터를 갱신하고, Pages 화면이 공개 스냅샷을 읽어 반영합니다. 원본의 빈 Pages 데모와 실제 결과 사이트는 분리합니다.**
 
 ### 1. 접수
 
@@ -177,17 +183,21 @@ PR·Actions artifact·대시보드에는 집계와 실행 출처만 남깁니다
 
 ## 시작하기
 
-이 저장소를 복사해 실습 저장소를 만든 뒤 다음 순서로 진행하세요.
+웹 실습은 이 저장소를 공개 실습 저장소로 복사한 뒤 다음 순서로 진행하세요.
 참가자별 GHCR 복제는 필요하지 않으며, 현재는 등록된 공통 고정 자산을 사용합니다.
+비공개 저장소는 현재 Actions artifact의 오프라인 화면을 사용합니다.
 
 1. **Settings → Actions → General → Workflow permissions**에서
    **Allow GitHub Actions to create and approve pull requests**를 활성화합니다.
 2. Copilot을 실행하는 계정의 이용 권한과 조직의 모델 정책을 확인합니다.
    Actions의 기본 `GITHUB_TOKEN`을 사용하므로 별도 PAT나 LLM Secret을 등록하지 않습니다.
-3. **Actions → Update stage dashboard → Run workflow**를 실행합니다.
-   `issue_number`를 비우면 빈 대시보드를 준비합니다. 이미 있는 진행 결과를 지우지는 않습니다.
-4. 완료한 실행의 `stage-dashboard-{run}-{attempt}` artifact를 내려받아 전체 폴더를 풀고 `index.html`을 엽니다.
-   이 화면은 공개 저장소의 후속 스냅샷을 읽어 갱신됩니다.
+3. **Settings → Pages → Source**를 **GitHub Actions**로 지정합니다. 복사한 저장소에서 최초 한 번 필요한 설정입니다.
+   기본 `GITHUB_TOKEN`으로 Pages의 최초 활성화 권한을 대신할 수는 없습니다.
+4. **Actions → Update stage dashboard → Run workflow**를 실행합니다.
+   `issue_number`를 비우면 빈 대시보드를 준비하고, 성공 후 **Publish research dashboard**가 자동 배포합니다.
+   이미 있는 진행 결과를 지우지는 않습니다. 필요하면 배포 workflow만 수동 재실행할 수 있습니다.
+   `https://<사용자>.github.io/<저장소>/`에서 빈 화면 또는 현재 결과를 보고 이후 자동 갱신을 확인할 수 있습니다.
+   오프라인으로 확인하려면 `stage-dashboard-{run}-{attempt}` artifact를 내려받아 전체 폴더를 풀고 `index.html`을 엽니다.
 5. **Issues → New issue → 연구 요청**에서 목적과 질문을 작성합니다.
    생성된 PR1을 읽고 필요한 변경을 댓글로 남깁니다.
 6. CI와 최종 계획을 확인하고 PR1을 Merge합니다. Actions가 승인 대기로 멈추면 변경 내용을 확인한 뒤 실행을 승인합니다.
@@ -207,7 +217,9 @@ Invoke-Item .\dashboard\index.html
 실제 자동 갱신 화면은 `dashboard-data` 브랜치의 `dashboard/` 또는 Actions artifact에 있습니다.
 GitHub 저장소의 파일 미리보기 자체가 HTML 웹페이지를 실행하는 것은 아닙니다.
 원본 템플릿의 Pages 설정은 복사한 저장소에 상속되지 않습니다.
-**실습 저장소별 Pages 설정과 결과 화면의 웹배포는 후속 단계에서 진행합니다.**
+실습 저장소의 Pages를 처음 한 번 활성화하면 `deploy-dashboard.yml`이 현재 집계를 포함해 화면을 배포합니다.
+이후에는 공개 스냅샷을 60초 간격으로 읽으므로 매번 수동 배포할 필요가 없습니다.
+아직 연구 요청이 없다면 빈 화면을 표시하고, 완료한 연구가 있다면 그 결과부터 표시합니다.
 
 기존 Issue의 집계를 다시 표시하려면 **Update stage dashboard**를 해당 `issue_number`로 수동 실행하세요.
 이 작업은 보고서를 읽을 뿐 EDA나 모델을 다시 실행하지 않습니다.
@@ -239,6 +251,7 @@ python -B -m unittest discover -s tests -p "test_*.py" -q
 │       ├── publish-evaluation.yml     # 집계 결과 PR2
 │       ├── update-dashboard.yml       # 단계별 스냅샷·artifact 갱신
 │       ├── deploy-template-preview.yml # 원본 전용 빈 Pages 데모
+│       ├── deploy-dashboard.yml       # 실습 저장소의 실제 결과 Pages
 │       ├── ci.yml                     # 코드와 계약 회귀 검사
 │       └── publish-db-image.yml       # 운영자용 공통 자산 게시
 ├── app/
