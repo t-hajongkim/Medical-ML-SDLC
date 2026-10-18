@@ -3,6 +3,9 @@
 **GitHub 웹페이지에서 진행합니다.** 터미널, Python, Docker를 개인 PC에 설치하거나 코드를 수정할 필요는 없습니다.
 연구 요청을 작성하고, AI가 만든 계획을 댓글로 수정한 뒤, 계획을 Merge하여 실제 평가 결과를 확인합니다.
 
+이미지는 실제 실습 화면입니다. 저장소 이름과 Issue·PR 번호는 예시이므로 **본인 화면의 값을 사용하세요.**
+**이미지를 누르면 크게 볼 수 있습니다.**
+
 처음이라면 **1장부터 순서대로** 진행하세요. 준비를 끝냈다면 **4. 연구 요청 작성하기**부터 시작합니다.
 이미 만들어진 PR에서 멈췄다면 **7. Actions 실행 승인하기**와 **13. 막혔을 때 확인하기**를 먼저 보세요.
 
@@ -99,6 +102,15 @@ GitHub에 로그인하지 않았다면 먼저 로그인합니다.
 4. 웹 대시보드 실습을 위해 **Public**을 선택합니다.
 5. **Create repository**를 누릅니다.
 
+**메뉴에서는 Create a new repository를 선택합니다.**
+
+[![Use this template 메뉴에서 Create a new repository 선택](docs/images/instruction/01-2-template-menu.png)](docs/images/instruction/01-2-template-menu.png)
+
+**Owner·저장소 이름·Public을 확인한 뒤 Create repository를 누릅니다.**
+아래쪽 **Jumpstart your project with Copilot**의 Prompt는 이 실습에서 사용하지 않으므로 비워 둡니다.
+
+[![내 계정과 저장소 이름, Public을 선택한 저장소 생성 화면](docs/images/instruction/01-2-create-repository.png)](docs/images/instruction/01-2-create-repository.png)
+
 저장소 이름에는 **공백을 쓸 수 없습니다.**
 영문·숫자·하이픈 조합을 권장하며, `Medical ML Practice`처럼 띄어 쓰는 대신 `medical-ml-practice`처럼 입력합니다.
 
@@ -122,6 +134,8 @@ GitHub에 로그인하지 않았다면 먼저 로그인합니다.
 3. 아래쪽 **Workflow permissions**를 찾습니다.
 4. **Allow GitHub Actions to create and approve pull requests**를 체크합니다.
 5. **Save**를 누릅니다.
+
+[![PR 생성과 승인 허용 체크박스 및 바로 아래 Save 버튼](docs/images/instruction/02-1-workflow-permissions.png)](docs/images/instruction/02-1-workflow-permissions.png)
 
 같은 영역의 **Read repository contents and packages permissions**와 **Read and write permissions** 선택란은 별도 설정입니다.
 이 템플릿은 필요한 권한을 각 workflow에 선언하므로, 실습을 위해 기본 Read를 무조건 Read and write로 바꾸지는 않습니다.
@@ -151,6 +165,8 @@ Copilot 실행 권한과 조직의 모델 사용 정책도 필요합니다. 운�
 3. **GitHub Actions**를 선택합니다.
 4. 저장 버튼이 따로 표시된다면 저장합니다.
 
+[![Pages의 Source 메뉴에서 GitHub Actions 선택](docs/images/instruction/02-3-pages-source.png)](docs/images/instruction/02-3-pages-source.png)
+
 `Deploy from a branch`를 선택해 `main`의 파일을 그대로 배포하는 방식이 아닙니다.
 **Source가 GitHub Actions인지** 다시 확인하세요.
 
@@ -167,6 +183,9 @@ Pages가 아직 비활성화돼 있다면 `check-pages`가 설정 필요 안내�
 
 ## 3. 빈 대시보드 먼저 열기
 
+이 장은 **연구 전에 대시보드를 미리 열어 보는 선택 단계**입니다.
+Pages 설정을 마쳤다면 **4장부터 진행해도 됩니다.** 연구 단계가 끝나면 대시보드 갱신과 배포가 자동으로 이어집니다.
+
 ### 3-1. 빈 데이터 준비 실행하기
 
 **탭 2 — 내 저장소의 Actions**
@@ -175,7 +194,9 @@ Pages가 아직 비활성화돼 있다면 `check-pages`가 설정 필요 안내�
 2. 오른쪽 **Run workflow**를 누릅니다.
 3. **Use workflow from**이 `main`인지 확인합니다. 화면에 따라 **Branch**로 표시될 수도 있습니다.
 4. **issue_number는 비워 둡니다.**
-5. 펼쳐진 창 안의 **Run workflow**를 눌러 실행합니다.
+5. 화면 오른쪽에 펼쳐진 **창 맨 아래의 Run workflow**를 눌러 실행합니다.
+
+[![main을 선택하고 issue_number를 비운 최초 대시보드 실행 입력란](docs/images/instruction/03-1-run-empty-dashboard.png)](docs/images/instruction/03-1-run-empty-dashboard.png)
 
 처음에는 결과가 없는 대시보드를 준비합니다.
 이미 연구 결과가 있는 저장소에서는 이 입력을 비운다고 결과를 삭제하거나 초기화하지 않습니다.
@@ -198,11 +219,17 @@ Publish research dashboard: success
 **첫 번째 실행만 성공한 것은 웹배포 완료가 아닙니다. 두 번째 배포까지 확인합니다.**
 별도로 `Publish empty template preview`가 `skipped`라면 정상입니다. 이것은 원본의 빈 데모 전용 작업입니다.
 
+**배포 완료 화면에서는 check-pages와 deploy가 모두 초록색입니다.**
+
+[![Publish research dashboard의 check-pages와 deploy가 모두 성공한 화면](docs/images/instruction/03-2-deploy-success.png)](docs/images/instruction/03-2-deploy-success.png)
+
 ### 3-3. 내 대시보드 주소 열기
 
 1. 내 저장소의 **Settings → Pages**로 돌아갑니다.
 2. 게시된 사이트 주소 또는 **Visit site**를 찾습니다.
 3. 해당 주소를 새 탭으로 엽니다. 이 탭을 **탭 3**으로 둡니다.
+
+[![Settings의 Pages에서 게시된 주소와 Visit site 확인](docs/images/instruction/03-3-visit-site.png)](docs/images/instruction/03-3-visit-site.png)
 
 코드 저장소 주소인 `github.com/.../tree/main`과 대시보드 주소는 다릅니다.
 대시보드는 `https://OWNER.github.io/REPOSITORY/` 형태입니다.
@@ -232,6 +259,8 @@ Publish research dashboard: success
 아래쪽의 **Blank issue** 또는 **Open a blank issue**를 선택하지 마세요.
 자유 양식 Issue는 연구 요청 폼의 필드를 갖추지 못해 자동 분석 대상으로 인식되지 않을 수 있습니다.
 
+[![Blank issue가 아닌 Diabetes 연구 요청 템플릿 선택](docs/images/instruction/04-1-issue-template.png)](docs/images/instruction/04-1-issue-template.png)
+
 ### 4-2. 연구 내용을 입력하기
 
 처음 실습에서는 기본 문구를 읽고 필요한 부분만 수정해도 됩니다.
@@ -244,6 +273,10 @@ Publish research dashboard: success
 | **추가 점검과 지표 요청** | 관심 있는 점검이나 지표를 적습니다. 처음부터 모두 정할 필요는 없습니다 |
 | **공개 데이터 사용 확인** | 내용을 확인하고 체크합니다 |
 
+**네 개의 텍스트 입력란을 읽고 이번 실습에서 확인할 내용을 작성합니다.**
+
+[![연구 목표와 질문, 분석 대상, 추가 점검과 지표 요청 입력란](docs/images/instruction/04-2-research-fields.png)](docs/images/instruction/04-2-research-fields.png)
+
 데이터셋 ID, 이미지 주소, 모델 파일, 특성 목록을 폼에 추가로 입력하지 않습니다.
 실습은 이미 준비된 공개 데이터와 고정 모델을 사용합니다.
 환자명·연락처·식별자·실제 진료정보·개인 파일은 입력하거나 첨부하지 마세요.
@@ -255,6 +288,8 @@ Publish research dashboard: success
 
 폼 아래 **Create** 또는 **Submit new issue**를 눌러 제출합니다.
 생성된 Issue의 제목 옆 `#번호`를 기억해 두세요.
+
+[![공개 데이터 사용 확인을 체크하고 Create로 Issue 제출](docs/images/instruction/04-3-create-issue.png)](docs/images/instruction/04-3-create-issue.png)
 
 Issue와 PR은 GitHub의 번호를 함께 사용합니다.
 예를 들어 Issue가 `#1`이면 첫 계획 PR이 `#2`, 결과 PR이 `#3`일 수 있습니다.
@@ -289,6 +324,8 @@ AI 분석이 끝나기 전에는 PR이 아직 없어도 정상입니다.
 `연구검토 #이슈번호: ...` 제목의 PR을 엽니다.
 처음에는 **Draft**로 표시될 수 있습니다. PR이 덜 만들어졌다는 뜻이 아니라 사람의 검토를 기다리는 상태입니다.
 
+[![Pull requests 목록에 생성된 연구검토 Draft PR1](docs/images/instruction/05-2-draft-pr1.png)](docs/images/instruction/05-2-draft-pr1.png)
+
 이 PR이 **PR1 — EDA·평가계획 PR**입니다.
 아직 실제 모델 성능을 계산한 결과 PR이 아닙니다.
 
@@ -310,9 +347,15 @@ AI 실행이 실패했다면 **13장**으로 이동합니다. 직접 다른 PR�
 - [ ] 본문의 **승인 준비**가 완료인지, 미완료라면 어떤 이유가 있는지
 - [ ] 새 학습·재분할·임상 사용 승인을 했다고 잘못 설명하지 않는지
 
+**승인 준비가 미완료라면 바로 아래의 이유를 읽습니다.** 이 예시는 주지표가 아직 정해지지 않은 상태입니다.
+
+[![PR1의 승인 준비 미완료와 primary_metric 필요 사유](docs/images/instruction/06-1-approval-incomplete.png)](docs/images/instruction/06-1-approval-incomplete.png)
+
 현재 데이터에는 환자 중복이 있어 EDA 판정이 `failed`일 수 있습니다.
 `unverifiable`도 필요한 근거가 없다는 뜻입니다.
 **이 판정과 Actions 프로그램의 실행 실패는 서로 다릅니다.** 무조건 `passed`가 될 때까지 다시 실행하지 마세요.
+
+[![EDA 블록의 failed와 unverifiable 판정을 구분하는 상태 표](docs/images/instruction/06-1-eda-status.png)](docs/images/instruction/06-1-eda-status.png)
 
 ### 6-2. 파일에서 계획 확인하기
 
@@ -367,6 +410,10 @@ threshold는 이번 교육용 실습에서 명시한 0.5를 사용해 주세요.
 이미 보낸 댓글을 `Edit`로 고치는 것만으로는 다시 실행되지 않습니다.
 추가 변경은 **새 댓글**로 남기세요.
 
+**PR 아래 Add a comment에 입력하고 Comment를 누릅니다. Close with comment는 누르지 않습니다.**
+
+[![같은 PR1의 Add a comment에 변경 요청을 입력하고 Comment로 등록](docs/images/instruction/06-3-comment-request.png)](docs/images/instruction/06-3-comment-request.png)
+
 AI에게 “알아서 임상 임계값을 정해 주세요”라고만 쓰면 값이 정해지지 않을 수 있습니다.
 현재 지시문은 AI가 사람 대신 값을 확정하지 못하게 합니다.
 원하는 교육용 조건이 있다면 위 예시처럼 직접 명시하세요.
@@ -389,6 +436,10 @@ Review evaluation plan feedback
 둘 다 끝난 뒤 **탭 1 — 같은 PR1**로 돌아옵니다.
 페이지를 새로고침하고 봇의 새 답장과 Files changed를 확인합니다.
 지표만 바꾼 요청에서는 EDA를 재사용할 수 있습니다. 이것은 계산을 빠뜨린 것이 아닙니다.
+
+**같은 PR에 달린 새 답장에서 변경 지표·주지표·threshold와 재사용 내역을 확인합니다.**
+
+[![같은 PR을 갱신한 봇 답장에 지표 추가와 EDA 재사용 내역 표시](docs/images/instruction/06-4-bot-reply.png)](docs/images/instruction/06-4-bot-reply.png)
 
 같은 댓글을 연속으로 반복해 보내지 마세요.
 답장과 실제 변경을 확인한 뒤 다음 요청을 남깁니다.
@@ -414,6 +465,14 @@ Review evaluation plan feedback
 }
 ```
 
+**Files changed에서 evaluation-plan.json을 엽니다.** 이 예시는 `selected_ids`에 지표 7개가 반영된 화면입니다.
+
+[![evaluation-plan.json의 selected_ids에 반영된 지표 7개](docs/images/instruction/06-5-selected-metrics.png)](docs/images/instruction/06-5-selected-metrics.png)
+
+같은 파일의 아래쪽에서 **주지표와 threshold도 요청한 값인지** 확인합니다.
+
+[![primary_metric은 average_precision, threshold는 교육용 0.5로 반영된 예시](docs/images/instruction/06-5-primary-threshold.png)](docs/images/instruction/06-5-primary-threshold.png)
+
 각 지표 항목의 `state: "eligible_planned_inputs"`는 이후 확률 입력이 생성되면 계산하도록 계획됐다는 뜻입니다.
 **지금 지표 값이 계산됐다는 뜻은 아닙니다.**
 `blocked`나 `blocked_reasons`가 있다면 이유를 읽고 필요한 조건을 새 댓글로 요청합니다.
@@ -422,6 +481,8 @@ Actions의 `success`나 “반영했습니다”라는 답장만 보지 말고 �
 주지표만 지정했다면 기본 4개 지표가 유지되는 것이 정상입니다.
 PR 본문의 **승인 준비가 완료로 바뀌었는지**도 확인합니다.
 **확인되지 않은 계획은 아직 Merge하지 않습니다.**
+
+[![PR1 본문의 교육용 계획 승인 준비가 완료로 바뀐 상태](docs/images/instruction/06-5-approval-complete.png)](docs/images/instruction/06-5-approval-complete.png)
 
 ## 7. Actions 실행 승인하기
 
@@ -463,6 +524,10 @@ Checks가 0이라는 이유로 승인 대상이 없다고 판단하지 마세요
    화면의 PR·브랜치가 지금 검토하는 PR인지 확인합니다. 전체 목록의 오래된 실행을 대신 승인하지 않습니다.
 5. 실행이 시작되면 완료될 때까지 기다립니다.
 
+**이 버튼은 Actions 실행 허용입니다. 아래쪽 Ready for review나 Merge와 구분합니다.**
+
+[![PR1 Conversation의 Approve workflows to run 실행 승인 버튼](docs/images/instruction/07-3-approve-workflows.png)](docs/images/instruction/07-3-approve-workflows.png)
+
 승인 권한이 없어 버튼을 누를 수 없다면 저장소 소유자나 운영자에게 요청합니다.
 새 토큰을 만들거나 검사 설정을 끄는 방식으로 우회하지 마세요.
 
@@ -470,6 +535,8 @@ Checks가 0이라는 이유로 승인 대상이 없다고 판단하지 마세요
 
 **탭 1 — 같은 PR**로 돌아와 새로고침합니다.
 현재 커밋의 검사가 성공하면 정상입니다.
+
+[![최신 PR1 커밋의 All checks have passed 성공 표시](docs/images/instruction/07-4-checks-passed.png)](docs/images/instruction/07-4-checks-passed.png)
 
 검사 도중 댓글을 추가해 계획이 또 바뀌었다면 새 커밋에 새 검사가 생길 수 있습니다.
 **이전에 초록색이었던 실행이 아니라 최종 변경의 검사 결과**를 확인하세요.
@@ -505,6 +572,10 @@ Draft 표시가 사라지면 정상입니다.
 
 **이 단계만으로 Merge되거나 모델이 실행되지는 않습니다.**
 
+**아래는 Ready for review를 누른 뒤의 화면입니다.** Draft가 해제되고 검사가 성공하면 **Merge pull request**를 사용할 수 있습니다.
+
+[![Ready for review 처리 후 검사 성공과 활성화된 Merge pull request](docs/images/instruction/08-2-ready-merge.png)](docs/images/instruction/08-2-ready-merge.png)
+
 ### 8-3. 실제로 Merge하기
 
 Merge 영역에서 병합 방식 선택 메뉴가 보이면 **Create a merge commit**을 선택합니다.
@@ -513,6 +584,10 @@ Merge 영역에서 병합 방식 선택 메뉴가 보이면 **Create a merge com
 1. PR 아래쪽 **Merge pull request**를 누릅니다.
 2. 확인 화면에서 **Confirm merge**를 누릅니다.
 3. PR 상태가 **Merged**로 바뀌었는지 확인합니다.
+
+**확인 화면의 Confirm merge까지 눌러야 병합이 끝납니다.**
+
+[![PR1 병합 확인 화면에서 마지막 Confirm merge 클릭](docs/images/instruction/08-3-confirm-merge.png)](docs/images/instruction/08-3-confirm-merge.png)
 
 가능하면 기본 **Create a merge commit** 방식으로 진행합니다.
 조직에서 다른 병합 방식을 강제한다면 운영자의 안내를 따릅니다.
@@ -534,6 +609,10 @@ PR1을 Merge하면 **Evaluate merged research plan**이 실행됩니다.
 
 기본 자동 평가는 **validation 15,265행**입니다.
 새 학습·전처리·재분할은 하지 않으며, 이 실습에서 test 분할을 수동 실행할 필요도 없습니다.
+
+평가가 끝나면 실행 상세의 **evaluate 성공과 Summary**를 확인합니다.
+
+[![실제 모델 평가 성공과 validation 15265행의 평가 Summary](docs/images/instruction/09-1-evaluation-success.png)](docs/images/instruction/09-1-evaluation-success.png)
 
 이 단계가 없다면 먼저 PR1의 상태가 정말 Merged인지 확인합니다.
 Draft 해제나 Actions 실행 승인만 한 상태일 수 있습니다.
@@ -565,11 +644,15 @@ GitHub 번호가 `#2`일 필요는 없습니다.
 첫 계획 PR이 Merged여서 Open 목록에서 사라지고 새 결과 PR만 보여도 정상입니다.
 결과 PR은 Draft로 만들어지며 사람의 검토를 기다립니다.
 
+[![Pull requests 목록에 새로 생성된 평가결과 Draft PR2](docs/images/instruction/09-3-draft-pr2.png)](docs/images/instruction/09-3-draft-pr2.png)
+
 ## 10. 웹 대시보드에서 결과 확인하기
 
 ### 10-1. 내 Pages로 이동하기
 
-**탭 3 — 처음 열어 둔 내 대시보드**
+**탭 3 — 내 대시보드**
+
+아직 열지 않았다면 **내 저장소 → Settings → Pages → Visit site**에서 새 탭으로 엽니다.
 
 배포가 처음이라면 **Publish research dashboard**가 성공했는지 확인합니다.
 페이지를 오래 열어 두었다면 화면의 **새로고침** 버튼을 누르거나 브라우저를 한 번 새로고침합니다.
@@ -592,6 +675,14 @@ GitHub 번호가 `#2`일 필요는 없습니다.
 계획이 만들어졌을 때는 Target·EDA·Evaluation Plan까지만 채워지고 모델 결과는 대기할 수 있습니다.
 **PR1 Merge와 실제 평가 후에 Model·Evaluation·Result의 값이 채워집니다.**
 계획 단계에서 이미 모델 성능이 계산됐다고 해석하지 마세요.
+
+**Evaluation Plan에서는 내가 확정한 지표·주지표·threshold를 확인합니다.**
+
+[![대시보드 Evaluation Plan에 표시된 선택 지표 7개와 AP, threshold 0.5](docs/images/instruction/10-2-evaluation-plan.png)](docs/images/instruction/10-2-evaluation-plan.png)
+
+**Result에서는 실제 계산된 지표와 calibration 그래프를 확인합니다.** 이 화면은 PR2 검토 전이므로 Draft가 남아 있습니다.
+
+[![실제 평가 지표와 calibration 그래프 및 검토 전 PR2 Draft 상태](docs/images/instruction/10-2-result.png)](docs/images/instruction/10-2-result.png)
 
 ### 10-3. 비어 있는 지표 구분하기
 
@@ -621,6 +712,10 @@ ROC AUC·AP 숫자와 ROC·PR 곡선은 다른 산출물입니다.
 - [ ] 환자 중복과 validation 개발 사용 등 해석 한계가 남아 있는지
 - [ ] 개인별 정답·확률·식별자가 게시되지 않았는지
 
+**PR2의 Files changed에는 집계 결과 두 파일만 있는지 확인합니다.**
+
+[![결과 PR2의 Files changed에 evaluation.json과 report.md 두 파일 표시](docs/images/instruction/11-1-result-files.png)](docs/images/instruction/11-1-result-files.png)
+
 필요하면 PR2의 CI도 **7장과 같은 방법**으로 실행을 승인하고 완료를 확인합니다.
 계산 결과가 웹에 보이는 것과 사람이 검토를 끝낸 것은 별개입니다.
 
@@ -646,6 +741,8 @@ Pull requests의 기본 목록은 **Open**입니다.
 PR1과 PR2를 모두 Merge하면 Open 목록이 비어 있을 수 있습니다.
 위쪽 **Closed**를 눌러 이미 Merge한 PR을 확인하세요.
 
+[![Closed 목록에서 보라색 Merged 아이콘의 PR1과 PR2 확인](docs/images/instruction/11-3-closed-prs.png)](docs/images/instruction/11-3-closed-prs.png)
+
 **세 번째 PR이 계속 만들어지는 흐름은 아닙니다.**
 결과 PR2를 Merge한 뒤 `Evaluate merged research plan`이나 후속 게시가 `skipped`로 보일 수 있습니다.
 결과 PR의 Merge로 같은 모델을 다시 돌리지 않도록 건너뛴 것이므로 정상입니다.
@@ -657,13 +754,21 @@ PR2를 Merge했는데 대시보드에 이전 Draft 상태가 남아 있다면 �
 1. **탭 2 — Actions → Update stage dashboard**를 엽니다.
 2. **Run workflow**를 누릅니다.
 3. **Use workflow from** 또는 **Branch**는 `main`, **issue_number에는 연구 Issue 번호**를 입력합니다.
-4. 실행하고 배포 성공을 기다립니다.
+4. 창 맨 아래의 **Run workflow**를 누르고 배포 성공을 기다립니다.
 5. **탭 3**에서 새로고침해 검토 상태를 확인합니다.
+
+**입력란에는 PR 번호가 아니라 연구 Issue 번호를 넣습니다.**
+
+[![Update stage dashboard 실행 창에 연구 Issue 번호를 입력한 예시](docs/images/instruction/11-4-issue-refresh.png)](docs/images/instruction/11-4-issue-refresh.png)
 
 이 입력은 PR 번호가 아닙니다.
 이 작업은 기존 결과와 검토 메타데이터를 읽을 뿐 EDA나 모델을 다시 계산하지 않습니다.
 병합된 PR이면 **Merged · 병합 완료**, 병합하지 않고 닫은 PR이면 **Closed · 병합 없이 닫힘**으로 구분합니다.
 두 경우 모두 GitHub의 기본 Open 목록에서는 사라지지만 같은 상태는 아닙니다.
+
+갱신 후 **Merged · 병합 완료**로 바뀌었는지 확인합니다. 이미 계산한 지표 값은 그대로입니다.
+
+[![지표 값은 유지되고 PR2 상태만 Merged 병합 완료로 바뀐 대시보드](docs/images/instruction/11-4-merged-result.png)](docs/images/instruction/11-4-merged-result.png)
 
 ## 12. 다시 실습할 때
 
@@ -723,6 +828,34 @@ Actions의 과거 목록 전체가 초록색일 필요는 없습니다.
 | PR2가 Merge됐는데 화면은 Draft입니다 | 11-4처럼 Issue 번호로 집계 메타데이터를 갱신합니다 |
 | 이전 커밋 CI에 빨간 X가 남습니다 | 현재 커밋의 성공과 구분합니다. 미승인으로 종료된 과거 실행을 지우려고 전부 재승인하지 않습니다 |
 
+<details>
+<summary>화면 예시: check-pages만 성공하고 deploy는 skipped입니다</summary>
+
+아직 Pages가 켜지지 않은 상태입니다. **2-3의 Pages 설정**을 마친 뒤 배포합니다.
+
+[![Pages 설정 대기 안내와 건너뛴 deploy 작업](docs/images/instruction/13-pages-disabled.png)](docs/images/instruction/13-pages-disabled.png)
+
+</details>
+
+<details>
+<summary>화면 예시: Checks가 0인데 실행 승인이 필요합니다</summary>
+
+완료된 검사 결과가 없는 예시입니다. **Conversation으로 돌아가 승인 배너**를 확인하고 7장대로 진행합니다.
+
+[![Checks 탭에 완료된 검사 결과가 없는 실행 승인 대기 예시](docs/images/instruction/13-checks-zero.png)](docs/images/instruction/13-checks-zero.png)
+
+</details>
+
+<details>
+<summary>화면 예시: 최신 CI는 성공했지만 이전 실행은 승인 대기입니다</summary>
+
+병합 전 화면입니다. 맨 위 최신 커밋의 성공과 그 아래 이전 커밋의 승인 대기를 구분합니다.
+오래된 실행을 모두 승인하지 않습니다.
+
+[![최신 커밋 성공과 이전 커밋 두 건의 승인 대기를 구분한 CI 이력](docs/images/instruction/13-older-ci.png)](docs/images/instruction/13-older-ci.png)
+
+</details>
+
 ### 13-3. 정상인 `skipped` 사례
 
 - 실습 저장소의 **Publish empty template preview**: 원본 데모 전용이므로 건너뜁니다.
@@ -732,6 +865,15 @@ Actions의 과거 목록 전체가 초록색일 필요는 없습니다.
 
 필요한 첫 평가가 아예 실행되지 않았는데 무조건 정상이라고 넘기지는 마세요.
 **어느 PR의 어떤 이벤트에서 건너뛴 것인지** 확인합니다.
+
+<details>
+<summary>화면 예시: 결과 PR2를 Merge한 뒤 평가·게시 작업이 skipped입니다</summary>
+
+결과 검토의 Merge로 모델을 다시 실행하지 않도록 건너뛴 예시입니다. 최초 PR1의 평가는 성공했는지 별도로 확인합니다.
+
+[![결과 PR2 병합 후 평가와 결과 게시를 건너뛴 Actions 목록](docs/images/instruction/13-pr2-skipped.png)](docs/images/instruction/13-pr2-skipped.png)
+
+</details>
 
 ### 13-4. 배포나 화면 표시만 다시 확인하기
 
