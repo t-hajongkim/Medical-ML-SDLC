@@ -339,7 +339,10 @@ def build_snapshot(repository, issue, default, previous=None, evaluation=None, t
                         "number": result_pull["number"], "url": result_pull["html_url"],
                         "state": result_pull["state"].upper(), "isDraft": result_pull["draft"],
                         "headRefOid": result_pull["head"]["sha"],
-                        "review_status": "사람 리뷰 대기" if result_pull["state"] == "open" else "닫힘",
+                        "review_status": (
+                            "Merged · 병합 완료" if result_pull.get("merged_at")
+                            else "사람 리뷰 대기" if result_pull["state"] == "open"
+                            else "Closed · 병합 없이 닫힘"),
                     }
                     payload["pipeline"]["stage"] = "result"
     check_public(payload)

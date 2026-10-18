@@ -1,0 +1,99 @@
+{
+  "repository": "primer/octicons",
+  "commit": "6dbe38e4e9b4987b2c9332d719c57fbbdd083e2d",
+  "license": "MIT",
+  "license_git_blob": "aa1fa80ed83cf856fb31c22ba56557c42ca84488",
+  "icons": [
+    {
+      "name": "issue-opened",
+      "path": "icons/issue-opened-24.svg",
+      "git_blob": "d58fdac4b44a32b70e1c19e83ef4f7add85d0009",
+      "sha256": "11481e51af155e6ea622b4ef3081a48cc90547da04bf3866152e719a817f6613",
+      "url": "https://github.com/primer/octicons/blob/6dbe38e4e9b4987b2c9332d719c57fbbdd083e2d/icons/issue-opened-24.svg"
+    },
+    {
+      "name": "checklist",
+      "path": "icons/checklist-24.svg",
+      "git_blob": "a07f2b38f0f6307f11edda4790681a6797610733",
+      "sha256": "7583f35a015212a8fd906a9b8c535fe6749c1d4793e1c2efcd2dd4ab0ccd8f41",
+      "url": "https://github.com/primer/octicons/blob/6dbe38e4e9b4987b2c9332d719c57fbbdd083e2d/icons/checklist-24.svg"
+    },
+    {
+      "name": "copilot",
+      "path": "icons/copilot-24.svg",
+      "git_blob": "201ecf408786f8e248ed4a223262c11c6eb726c0",
+      "sha256": "eeafb3c2f333e04ccf7d031ae215f7adafaed4c6352556b0bf79496e048bcdd7",
+      "url": "https://github.com/primer/octicons/blob/6dbe38e4e9b4987b2c9332d719c57fbbdd083e2d/icons/copilot-24.svg"
+    },
+    {
+      "name": "git-pull-request",
+      "path": "icons/git-pull-request-24.svg",
+      "git_blob": "48c2a2c114df4b8c067d6924ebe3f47a5c275d65",
+      "sha256": "a56ba81845813fb1b2480985082d8484cc485a7db7e7ae07b0f9b1c8fe85e8a7",
+      "url": "https://github.com/primer/octicons/blob/6dbe38e4e9b4987b2c9332d719c57fbbdd083e2d/icons/git-pull-request-24.svg"
+    },
+    {
+      "name": "git-merge",
+      "path": "icons/git-merge-24.svg",
+      "git_blob": "bec98a69295cc269e11f4ce3336a2c826cd5993a",
+      "sha256": "ad343714ab0d930a5efd68498adcbe6617b871224f881f6d11734f894334c689",
+      "url": "https://github.com/primer/octicons/blob/6dbe38e4e9b4987b2c9332d719c57fbbdd083e2d/icons/git-merge-24.svg"
+    },
+    {
+      "name": "cpu",
+      "path": "icons/cpu-24.svg",
+      "git_blob": "c9f8516f4cea44c58a8a40ef0e53ae25aa288aec",
+      "sha256": "49c60eae306db705d777aee433caf1d1827fd034697665f252fdd2bcbe195615",
+      "url": "https://github.com/primer/octicons/blob/6dbe38e4e9b4987b2c9332d719c57fbbdd083e2d/icons/cpu-24.svg"
+    },
+    {
+      "name": "graph",
+      "path": "icons/graph-24.svg",
+      "git_blob": "c2bfb156ba00897e68328a781bf3c129989f303c",
+      "sha256": "536b32ff4f0f473d0c1af351997935ee03d2fe2f7ea65fe1abd17d5b2c5f4c78",
+      "url": "https://github.com/primer/octicons/blob/6dbe38e4e9b4987b2c9332d719c57fbbdd083e2d/icons/graph-24.svg"
+    },
+    {
+      "name": "workflow",
+      "path": "icons/workflow-24.svg",
+      "git_blob": "55e30dce897137f69c04d03918092bff9d8a395d",
+      "sha256": "31d362f1d9058cc83142a88c190024d7ba7c8df5d6ed3992674e97f90a23781f",
+      "url": "https://github.com/primer/octicons/blob/6dbe38e4e9b4987b2c9332d719c57fbbdd083e2d/icons/workflow-24.svg"
+    },
+    {
+      "name": "browser",
+      "path": "icons/browser-24.svg",
+      "git_blob": "c0ccb04ae8a0aa7f2409da5b4576bc9b24316fc2",
+      "sha256": "82f6d8159ca63d8009c6509c3bc154e283793d7669bf53a7b1937e1b4243bfbf",
+      "url": "https://github.com/primer/octicons/blob/6dbe38e4e9b4987b2c9332d719c57fbbdd083e2d/icons/browser-24.svg"
+    },
+    {
+      "name": "package",
+      "path": "icons/package-24.svg",
+      "git_blob": "22862c660ce7b285e91e1fc7e88be8ec1f4fd403",
+      "sha256": "ce411bf2b166bf93ac5bbee6ae620291f86ff1f3e8e59538ba5e4cb257b80014",
+      "url": "https://github.com/primer/octicons/blob/6dbe38e4e9b4987b2c9332d719c57fbbdd083e2d/icons/package-24.svg"
+    },
+    {
+      "name": "person",
+      "path": "icons/person-24.svg",
+      "git_blob": "83823359665d8fce0e27ef05aeafd94b661ef2d2",
+      "sha256": "6e89dde4c4522a3a5fdb3670d8778ac2f35a36f12810ff9065115f52471d0ac7",
+      "url": "https://github.com/primer/octicons/blob/6dbe38e4e9b4987b2c9332d719c57fbbdd083e2d/icons/person-24.svg"
+    },
+    {
+      "name": "shield-check",
+      "path": "icons/shield-check-24.svg",
+      "git_blob": "8de95b7476b90156e2ef87db05adb792e7de421e",
+      "sha256": "c3d8431670df464574184292e9c9a4c211b9bbd60639b8d2d5248aa493af9fa3",
+      "url": "https://github.com/primer/octicons/blob/6dbe38e4e9b4987b2c9332d719c57fbbdd083e2d/icons/shield-check-24.svg"
+    },
+    {
+      "name": "mark-github",
+      "path": "icons/mark-github-24.svg",
+      "git_blob": "81949e7b460a7bbf1cb2431462f6bd947e32f0ce",
+      "sha256": "bce494189797623c34e39a41c2c38a132bdca23ce4e6ac06b70116ed7e91ce26",
+      "url": "https://github.com/primer/octicons/blob/6dbe38e4e9b4987b2c9332d719c57fbbdd083e2d/icons/mark-github-24.svg"
+    }
+  ]
+}

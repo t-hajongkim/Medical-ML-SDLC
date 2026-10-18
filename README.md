@@ -16,9 +16,9 @@
 
 **Copilot은 제안과 자연어 해석을, Python은 계약 검증과 실제 계산을 담당합니다.**
 무엇을 계산했는지, 무엇을 재사용했는지, 무엇은 확인할 수 없는지를 함께 남깁니다.
-대시보드는 처음에는 비어 있고, 각 단계의 실제 산출물이 생기면 해당 내용만 채워집니다.
+대시보드에서는 단계별 집계와 평가 결과, 실행 출처를 확인합니다.
 
-### 빈 대시보드 먼저 보기
+### 대시보드 미리보기
 
 [대시보드 템플릿 열기](https://t-hajongkim.github.io/Medical-ML-SDLC/)
 
@@ -50,21 +50,12 @@ AI의 제안을 그대로 확정하지 않고 연구자가 검토하고 필요�
 
 ## 파이프라인
 
-```mermaid
-flowchart TD
-    A["Target<br/>연구 요청 이슈"] --> B["EDA<br/>기본 점검 → AI 추가 선정 → 등록 블록 실행"]
-    B --> C["Evaluation Plan<br/>PR1: EDA 보고서와 평가계획"]
-    C -->|자연어 댓글| D["같은 PR에서 계획 수정<br/>기존 EDA 재사용 · 필요한 점검만 추가"]
-    D --> C
-    C -->|연구자가 Merge| E["Model<br/>고정 모델로 validation 추론"]
-    E --> F["Evaluation<br/>승인된 지표와 매개변수로 계산"]
-    F --> G["Result<br/>draft PR2: 집계 결과 검토"]
-    A -.-> H["단계별 대시보드<br/>빈 화면 → 실제 산출물 반영"]
-    C -.-> H
-    D -.-> H
-    F -.-> H
-    G -.-> H
-```
+[![연구 요청부터 EDA·평가계획 검토·고정 모델 평가·결과 PR·Pages 갱신까지, 사람의 결정과 자동 처리를 구분한 파이프라인](docs/images/pipeline.png)](docs/images/pipeline.svg)
+
+[SVG 원본](docs/images/pipeline.svg) · [PNG 이미지](docs/images/pipeline.png)
+
+아이콘은 GitHub 공식 [Octicons](https://github.com/primer/octicons)를 사용했습니다.
+[MIT 라이선스](docs/images/pipeline-icons.LICENSE.txt) · [아이콘 출처·버전](docs/images/pipeline-icons.json)
 
 | 단계 | 워크플로 | 트리거 | 산출물 |
 |---|---|---|---|
@@ -137,7 +128,6 @@ Python은 허용된 ID·값·입출력 계약을 확인하며, 댓글을 코드�
 ### 6. 화면 갱신
 
 대시보드는 Target·EDA·Evaluation Plan·Model·Evaluation·Result의 6개 화면으로 구성합니다.
-처음에는 레이아웃과 대기 상태만 보이고, 아직 없는 수치나 차트를 만들지 않습니다.
 Issue 접수, PR1 게시·수정, 실제 평가, PR2 게시가 완료될 때 공개 집계를 받아 채웁니다.
 
 새 Issue는 이전 Issue의 평가 결과와 섞지 않습니다.
@@ -198,7 +188,8 @@ PR·Actions artifact·대시보드에는 집계와 실행 출처만 남깁니다
    오프라인으로 확인하려면 `stage-dashboard-{run}-{attempt}` artifact를 내려받아 전체 폴더를 풀고 `index.html`을 엽니다.
 5. **Issues → New issue → 연구 요청**에서 목적과 질문을 작성합니다.
    생성된 PR1을 읽고 필요한 변경을 댓글로 남깁니다.
-6. CI와 최종 계획을 확인하고 PR1을 Merge합니다. Actions가 승인 대기로 멈추면 변경 내용을 확인한 뒤 실행을 승인합니다.
+6. 주지표와 **승인 준비 완료**, CI와 최종 계획을 확인하고 PR1을 Merge합니다.
+   Actions가 승인 대기로 멈추면 변경 내용을 확인한 뒤 **Approve workflows to run**으로 실행을 승인합니다.
 7. 실제 추론·평가와 draft PR2를 확인하고 결과를 검토합니다. 대시보드에도 실제 산출물이 반영됩니다.
 
 PR 생성 허용 설정은 복사한 저장소에서 다시 확인해야 합니다.

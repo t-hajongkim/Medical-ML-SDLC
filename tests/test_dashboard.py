@@ -177,6 +177,20 @@ class DashboardTests(unittest.TestCase):
         self.assertTrue(payload["remote_pr2"]["isDraft"])
         self.assertEqual(payload["remote_pr2"]["number"], 44)
 
+    def test_merged_result_pr_is_not_reported_as_merely_closed(self):
+        self.result = self.evaluate()
+        self.result_pull.update(state="closed", draft=False, merged_at="2026-10-17T09:15:02Z")
+        _, payload = self.publish()
+        self.assertEqual(payload["remote_pr2"]["state"], "CLOSED")
+        self.assertEqual(payload["remote_pr2"]["review_status"], "Merged · 병합 완료")
+
+    def test_closed_unmerged_result_pr_is_distinct_from_merged(self):
+        self.result = self.evaluate()
+        self.result_pull.update(state="closed", draft=False, merged_at=None)
+        _, payload = self.publish()
+        self.assertEqual(payload["remote_pr2"]["state"], "CLOSED")
+        self.assertEqual(payload["remote_pr2"]["review_status"], "Closed · 병합 없이 닫힘")
+
     def test_previous_verified_evaluation_is_retained_while_publisher_is_pending(self):
         result = self.evaluate()
         previous = {"remote_model_evaluation": result}
