@@ -21,10 +21,6 @@
 
 [![연구 요청부터 EDA·평가계획 검토·고정 모델 평가·결과 PR·Pages 갱신까지, 사람의 결정과 자동 처리를 구분한 파이프라인](docs/images/pipeline.png)](docs/images/pipeline.svg)
 
-큰 구역은 workflow, 상자는 그 안의 실행 단계입니다.
-기본 EDA와 추가 EDA는 각각 **Planner → Executor**를 거치며, `research-plan.md`가 이 과정을 포함합니다.
-[실제 함수·호출 위치와 순서 근거](docs/images/pipeline-source.json)
-
 | 단계 | 워크플로 | 트리거 | 산출물 |
 |---|---|---|---|
 | 1. 접수 | `prepare-eda-pr.yml` | 연구 요청 이슈 등록 · 수동 | 권한과 폼을 확인한 정확한 분석 대상 |
