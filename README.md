@@ -3,21 +3,6 @@
 처음 실습하신다면 **[단계별 사용자 가이드](instruction.md)**를 따라가세요.
 저장소 준비부터 댓글 수정, Actions 실행 승인, PR Merge, 대시보드 확인까지 화면 이동 순서대로 설명합니다.
 
-### 주의
-
-이 샘플은 의료 ML의 연구·검토 과정을 실습하기 위해 준비했습니다. 실제 진료나 임상 의사결정에 사용하지 마세요.
-실행이 성공하거나 결과 PR이 만들어져도 모델의 임상적 유효성이 검증된 것은 아닙니다.
-
-이미 전처리·분할된 공개 Diabetes 데이터와 대응 모델을 사용합니다. 새 학습·전처리·재분할은 하지 않습니다.
-환자 중복과 validation의 개발 사용 이력이 있으므로 독립 검증 성능으로 해석할 수 없습니다.
-
-연구자가 GitHub 이슈에 목적과 질문을 남기면, 기본 EDA를 먼저 실행하고 Copilot이 추가로 볼 점검과 평가 지표를 제안합니다.
-연구자는 PR과 댓글에서 분석 범위를 조정하고 계획을 승인합니다. 승인된 계획으로 고정 모델을 평가한 뒤 결과를 별도 PR에서 검토합니다.
-
-**Copilot은 제안과 자연어 해석을, Python은 계약 검증과 실제 계산을 담당합니다.**
-무엇을 계산했는지, 무엇을 재사용했는지, 무엇은 확인할 수 없는지를 함께 남깁니다.
-대시보드에서는 단계별 집계와 평가 결과, 실행 출처를 확인합니다.
-
 ### 대시보드 미리보기
 
 [대시보드 템플릿 열기](https://t-hajongkim.github.io/Medical-ML-SDLC/)
@@ -34,7 +19,7 @@ GitHub의 이슈·PR·Actions를 사용해 다음 네 가지 질문을 검토합
 
 | 과정 | 검토할 질문 | 남기는 기록 |
 |---|---|---|
-| 연구 목적 정하기 | 무엇을 예측하고, 어떤 결과를 좋다고 판단할까요? | 이슈의 연구 목표·질문·분석 대상 |
+| 연구 평가 목적 정하기 | 무엇을 예측하고, 어떤 결과를 좋다고 판단할까요? | 이슈의 연구 목표·질문·분석 대상 |
 | 데이터 점검하기 | 연구 질문에 맞는 데이터인가요? 결측·오류·분리 기준이 분석을 왜곡하지 않나요? | EDA 집계와 확인된 문제·확인할 수 없는 항목 |
 | 평가계획 검토하기 | AI의 추천을 받아 어떤 지표와 조건으로 평가할까요? | PR1의 계획·변경 이유·댓글 피드백·Merge |
 | 실행 결과 해석하기 | 목적에 맞는 결과인가요? 수치와 그래프를 어디까지 해석할 수 있나요? | 실제 실행 출처·집계 결과·해석 한계·PR2 검토 |
@@ -70,10 +55,6 @@ AI의 제안을 그대로 확정하지 않고 연구자가 검토하고 필요�
 | 5. 결과 검토 | `publish-evaluation.yml` | 평가 성공 | 집계 결과 두 파일의 draft PR2 |
 | 6. 화면 갱신 | `update-dashboard.yml` | 관련 실행 완료 · 수동 | `dashboard-data` 브랜치와 대시보드 artifact |
 | 7. 웹에서 보기 | `deploy-dashboard.yml` | 대시보드 갱신 성공 · 화면 코드 변경 · 수동 | 공개 실습 저장소의 실제 결과 Pages |
-
-PR1은 연구자가 검토하고 Merge합니다. PR2도 검토용으로 만들 뿐 자동으로 승인하거나 Merge하지 않습니다.
-계획 Merge는 교육용 계산의 실행 승인이지 임상 사용 승인이 아닙니다.
-**Actions가 실습 대시보드 데이터를 갱신하고, Pages 화면이 공개 스냅샷을 읽어 반영합니다. 원본의 빈 Pages 데모와 실제 결과 사이트는 분리합니다.**
 
 ### 1. 접수
 
@@ -143,16 +124,6 @@ Evaluation에는 계산된 지표를, Result에는 전체 지표와 실제 calib
 조회가 실패하면 마지막 정상 집계와 오류 상태를 표시하며, 모델 실행이나 PR 승인 기능은 제공하지 않습니다.
 비공개 저장소는 Actions artifact에 포함된 오프라인 집계를 사용합니다.
 
-## 데이터 보호
-
-준비된 공개 데이터와 모델 파일은 공통 GHCR의 고정 digest로 읽습니다.
-GHCR은 파일을 보관하는 레지스트리입니다. 연구 실행 중 PostgreSQL 서버나 외부 DB 포트를 열지 않고 필요한 파일만 추출합니다.
-
-원자료·환자 키·개별 정답·확률·특성 벡터는 runner의 임시 경로와 메모리에서만 사용합니다.
-PR·Actions artifact·대시보드에는 집계와 실행 출처만 남깁니다.
-대시보드 갱신도 등록된 workflow와 같은 저장소의 Issue·PR·계획·데이터 연결을 확인합니다.
-브라우저에 GitHub 토큰을 넣지 않습니다.
-
 ### 데이터와 해석 범위
 
 | 항목 | 현재 기준 |
@@ -162,72 +133,7 @@ PR·Actions artifact·대시보드에는 집계와 실행 출처만 남깁니다
 | 정답 | 30일 이내 재입원 `<30`은 1, `>30`·`NO`는 0 |
 | 고정 참조 | [`config/assets.json`](config/assets.json)의 공통 데이터·모델 digest |
 | 출처·라이선스 | [`data/NOTICE.txt`](data/NOTICE.txt), [`config/prepared-source.json`](config/prepared-source.json) |
-
-환자 중복을 숨기기 위해 재분할하지 않습니다. 다음 한계는 보고서와 대시보드에서도 유지합니다.
-
-| 항목 | 해석 시 주의할 점 |
-|---|---|
-| 환자 중복 | train–validation 5,055명, train–test 5,086명, validation–test 1,760명 |
-| validation | 공개 모델 개발에 사용됐으므로 독립 holdout이 아닙니다 |
-| 인종 결측 | 원본 결측과 공개 sidecar의 대치값을 구분합니다 |
-| 전처리 이력 | 과거 113-feature 변환과 split 전 target encoding의 한계가 남아 있습니다 |
 | 임상 사용 | 입력의 임상적 의미·예측 시점·추적 완전성과 실제 활용 적합성은 별도 검토가 필요합니다 |
-
-## 시작하기
-
-웹 실습은 이 저장소를 공개 실습 저장소로 복사한 뒤 다음 순서로 진행하세요.
-참가자별 GHCR 복제는 필요하지 않으며, 현재는 등록된 공통 고정 자산을 사용합니다.
-비공개 저장소는 현재 Actions artifact의 오프라인 화면을 사용합니다.
-
-1. **Settings → Actions → General → Workflow permissions**에서
-   **Allow GitHub Actions to create and approve pull requests**를 활성화합니다.
-2. Copilot을 실행하는 계정의 이용 권한과 조직의 모델 정책을 확인합니다.
-   Actions의 기본 `GITHUB_TOKEN`을 사용하므로 별도 PAT나 LLM Secret을 등록하지 않습니다.
-3. **Settings → Pages → Source**를 **GitHub Actions**로 지정합니다. 복사한 저장소에서 최초 한 번 필요한 설정입니다.
-   기본 `GITHUB_TOKEN`으로 Pages의 최초 활성화 권한을 대신할 수는 없습니다.
-4. **Actions → Update stage dashboard → Run workflow**를 실행합니다.
-   `issue_number`를 비우면 빈 대시보드를 준비하고, 성공 후 **Publish research dashboard**가 자동 배포합니다.
-   이미 있는 진행 결과를 지우지는 않습니다. 필요하면 배포 workflow만 수동 재실행할 수 있습니다.
-   `https://<사용자>.github.io/<저장소>/`에서 빈 화면 또는 현재 결과를 보고 이후 자동 갱신을 확인할 수 있습니다.
-   오프라인으로 확인하려면 `stage-dashboard-{run}-{attempt}` artifact를 내려받아 전체 폴더를 풀고 `index.html`을 엽니다.
-5. **Issues → New issue → 연구 요청**에서 목적과 질문을 작성합니다.
-   생성된 PR1을 읽고 필요한 변경을 댓글로 남깁니다.
-6. 주지표와 **승인 준비 완료**, CI와 최종 계획을 확인하고 PR1을 Merge합니다.
-   Actions가 승인 대기로 멈추면 변경 내용을 확인한 뒤 **Approve workflows to run**으로 실행을 승인합니다.
-7. 실제 추론·평가와 draft PR2를 확인하고 결과를 검토합니다. 대시보드에도 실제 산출물이 반영됩니다.
-
-PR 생성 허용 설정은 복사한 저장소에서 다시 확인해야 합니다.
-PR1의 최초 게시가 403으로 실패했다면 이 설정과 조직 정책을 먼저 확인하세요.
-분석도 실패한 실행을 무작정 재시도하거나 결과 브랜치를 삭제하지 마세요.
-
-### 로컬에서 빈 대시보드 확인
-
-```powershell
-Invoke-Item .\dashboard\index.html
-```
-
-기본 브랜치의 `dashboard/`는 데이터가 없는 원본 화면입니다.
-실제 자동 갱신 화면은 `dashboard-data` 브랜치의 `dashboard/` 또는 Actions artifact에 있습니다.
-GitHub 저장소의 파일 미리보기 자체가 HTML 웹페이지를 실행하는 것은 아닙니다.
-원본 템플릿의 Pages 설정은 복사한 저장소에 상속되지 않습니다.
-실습 저장소의 Pages를 처음 한 번 활성화하면 `deploy-dashboard.yml`이 현재 집계를 포함해 화면을 배포합니다.
-이후에는 공개 스냅샷을 60초 간격으로 읽으므로 매번 수동 배포할 필요가 없습니다.
-아직 연구 요청이 없다면 빈 화면을 표시하고, 완료한 연구가 있다면 그 결과부터 표시합니다.
-
-기존 Issue의 집계를 다시 표시하려면 **Update stage dashboard**를 해당 `issue_number`로 수동 실행하세요.
-이 작업은 보고서를 읽을 뿐 EDA나 모델을 다시 실행하지 않습니다.
-더 새로운 Issue가 활성화돼 있다면 이전 Issue의 스냅샷만 갱신합니다.
-
-### 로컬에서 코드 검증
-
-```powershell
-python -m pip install -r requirements-workflow.txt -r requirements-ml.txt
-python -B -m unittest discover -s tests -p "test_*.py" -q
-```
-
-이 환경은 합성 fixture를 사용하는 CI용입니다. 실제 저장 모델의 추론 환경은 별도
-`requirements-inference.txt`와 `evaluate-model.yml`로 고정합니다.
-코드 검증 성공과 실제 원격 파이프라인의 성공은 구분합니다.
 
 ## 구성
 
@@ -267,13 +173,19 @@ python -B -m unittest discover -s tests -p "test_*.py" -q
 └── tests/                             # 합성 계약·단계별 연결·회귀 검사
 ```
 
-`research/`는 각 보고서 PR에서 생성됩니다.
-대시보드의 활성 데이터와 Issue별 스냅샷은 `dashboard-data` 브랜치의
-`dashboard/assets/dashboard-data.json`과 `dashboard/data/issue-{issue}.json`에 보관합니다.
-기본 브랜치에 테스트 결과를 채워 넣지는 않습니다.
+### 주의
 
-`.lock.yml`은 `gh aw compile research-plan`으로 생성합니다.
-워크플로를 바꿀 때는 `.md`를 수정한 뒤 공식 compiler로 다시 생성하세요.
-구조와 결정 이유는 [`docs/architecture.md`](docs/architecture.md), [`docs/adr.md`](docs/adr.md)에서 확인할 수 있습니다.
+이 샘플은 의료 ML의 연구·검토 과정을 실습하기 위해 준비했습니다. 실제 진료나 임상 의사결정에 사용하지 마세요.
+실행이 성공하거나 결과 PR이 만들어져도 모델의 임상적 유효성이 검증된 것은 아닙니다.
 
-모든 산출물은 교육·연구용이며, 임상 사용 전 별도의 데이터·모델 검증과 전문가 검토가 필요합니다.
+이미 전처리·분할된 공개 Diabetes 데이터와 대응 모델을 사용합니다. 새 학습·전처리·재분할은 하지 않습니다.
+환자 중복과 validation의 개발 사용 이력이 있으므로 독립 검증 성능으로 해석할 수 없습니다.
+
+연구자가 GitHub 이슈에 목적과 질문을 남기면, 기본 EDA를 먼저 실행하고 Copilot이 추가로 볼 점검과 평가 지표를 제안합니다.
+연구자는 PR과 댓글에서 분석 범위를 조정하고 계획을 승인합니다. 승인된 계획으로 고정 모델을 평가한 뒤 결과를 별도 PR에서 검토합니다.
+
+**Copilot은 제안과 자연어 해석을, Python은 계약 검증과 실제 계산을 담당합니다.**
+무엇을 계산했는지, 무엇을 재사용했는지, 무엇은 확인할 수 없는지를 함께 남깁니다.
+대시보드에서는 단계별 집계와 평가 결과, 실행 출처를 확인합니다.
+
+**모든 산출물은 교육·연구용이며, 임상 사용 전 별도의 데이터·모델 검증과 전문가 검토가 필요합니다.**
