@@ -29,14 +29,9 @@ AI의 제안을 그대로 확정하지 않고 연구자가 검토하고 필요�
 
 [![연구 요청부터 EDA·평가계획 검토·고정 모델 평가·결과 PR·Pages 갱신까지, 사람의 결정과 자동 처리를 구분한 파이프라인](docs/images/pipeline.png)](docs/images/pipeline.svg)
 
-[SVG 원본](docs/images/pipeline.svg) · [PNG 이미지](docs/images/pipeline.png)
-
 큰 구역은 workflow, 상자는 그 안의 실행 단계입니다.
 기본 EDA와 추가 EDA는 각각 **Planner → Executor**를 거치며, `research-plan.md`가 이 과정을 포함합니다.
 [실제 함수·호출 위치와 순서 근거](docs/images/pipeline-source.json)
-
-아이콘은 GitHub 공식 [Octicons](https://github.com/primer/octicons)를 사용했습니다.
-[MIT 라이선스](docs/images/pipeline-icons.LICENSE.txt) · [아이콘 출처·버전](docs/images/pipeline-icons.json)
 
 | 단계 | 워크플로 | 트리거 | 산출물 |
 |---|---|---|---|
