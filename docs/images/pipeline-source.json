@@ -1,0 +1,2553 @@
+{
+  "passed": true,
+  "ordering": [
+    {
+      "file": "app/research.py",
+      "function": "_begin_basic_eda",
+      "before": "planning_eda.build_execution_plan",
+      "before_line": 1106,
+      "after": "executor_eda.execute_plan",
+      "after_line": 1110
+    },
+    {
+      "file": "app/model_evaluation.py",
+      "function": "evaluate",
+      "before": "inference.predict",
+      "before_line": 94,
+      "after": "executor_eval.execute_plan",
+      "after_line": 95
+    },
+    {
+      "file": "app/research.py",
+      "function": "apply_ai",
+      "before": "planning.build_plans",
+      "before_line": 1494,
+      "after": "_git_tree_commit",
+      "after_line": 1517
+    }
+  ],
+  "analysis_asset_docker_commands": [
+    "pull",
+    "create",
+    "cp",
+    "rm"
+  ],
+  "operator_smoke_docker_commands": [
+    "run",
+    "exec",
+    "rm",
+    "inspect"
+  ],
+  "workflow_is_container_not_late_function": true,
+  "scope": "Current registered prepared-data research workflow; optional input-mapping and cache-reuse branches are separate.",
+  "code_commit": "c488e29d91b676b6b079967186d819f1e85a3bfe",
+  "workflow_as_container": true,
+  "method": "Static Python call order and workflow declarations; not a runtime trace.",
+  "research_sequence": [
+    "prepare_ai",
+    "basic_plan",
+    "basic_execute",
+    "copilot_extra_selection",
+    "extra_plan",
+    "extra_execute_reuse",
+    "copilot_metric_selection",
+    "evaluation_plan",
+    "native_pr1"
+  ],
+  "research_scope": "Registered-input normal path. Input mapping and authenticated feedback reuse are conditional branches.",
+  "evaluation": {
+    "trigger": "PR1 merged",
+    "sequence": [
+      "inference",
+      "metric_execute"
+    ]
+  },
+  "result_publication": {
+    "trigger": "successful evaluate-model workflow_run",
+    "operation": "validate saved aggregates, publish PR2; no recomputation"
+  },
+  "dashboard": {
+    "source_workflow_files": [
+      "prepare-eda-pr.yml",
+      "review-eval-plan.yml",
+      "research-plan.lock.yml",
+      "evaluate-model.yml",
+      "publish-evaluation.yml"
+    ],
+    "trigger": "any registered upstream completes, or manual dispatch",
+    "sequence": [
+      "snapshot",
+      "pages_when_enabled",
+      "read_only_browser"
+    ],
+    "pr2_merge_required": false,
+    "ml_recomputation": false
+  },
+  "source_functions": [
+    {
+      "file": "app/research.py",
+      "function": "run_workflow",
+      "start": 692,
+      "end": 708,
+      "calls": [
+        {
+          "line": 693,
+          "name": "intake"
+        },
+        {
+          "line": 697,
+          "name": "existing_pull"
+        },
+        {
+          "line": 700,
+          "name": "data_reference"
+        },
+        {
+          "line": 700,
+          "name": "read_json"
+        },
+        {
+          "line": 708,
+          "name": "dispatch_ai"
+        }
+      ],
+      "github": "https://github.com/t-hajongkim/Medical-ML-SDLC/blob/c488e29d91b676b6b079967186d819f1e85a3bfe/app/research.py#L692-L708"
+    },
+    {
+      "file": "app/research.py",
+      "function": "prepare_ai",
+      "start": 1168,
+      "end": 1273,
+      "calls": [
+        {
+          "line": 1169,
+          "name": "_runtime"
+        },
+        {
+          "line": 1170,
+          "name": "flow.issue_number"
+        },
+        {
+          "line": 1170,
+          "name": "Path"
+        },
+        {
+          "line": 1172,
+          "name": "ValueError"
+        },
+        {
+          "line": 1173,
+          "name": "work.exists"
+        },
+        {
+          "line": 1173,
+          "name": ".is_relative_to"
+        },
+        {
+          "line": 1173,
+          "name": "ROOT.resolve"
+        },
+        {
+          "line": 1173,
+          "name": "work.resolve"
+        },
+        {
+          "line": 1174,
+          "name": "ValueError"
+        },
+        {
+          "line": 1175,
+          "name": ".stdout.strip"
+        },
+        {
+          "line": 1175,
+          "name": "flow.command"
+        },
+        {
+          "line": 1176,
+          "name": "ValueError"
+        },
+        {
+          "line": 1177,
+          "name": "_sha"
+        },
+        {
+          "line": 1177,
+          "name": ".stdout.strip"
+        },
+        {
+          "line": 1177,
+          "name": "flow.command"
+        },
+        {
+          "line": 1178,
+          "name": "read_json"
+        },
+        {
+          "line": 1179,
+          "name": "flow.gh_json"
+        },
+        {
+          "line": 1182,
+          "name": "flow.intake"
+        },
+        {
+          "line": 1184,
+          "name": "os.environ.get"
+        },
+        {
+          "line": 1184,
+          "name": "os.environ.get"
+        },
+        {
+          "line": 1187,
+          "name": "ValueError"
+        },
+        {
+          "line": 1190,
+          "name": "flow.existing_pull"
+        },
+        {
+          "line": 1192,
+          "name": "ValueError"
+        },
+        {
+          "line": 1193,
+          "name": "json.dumps"
+        },
+        {
+          "line": 1194,
+          "name": "json.dumps"
+        },
+        {
+          "line": 1194,
+          "name": "planning.default_selection"
+        },
+        {
+          "line": 1197,
+          "name": "_pull"
+        },
+        {
+          "line": 1198,
+          "name": "_sha"
+        },
+        {
+          "line": 1199,
+          "name": "flow.command"
+        },
+        {
+          "line": 1200,
+          "name": ".stdout.strip"
+        },
+        {
+          "line": 1200,
+          "name": "flow.command"
+        },
+        {
+          "line": 1201,
+          "name": "ValueError"
+        },
+        {
+          "line": 1203,
+          "name": "_read_branch_file"
+        },
+        {
+          "line": 1207,
+          "name": "json.loads"
+        },
+        {
+          "line": 1209,
+          "name": "request.get"
+        },
+        {
+          "line": 1209,
+          "name": "request.get"
+        },
+        {
+          "line": 1210,
+          "name": "ValueError"
+        },
+        {
+          "line": 1211,
+          "name": "work.mkdir"
+        },
+        {
+          "line": 1213,
+          "name": "flow.report_directory"
+        },
+        {
+          "line": 1214,
+          "name": "folder.mkdir"
+        },
+        {
+          "line": 1217,
+          "name": "path.is_symlink"
+        },
+        {
+          "line": 1218,
+          "name": "ValueError"
+        },
+        {
+          "line": 1220,
+          "name": "path.write_text"
+        },
+        {
+          "line": 1221,
+          "name": "path.exists"
+        },
+        {
+          "line": 1222,
+          "name": "path.unlink"
+        },
+        {
+          "line": 1223,
+          "name": "read_json"
+        },
+        {
+          "line": 1229,
+          "name": "flow.data_reference"
+        },
+        {
+          "line": 1230,
+          "name": "validate_image_reference"
+        },
+        {
+          "line": 1230,
+          "name": "config.get"
+        },
+        {
+          "line": 1231,
+          "name": "planning.load_catalog"
+        },
+        {
+          "line": 1232,
+          "name": "planning.load_policy"
+        },
+        {
+          "line": 1233,
+          "name": "canonical_hash"
+        },
+        {
+          "line": 1233,
+          "name": "canonical_hash"
+        },
+        {
+          "line": 1234,
+          "name": "canonical_hash"
+        },
+        {
+          "line": 1237,
+          "name": ".get"
+        },
+        {
+          "line": 1237,
+          "name": "json.loads"
+        },
+        {
+          "line": 1237,
+          "name": "content.get"
+        },
+        {
+          "line": 1240,
+          "name": "_prior_planning_context"
+        },
+        {
+          "line": 1244,
+          "name": "_begin_basic_eda"
+        },
+        {
+          "line": 1247,
+          "name": "flow.image_assets"
+        },
+        {
+          "line": 1247,
+          "name": "flow.data_reference"
+        },
+        {
+          "line": 1249,
+          "name": "profile_for_data"
+        },
+        {
+          "line": 1249,
+          "name": "read_manifest"
+        },
+        {
+          "line": 1251,
+          "name": "read_json"
+        },
+        {
+          "line": 1253,
+          "name": "load_context"
+        },
+        {
+          "line": 1255,
+          "name": "session.update"
+        },
+        {
+          "line": 1256,
+          "name": "write_json"
+        },
+        {
+          "line": 1258,
+          "name": "write_json"
+        },
+        {
+          "line": 1259,
+          "name": "planning_eda._request"
+        },
+        {
+          "line": 1262,
+          "name": "context.get"
+        },
+        {
+          "line": 1263,
+          "name": "_begin_basic_eda"
+        },
+        {
+          "line": 1264,
+          "name": "_outputs"
+        },
+        {
+          "line": 1265,
+          "name": "write_json"
+        },
+        {
+          "line": 1269,
+          "name": "session.get"
+        },
+        {
+          "line": 1270,
+          "name": "str"
+        },
+        {
+          "line": 1272,
+          "name": "shutil.rmtree"
+        }
+      ],
+      "github": "https://github.com/t-hajongkim/Medical-ML-SDLC/blob/c488e29d91b676b6b079967186d819f1e85a3bfe/app/research.py#L1168-L1273"
+    },
+    {
+      "file": "app/research.py",
+      "function": "_begin_basic_eda",
+      "start": 1081,
+      "end": 1134,
+      "calls": [
+        {
+          "line": 1082,
+          "name": "planning_eda._eda_ids"
+        },
+        {
+          "line": 1085,
+          "name": "session.setdefault"
+        },
+        {
+          "line": 1090,
+          "name": ".is_file"
+        },
+        {
+          "line": 1090,
+          "name": ".is_file"
+        },
+        {
+          "line": 1091,
+          "name": "read_json"
+        },
+        {
+          "line": 1092,
+          "name": "read_json"
+        },
+        {
+          "line": 1093,
+          "name": "planning_eda.validate_execution_plan"
+        },
+        {
+          "line": 1095,
+          "name": "planning_eda.input_signature"
+        },
+        {
+          "line": 1096,
+          "name": "any"
+        },
+        {
+          "line": 1101,
+          "name": "_authenticate_prior_eda"
+        },
+        {
+          "line": 1106,
+          "name": "planning_eda.build_execution_plan"
+        },
+        {
+          "line": 1110,
+          "name": "executor_eda.execute_plan"
+        },
+        {
+          "line": 1112,
+          "name": "flow.validate_aggregate"
+        },
+        {
+          "line": 1113,
+          "name": "write_json"
+        },
+        {
+          "line": 1114,
+          "name": "write_json"
+        },
+        {
+          "line": 1115,
+          "name": "session.update"
+        },
+        {
+          "line": 1115,
+          "name": "canonical_hash"
+        },
+        {
+          "line": 1116,
+          "name": "canonical_hash"
+        },
+        {
+          "line": 1121,
+          "name": "_pending_feedback"
+        },
+        {
+          "line": 1124,
+          "name": "planning_eda.build_context"
+        },
+        {
+          "line": 1125,
+          "name": "read_json"
+        },
+        {
+          "line": 1128,
+          "name": "write_json"
+        },
+        {
+          "line": 1129,
+          "name": "write_json"
+        },
+        {
+          "line": 1132,
+          "name": "_cache_input_context"
+        },
+        {
+          "line": 1134,
+          "name": "_cache_planning_context"
+        }
+      ],
+      "github": "https://github.com/t-hajongkim/Medical-ML-SDLC/blob/c488e29d91b676b6b079967186d819f1e85a3bfe/app/research.py#L1081-L1134"
+    },
+    {
+      "file": "app/research.py",
+      "function": "plan_eda",
+      "start": 1318,
+      "end": 1361,
+      "calls": [
+        {
+          "line": 1319,
+          "name": "_runtime"
+        },
+        {
+          "line": 1320,
+          "name": "flow.issue_number"
+        },
+        {
+          "line": 1320,
+          "name": "Path"
+        },
+        {
+          "line": 1321,
+          "name": "read_json"
+        },
+        {
+          "line": 1322,
+          "name": "session.get"
+        },
+        {
+          "line": 1323,
+          "name": "ValueError"
+        },
+        {
+          "line": 1324,
+          "name": "flow.report_directory"
+        },
+        {
+          "line": 1325,
+          "name": "_verify_research_inputs"
+        },
+        {
+          "line": 1326,
+          "name": "read_json"
+        },
+        {
+          "line": 1327,
+          "name": "canonical_hash"
+        },
+        {
+          "line": 1328,
+          "name": "ValueError"
+        },
+        {
+          "line": 1330,
+          "name": "_read_json"
+        },
+        {
+          "line": 1332,
+          "name": "read_json"
+        },
+        {
+          "line": 1333,
+          "name": "canonical_hash"
+        },
+        {
+          "line": 1334,
+          "name": "canonical_hash"
+        },
+        {
+          "line": 1335,
+          "name": "ValueError"
+        },
+        {
+          "line": 1339,
+          "name": "planning_eda.apply_proposal"
+        },
+        {
+          "line": 1340,
+          "name": "read_json"
+        },
+        {
+          "line": 1342,
+          "name": "read_json"
+        },
+        {
+          "line": 1343,
+          "name": "set"
+        },
+        {
+          "line": 1344,
+          "name": "list"
+        },
+        {
+          "line": 1344,
+          "name": "dict.fromkeys"
+        },
+        {
+          "line": 1348,
+          "name": "planning_eda.build_execution_plan"
+        },
+        {
+          "line": 1353,
+          "name": "write_json"
+        },
+        {
+          "line": 1354,
+          "name": "session.update"
+        },
+        {
+          "line": 1354,
+          "name": "canonical_hash"
+        },
+        {
+          "line": 1355,
+          "name": "canonical_hash"
+        },
+        {
+          "line": 1357,
+          "name": "_outputs"
+        },
+        {
+          "line": 1358,
+          "name": "write_json"
+        }
+      ],
+      "github": "https://github.com/t-hajongkim/Medical-ML-SDLC/blob/c488e29d91b676b6b079967186d819f1e85a3bfe/app/research.py#L1318-L1361"
+    },
+    {
+      "file": "app/research.py",
+      "function": "execute_eda",
+      "start": 1364,
+      "end": 1431,
+      "calls": [
+        {
+          "line": 1365,
+          "name": "_runtime"
+        },
+        {
+          "line": 1366,
+          "name": "flow.issue_number"
+        },
+        {
+          "line": 1366,
+          "name": "Path"
+        },
+        {
+          "line": 1367,
+          "name": "read_json"
+        },
+        {
+          "line": 1368,
+          "name": "session.get"
+        },
+        {
+          "line": 1369,
+          "name": "ValueError"
+        },
+        {
+          "line": 1371,
+          "name": "ValueError"
+        },
+        {
+          "line": 1372,
+          "name": "flow.report_directory"
+        },
+        {
+          "line": 1373,
+          "name": "_verify_research_inputs"
+        },
+        {
+          "line": 1375,
+          "name": "read_json"
+        },
+        {
+          "line": 1376,
+          "name": "canonical_hash"
+        },
+        {
+          "line": 1377,
+          "name": "ValueError"
+        },
+        {
+          "line": 1383,
+          "name": "read_json"
+        },
+        {
+          "line": 1384,
+          "name": "canonical_hash"
+        },
+        {
+          "line": 1385,
+          "name": "ValueError"
+        },
+        {
+          "line": 1386,
+          "name": "read_json"
+        },
+        {
+          "line": 1386,
+          "name": "read_json"
+        },
+        {
+          "line": 1387,
+          "name": "canonical_hash"
+        },
+        {
+          "line": 1388,
+          "name": "canonical_hash"
+        },
+        {
+          "line": 1389,
+          "name": "ValueError"
+        },
+        {
+          "line": 1392,
+          "name": "any"
+        },
+        {
+          "line": 1392,
+          "name": "previous_calls.get"
+        },
+        {
+          "line": 1393,
+          "name": "_execution_context_for_session"
+        },
+        {
+          "line": 1394,
+          "name": "_planning_context_for_session"
+        },
+        {
+          "line": 1395,
+          "name": "executor_eda.execute_plan"
+        },
+        {
+          "line": 1399,
+          "name": "flow.validate_aggregate"
+        },
+        {
+          "line": 1404,
+          "name": "canonical_hash"
+        },
+        {
+          "line": 1406,
+          "name": "baseline.update"
+        },
+        {
+          "line": 1409,
+          "name": "write_json"
+        },
+        {
+          "line": 1410,
+          "name": "write_json"
+        },
+        {
+          "line": 1411,
+          "name": "write_json"
+        },
+        {
+          "line": 1413,
+          "name": "write_json"
+        },
+        {
+          "line": 1415,
+          "name": "sorted"
+        },
+        {
+          "line": 1415,
+          "name": "set"
+        },
+        {
+          "line": 1415,
+          "name": "set"
+        },
+        {
+          "line": 1417,
+          "name": "session.update"
+        },
+        {
+          "line": 1417,
+          "name": "canonical_hash"
+        },
+        {
+          "line": 1418,
+          "name": "canonical_hash"
+        },
+        {
+          "line": 1419,
+          "name": "canonical_hash"
+        },
+        {
+          "line": 1420,
+          "name": "list"
+        },
+        {
+          "line": 1420,
+          "name": "dict.fromkeys"
+        },
+        {
+          "line": 1422,
+          "name": "session.get"
+        },
+        {
+          "line": 1424,
+          "name": "_prepare_block_request"
+        },
+        {
+          "line": 1426,
+          "name": "_outputs"
+        },
+        {
+          "line": 1427,
+          "name": "write_json"
+        }
+      ],
+      "github": "https://github.com/t-hajongkim/Medical-ML-SDLC/blob/c488e29d91b676b6b079967186d819f1e85a3bfe/app/research.py#L1364-L1431"
+    },
+    {
+      "file": "app/research.py",
+      "function": "apply_ai",
+      "start": 1475,
+      "end": 1532,
+      "calls": [
+        {
+          "line": 1476,
+          "name": "_runtime"
+        },
+        {
+          "line": 1477,
+          "name": "flow.issue_number"
+        },
+        {
+          "line": 1477,
+          "name": "Path"
+        },
+        {
+          "line": 1478,
+          "name": "read_json"
+        },
+        {
+          "line": 1479,
+          "name": "session.get"
+        },
+        {
+          "line": 1480,
+          "name": "ValueError"
+        },
+        {
+          "line": 1481,
+          "name": "flow.report_directory"
+        },
+        {
+          "line": 1482,
+          "name": "_verify_research_inputs"
+        },
+        {
+          "line": 1483,
+          "name": "read_json"
+        },
+        {
+          "line": 1484,
+          "name": "canonical_hash"
+        },
+        {
+          "line": 1485,
+          "name": "ValueError"
+        },
+        {
+          "line": 1486,
+          "name": "_planning_context_for_session"
+        },
+        {
+          "line": 1488,
+          "name": "read_json"
+        },
+        {
+          "line": 1490,
+          "name": "read_json"
+        },
+        {
+          "line": 1491,
+          "name": "canonical_hash"
+        },
+        {
+          "line": 1492,
+          "name": "ValueError"
+        },
+        {
+          "line": 1493,
+          "name": "read_json"
+        },
+        {
+          "line": 1494,
+          "name": "planning.build_plans"
+        },
+        {
+          "line": 1496,
+          "name": "any"
+        },
+        {
+          "line": 1497,
+          "name": "ValueError"
+        },
+        {
+          "line": 1499,
+          "name": "ValueError"
+        },
+        {
+          "line": 1501,
+          "name": "ValueError"
+        },
+        {
+          "line": 1502,
+          "name": "flow.validate_aggregate"
+        },
+        {
+          "line": 1503,
+          "name": "read_json"
+        },
+        {
+          "line": 1508,
+          "name": "flow.run_identifier"
+        },
+        {
+          "line": 1508,
+          "name": "os.environ.get"
+        },
+        {
+          "line": 1510,
+          "name": "flow.write_payload"
+        },
+        {
+          "line": 1513,
+          "name": "flow.merge_review_body"
+        },
+        {
+          "line": 1513,
+          "name": ".read_text"
+        },
+        {
+          "line": 1513,
+          "name": ".get"
+        },
+        {
+          "line": 1514,
+          "name": ".write_text"
+        },
+        {
+          "line": 1515,
+          "name": "_outputs"
+        },
+        {
+          "line": 1516,
+          "name": "write_json"
+        },
+        {
+          "line": 1517,
+          "name": "_git_tree_commit"
+        },
+        {
+          "line": 1519,
+          "name": "ValueError"
+        },
+        {
+          "line": 1520,
+          "name": "pull.get"
+        }
+      ],
+      "github": "https://github.com/t-hajongkim/Medical-ML-SDLC/blob/c488e29d91b676b6b079967186d819f1e85a3bfe/app/research.py#L1475-L1532"
+    },
+    {
+      "file": "app/research.py",
+      "function": "image_assets",
+      "start": 248,
+      "end": 261,
+      "calls": [
+        {
+          "line": 249,
+          "name": "validate_image_reference"
+        },
+        {
+          "line": 250,
+          "name": "destination.exists"
+        },
+        {
+          "line": 251,
+          "name": "ValueError"
+        },
+        {
+          "line": 252,
+          "name": "uuid.uuid4"
+        },
+        {
+          "line": 255,
+          "name": "docker"
+        },
+        {
+          "line": 256,
+          "name": "docker"
+        },
+        {
+          "line": 258,
+          "name": "docker"
+        },
+        {
+          "line": 258,
+          "name": "str"
+        },
+        {
+          "line": 261,
+          "name": "docker"
+        }
+      ],
+      "github": "https://github.com/t-hajongkim/Medical-ML-SDLC/blob/c488e29d91b676b6b079967186d819f1e85a3bfe/app/research.py#L248-L261"
+    },
+    {
+      "file": "app/review_eval_plan.py",
+      "function": "main",
+      "start": 206,
+      "end": 221,
+      "calls": [
+        {
+          "line": 207,
+          "name": "os.environ.get"
+        },
+        {
+          "line": 208,
+          "name": "SystemExit"
+        },
+        {
+          "line": 210,
+          "name": "_object"
+        },
+        {
+          "line": 210,
+          "name": ".read_bytes"
+        },
+        {
+          "line": 210,
+          "name": "Path"
+        },
+        {
+          "line": 211,
+          "name": "run_event"
+        },
+        {
+          "line": 214,
+          "name": "write_target"
+        },
+        {
+          "line": 215,
+          "name": "_summary"
+        },
+        {
+          "line": 217,
+          "name": "_summary"
+        },
+        {
+          "line": 218,
+          "name": "isinstance"
+        },
+        {
+          "line": 218,
+          "name": "str"
+        }
+      ],
+      "github": "https://github.com/t-hajongkim/Medical-ML-SDLC/blob/c488e29d91b676b6b079967186d819f1e85a3bfe/app/review_eval_plan.py#L206-L221"
+    },
+    {
+      "file": "app/review_eval_plan.py",
+      "function": "_queue_natural_feedback",
+      "start": 113,
+      "end": 172,
+      "calls": [
+        {
+          "line": 114,
+          "name": "research.gh_json"
+        },
+        {
+          "line": 115,
+          "name": "re.fullmatch"
+        },
+        {
+          "line": 116,
+          "name": ".get"
+        },
+        {
+          "line": 116,
+          "name": "raw.get"
+        },
+        {
+          "line": 118,
+          "name": "_human_permission"
+        },
+        {
+          "line": 118,
+          "name": "target.get"
+        },
+        {
+          "line": 121,
+          "name": "_pull"
+        },
+        {
+          "line": 122,
+          "name": "read_tree"
+        },
+        {
+          "line": 124,
+          "name": "_marker"
+        },
+        {
+          "line": 124,
+          "name": "_object"
+        },
+        {
+          "line": 124,
+          "name": "read_file"
+        },
+        {
+          "line": 125,
+          "name": "read_file"
+        },
+        {
+          "line": 126,
+          "name": "_object"
+        },
+        {
+          "line": 129,
+          "name": "read_file"
+        },
+        {
+          "line": 131,
+          "name": "validate_feedback_state"
+        },
+        {
+          "line": 132,
+          "name": "_object"
+        },
+        {
+          "line": 134,
+          "name": "set"
+        },
+        {
+          "line": 136,
+          "name": "_comments"
+        },
+        {
+          "line": 138,
+          "name": "ValueError"
+        },
+        {
+          "line": 143,
+          "name": "comment.get"
+        },
+        {
+          "line": 144,
+          "name": "comment.get"
+        },
+        {
+          "line": 145,
+          "name": "user.get"
+        },
+        {
+          "line": 145,
+          "name": "isinstance"
+        },
+        {
+          "line": 145,
+          "name": "body.strip"
+        },
+        {
+          "line": 147,
+          "name": "user.get"
+        },
+        {
+          "line": 149,
+          "name": "_human_permission"
+        },
+        {
+          "line": 153,
+          "name": "_hash"
+        },
+        {
+          "line": 153,
+          "name": "body.encode"
+        },
+        {
+          "line": 154,
+          "name": "records.get"
+        },
+        {
+          "line": 158,
+          "name": "sorted"
+        },
+        {
+          "line": 159,
+          "name": ".encode"
+        },
+        {
+          "line": 159,
+          "name": "_json"
+        },
+        {
+          "line": 161,
+          "name": "_commit_files"
+        },
+        {
+          "line": 169,
+          "name": "research.dispatch_ai"
+        }
+      ],
+      "github": "https://github.com/t-hajongkim/Medical-ML-SDLC/blob/c488e29d91b676b6b079967186d819f1e85a3bfe/app/review_eval_plan.py#L113-L172"
+    },
+    {
+      "file": "app/model_evaluation.py",
+      "function": "run",
+      "start": 140,
+      "end": 178,
+      "calls": [
+        {
+          "line": 141,
+          "name": "research.repository_name"
+        },
+        {
+          "line": 142,
+          "name": "research.issue_number"
+        },
+        {
+          "line": 143,
+          "name": "research.gh_json"
+        },
+        {
+          "line": 144,
+          "name": "research.gh_json"
+        },
+        {
+          "line": 145,
+          "name": "validate_pull"
+        },
+        {
+          "line": 146,
+          "name": "read_reports"
+        },
+        {
+          "line": 147,
+          "name": "read_json"
+        },
+        {
+          "line": 148,
+          "name": "validate_reports"
+        },
+        {
+          "line": 149,
+          "name": "verify_code"
+        },
+        {
+          "line": 150,
+          "name": "research.command"
+        },
+        {
+          "line": 153,
+          "name": "ValueError"
+        },
+        {
+          "line": 157,
+          "name": "git_sha"
+        },
+        {
+          "line": 157,
+          "name": ".stdout.strip"
+        },
+        {
+          "line": 157,
+          "name": "research.command"
+        },
+        {
+          "line": 160,
+          "name": "research.run_identifier"
+        },
+        {
+          "line": 160,
+          "name": "os.environ.get"
+        },
+        {
+          "line": 162,
+          "name": "tempfile.TemporaryDirectory"
+        },
+        {
+          "line": 163,
+          "name": "Path"
+        },
+        {
+          "line": 164,
+          "name": "research.image_assets"
+        },
+        {
+          "line": 165,
+          "name": "research.image_assets"
+        },
+        {
+          "line": 166,
+          "name": "evaluate"
+        },
+        {
+          "line": 167,
+          "name": "Path"
+        },
+        {
+          "line": 168,
+          "name": "output.exists"
+        },
+        {
+          "line": 169,
+          "name": "ValueError"
+        },
+        {
+          "line": 170,
+          "name": "output.mkdir"
+        },
+        {
+          "line": 171,
+          "name": "write_json"
+        },
+        {
+          "line": 172,
+          "name": "markdown"
+        },
+        {
+          "line": 173,
+          "name": ".write_text"
+        },
+        {
+          "line": 174,
+          "name": "os.environ.get"
+        },
+        {
+          "line": 175,
+          "name": ".open"
+        },
+        {
+          "line": 175,
+          "name": "Path"
+        },
+        {
+          "line": 176,
+          "name": "handle.write"
+        }
+      ],
+      "github": "https://github.com/t-hajongkim/Medical-ML-SDLC/blob/c488e29d91b676b6b079967186d819f1e85a3bfe/app/model_evaluation.py#L140-L178"
+    },
+    {
+      "file": "app/model_evaluation.py",
+      "function": "evaluate",
+      "start": 91,
+      "end": 109,
+      "calls": [
+        {
+          "line": 93,
+          "name": "validate_reports"
+        },
+        {
+          "line": 94,
+          "name": "inference.predict"
+        },
+        {
+          "line": 95,
+          "name": "executor_eval.execute_plan"
+        },
+        {
+          "line": 101,
+          "name": "canonical_hash"
+        },
+        {
+          "line": 108,
+          "name": "result_limitations"
+        }
+      ],
+      "github": "https://github.com/t-hajongkim/Medical-ML-SDLC/blob/c488e29d91b676b6b079967186d819f1e85a3bfe/app/model_evaluation.py#L91-L109"
+    },
+    {
+      "file": "app/result_review.py",
+      "function": "publish",
+      "start": 278,
+      "end": 406,
+      "calls": [
+        {
+          "line": 279,
+          "name": "research.repository_name"
+        },
+        {
+          "line": 280,
+          "name": "research.run_identifier"
+        },
+        {
+          "line": 281,
+          "name": "resolve_source"
+        },
+        {
+          "line": 282,
+          "name": "read_result"
+        },
+        {
+          "line": 283,
+          "name": "read_json"
+        },
+        {
+          "line": 284,
+          "name": "research.gh_json"
+        },
+        {
+          "line": 285,
+          "name": "validate_result"
+        },
+        {
+          "line": 288,
+          "name": "research.existing_pull"
+        },
+        {
+          "line": 292,
+          "name": "git_sha"
+        },
+        {
+          "line": 292,
+          "name": "research.gh_json"
+        },
+        {
+          "line": 293,
+          "name": "quote"
+        },
+        {
+          "line": 294,
+          "name": "model_evaluation.verify_code"
+        },
+        {
+          "line": 295,
+          "name": "research.gh_json"
+        },
+        {
+          "line": 296,
+          "name": "item.get"
+        },
+        {
+          "line": 297,
+          "name": "len"
+        },
+        {
+          "line": 298,
+          "name": "ValueError"
+        },
+        {
+          "line": 299,
+          "name": "git_sha"
+        },
+        {
+          "line": 304,
+          "name": "research.gh_json"
+        },
+        {
+          "line": 305,
+          "name": "any"
+        },
+        {
+          "line": 305,
+          "name": "item.get"
+        },
+        {
+          "line": 306,
+          "name": "item.get"
+        },
+        {
+          "line": 307,
+          "name": "ValueError"
+        },
+        {
+          "line": 308,
+          "name": "read_tree"
+        },
+        {
+          "line": 309,
+          "name": "read_file"
+        },
+        {
+          "line": 313,
+          "name": "read_object"
+        },
+        {
+          "line": 315,
+          "name": "ValueError"
+        },
+        {
+          "line": 317,
+          "name": "set"
+        },
+        {
+          "line": 318,
+          "name": ".encode"
+        },
+        {
+          "line": 318,
+          "name": "model_evaluation.markdown"
+        },
+        {
+          "line": 319,
+          "name": "ValueError"
+        },
+        {
+          "line": 320,
+          "name": "previous.get"
+        },
+        {
+          "line": 321,
+          "name": "origin.get"
+        },
+        {
+          "line": 321,
+          "name": "origin.get"
+        },
+        {
+          "line": 322,
+          "name": "origin.get"
+        },
+        {
+          "line": 323,
+          "name": ".get"
+        },
+        {
+          "line": 323,
+          "name": "previous.get"
+        },
+        {
+          "line": 324,
+          "name": "ValueError"
+        },
+        {
+          "line": 325,
+          "name": "re.fullmatch"
+        },
+        {
+          "line": 326,
+          "name": "re.escape"
+        },
+        {
+          "line": 327,
+          "name": "origin.get"
+        },
+        {
+          "line": 329,
+          "name": "ValueError"
+        },
+        {
+          "line": 330,
+          "name": "match.group"
+        },
+        {
+          "line": 331,
+          "name": "research.gh_json"
+        },
+        {
+          "line": 334,
+          "name": "validate_source"
+        },
+        {
+          "line": 335,
+          "name": "str"
+        },
+        {
+          "line": 335,
+          "name": "previous_source.get"
+        },
+        {
+          "line": 336,
+          "name": "validate_result"
+        },
+        {
+          "line": 337,
+          "name": "int"
+        },
+        {
+          "line": 337,
+          "name": "int"
+        },
+        {
+          "line": 338,
+          "name": "ValueError"
+        },
+        {
+          "line": 340,
+          "name": "ValueError"
+        },
+        {
+          "line": 341,
+          "name": "semantic_result"
+        },
+        {
+          "line": 341,
+          "name": "semantic_result"
+        },
+        {
+          "line": 345,
+          "name": "json.loads"
+        },
+        {
+          "line": 345,
+          "name": "json.dumps"
+        },
+        {
+          "line": 347,
+          "name": ".encode"
+        },
+        {
+          "line": 348,
+          "name": "json.dumps"
+        },
+        {
+          "line": 349,
+          "name": ".encode"
+        },
+        {
+          "line": 349,
+          "name": "model_evaluation.markdown"
+        },
+        {
+          "line": 352,
+          "name": "previous_files.items"
+        },
+        {
+          "line": 353,
+          "name": "any"
+        },
+        {
+          "line": 354,
+          "name": "files.items"
+        },
+        {
+          "line": 354,
+          "name": "path.rsplit"
+        },
+        {
+          "line": 355,
+          "name": "pr_body"
+        },
+        {
+          "line": 356,
+          "name": "research.existing_pull"
+        },
+        {
+          "line": 361,
+          "name": "ValueError"
+        },
+        {
+          "line": 364,
+          "name": "validate_result_pull"
+        },
+        {
+          "line": 365,
+          "name": "research.merge_auto_body"
+        },
+        {
+          "line": 365,
+          "name": ".get"
+        },
+        {
+          "line": 366,
+          "name": "git_sha"
+        },
+        {
+          "line": 366,
+          "name": "research.gh_json"
+        },
+        {
+          "line": 368,
+          "name": "ValueError"
+        },
+        {
+          "line": 370,
+          "name": "_write_api"
+        },
+        {
+          "line": 372,
+          "name": "_commit_files"
+        },
+        {
+          "line": 374,
+          "name": "research.existing_pull"
+        },
+        {
+          "line": 378,
+          "name": "validate_result_pull"
+        },
+        {
+          "line": 380,
+          "name": "ValueError"
+        },
+        {
+          "line": 382,
+          "name": "research.merge_auto_body"
+        },
+        {
+          "line": 382,
+          "name": "pull.get"
+        },
+        {
+          "line": 384,
+          "name": "ValueError"
+        },
+        {
+          "line": 387,
+          "name": "_write_api"
+        },
+        {
+          "line": 390,
+          "name": "research.existing_pull"
+        },
+        {
+          "line": 394,
+          "name": "RuntimeError"
+        },
+        {
+          "line": 395,
+          "name": "validate_result_pull"
+        },
+        {
+          "line": 397,
+          "name": "research.issue_number"
+        },
+        {
+          "line": 400,
+          "name": "research.issue_number"
+        },
+        {
+          "line": 401,
+          "name": "pull.get"
+        },
+        {
+          "line": 403,
+          "name": "_write_api"
+        }
+      ],
+      "github": "https://github.com/t-hajongkim/Medical-ML-SDLC/blob/c488e29d91b676b6b079967186d819f1e85a3bfe/app/result_review.py#L278-L406"
+    },
+    {
+      "file": "app/dashboard.py",
+      "function": "resolve_event",
+      "start": 352,
+      "end": 390,
+      "calls": [
+        {
+          "line": 353,
+          "name": ".get"
+        },
+        {
+          "line": 353,
+          "name": "event.get"
+        },
+        {
+          "line": 354,
+          "name": "ValueError"
+        },
+        {
+          "line": 356,
+          "name": "research.issue_number"
+        },
+        {
+          "line": 358,
+          "name": "ValueError"
+        },
+        {
+          "line": 360,
+          "name": "source_run"
+        },
+        {
+          "line": 364,
+          "name": "recommendation_events.resolve_target"
+        },
+        {
+          "line": 369,
+          "name": "evaluation_artifact"
+        },
+        {
+          "line": 370,
+          "name": "research.issue_number"
+        },
+        {
+          "line": 371,
+          "name": "re.fullmatch"
+        },
+        {
+          "line": 371,
+          "name": "source.get"
+        },
+        {
+          "line": 373,
+          "name": "ValueError"
+        },
+        {
+          "line": 374,
+          "name": "int"
+        },
+        {
+          "line": 374,
+          "name": "match.group"
+        },
+        {
+          "line": 376,
+          "name": "read_target"
+        },
+        {
+          "line": 381,
+          "name": "source_run"
+        },
+        {
+          "line": 382,
+          "name": "evaluation_artifact"
+        },
+        {
+          "line": 383,
+          "name": "research.issue_number"
+        },
+        {
+          "line": 385,
+          "name": "research.gh_json"
+        },
+        {
+          "line": 386,
+          "name": "re.fullmatch"
+        },
+        {
+          "line": 386,
+          "name": ".get"
+        },
+        {
+          "line": 386,
+          "name": "pull.get"
+        },
+        {
+          "line": 387,
+          "name": ".get"
+        },
+        {
+          "line": 387,
+          "name": ".get"
+        },
+        {
+          "line": 387,
+          "name": "pull.get"
+        },
+        {
+          "line": 388,
+          "name": "ValueError"
+        },
+        {
+          "line": 389,
+          "name": "int"
+        },
+        {
+          "line": 389,
+          "name": "match.group"
+        },
+        {
+          "line": 390,
+          "name": "research.issue_number"
+        }
+      ],
+      "github": "https://github.com/t-hajongkim/Medical-ML-SDLC/blob/c488e29d91b676b6b079967186d819f1e85a3bfe/app/dashboard.py#L352-L390"
+    },
+    {
+      "file": "app/dashboard.py",
+      "function": "build_snapshot",
+      "start": 269,
+      "end": 349,
+      "calls": [
+        {
+          "line": 270,
+          "name": "research.issue_number"
+        },
+        {
+          "line": 271,
+          "name": "research.gh_json"
+        },
+        {
+          "line": 272,
+          "name": "research.parse_issue"
+        },
+        {
+          "line": 274,
+          "name": "ValueError"
+        },
+        {
+          "line": 275,
+          "name": "empty_snapshot"
+        },
+        {
+          "line": 277,
+          "name": ".update"
+        },
+        {
+          "line": 279,
+          "name": ".update"
+        },
+        {
+          "line": 279,
+          "name": "str"
+        },
+        {
+          "line": 280,
+          "name": "find_pull"
+        },
+        {
+          "line": 282,
+          "name": "research.gh_json"
+        },
+        {
+          "line": 283,
+          "name": "detail.get"
+        },
+        {
+          "line": 284,
+          "name": "git_sha"
+        },
+        {
+          "line": 285,
+          "name": "model_evaluation.read_reports"
+        },
+        {
+          "line": 286,
+          "name": "read_json"
+        },
+        {
+          "line": 287,
+          "name": "model_evaluation.validate_reports"
+        },
+        {
+          "line": 290,
+          "name": "input_contracts.planning_context"
+        },
+        {
+          "line": 294,
+          "name": "payload.update"
+        },
+        {
+          "line": 299,
+          "name": "run_url.rsplit"
+        },
+        {
+          "line": 302,
+          "name": "detail.get"
+        },
+        {
+          "line": 303,
+          "name": "detail.get"
+        },
+        {
+          "line": 305,
+          "name": "deepcopy"
+        },
+        {
+          "line": 307,
+          "name": "deepcopy"
+        },
+        {
+          "line": 309,
+          "name": "deepcopy"
+        },
+        {
+          "line": 312,
+          "name": ".update"
+        },
+        {
+          "line": 313,
+          "name": "len"
+        },
+        {
+          "line": 314,
+          "name": "deepcopy"
+        },
+        {
+          "line": 317,
+          "name": "deepcopy"
+        },
+        {
+          "line": 320,
+          "name": "find_pull"
+        },
+        {
+          "line": 323,
+          "name": "read_tree"
+        },
+        {
+          "line": 325,
+          "name": "read_object"
+        },
+        {
+          "line": 325,
+          "name": "read_file"
+        },
+        {
+          "line": 326,
+          "name": "read_file"
+        },
+        {
+          "line": 327,
+          "name": ".encode"
+        },
+        {
+          "line": 327,
+          "name": "model_evaluation.markdown"
+        },
+        {
+          "line": 328,
+          "name": "ValueError"
+        },
+        {
+          "line": 329,
+          "name": "validate_evaluation"
+        },
+        {
+          "line": 330,
+          "name": ".get"
+        },
+        {
+          "line": 334,
+          "name": "validate_evaluation"
+        },
+        {
+          "line": 337,
+          "name": "result_review.semantic_result"
+        },
+        {
+          "line": 337,
+          "name": "result_review.semantic_result"
+        },
+        {
+          "line": 340,
+          "name": ".upper"
+        },
+        {
+          "line": 343,
+          "name": "result_pull.get"
+        },
+        {
+          "line": 348,
+          "name": "check_public"
+        }
+      ],
+      "github": "https://github.com/t-hajongkim/Medical-ML-SDLC/blob/c488e29d91b676b6b079967186d819f1e85a3bfe/app/dashboard.py#L269-L349"
+    },
+    {
+      "file": "app/dashboard.py",
+      "function": "publish",
+      "start": 414,
+      "end": 479,
+      "calls": [
+        {
+          "line": 415,
+          "name": "research.repository_name"
+        },
+        {
+          "line": 416,
+          "name": "research.gh_json"
+        },
+        {
+          "line": 418,
+          "name": "resolve_event"
+        },
+        {
+          "line": 421,
+          "name": "existing_state"
+        },
+        {
+          "line": 423,
+          "name": "read_file"
+        },
+        {
+          "line": 424,
+          "name": "read_object"
+        },
+        {
+          "line": 425,
+          "name": "previous.get"
+        },
+        {
+          "line": 426,
+          "name": ".get"
+        },
+        {
+          "line": 426,
+          "name": "previous.get"
+        },
+        {
+          "line": 427,
+          "name": ".get"
+        },
+        {
+          "line": 427,
+          "name": "previous.get"
+        },
+        {
+          "line": 428,
+          "name": "ValueError"
+        },
+        {
+          "line": 429,
+          "name": "build_snapshot"
+        },
+        {
+          "line": 429,
+          "name": "empty_snapshot"
+        },
+        {
+          "line": 431,
+          "name": ".get"
+        },
+        {
+          "line": 431,
+          "name": ".get"
+        },
+        {
+          "line": 432,
+          "name": "int"
+        },
+        {
+          "line": 432,
+          "name": "int"
+        },
+        {
+          "line": 433,
+          "name": ".update"
+        },
+        {
+          "line": 434,
+          "name": "value.items"
+        },
+        {
+          "line": 437,
+          "name": "comparable"
+        },
+        {
+          "line": 437,
+          "name": "comparable"
+        },
+        {
+          "line": 438,
+          "name": ".isoformat"
+        },
+        {
+          "line": 438,
+          "name": "datetime.now"
+        },
+        {
+          "line": 439,
+          "name": ".get"
+        },
+        {
+          "line": 439,
+          "name": "active.get"
+        },
+        {
+          "line": 448,
+          "name": "check_public"
+        },
+        {
+          "line": 449,
+          "name": ".resolve"
+        },
+        {
+          "line": 449,
+          "name": "Path"
+        },
+        {
+          "line": 450,
+          "name": "output.exists"
+        },
+        {
+          "line": 450,
+          "name": "output.is_relative_to"
+        },
+        {
+          "line": 450,
+          "name": "research.ROOT.resolve"
+        },
+        {
+          "line": 451,
+          "name": "ValueError"
+        },
+        {
+          "line": 453,
+          "name": "shutil.copytree"
+        },
+        {
+          "line": 455,
+          "name": "metadata.get"
+        },
+        {
+          "line": 456,
+          "name": ".write_bytes"
+        },
+        {
+          "line": 456,
+          "name": "encoded"
+        },
+        {
+          "line": 457,
+          "name": ".write_bytes"
+        },
+        {
+          "line": 457,
+          "name": "encoded"
+        },
+        {
+          "line": 458,
+          "name": ".write_bytes"
+        },
+        {
+          "line": 458,
+          "name": "encoded"
+        },
+        {
+          "line": 460,
+          "name": "output.rglob"
+        },
+        {
+          "line": 461,
+          "name": "path.is_symlink"
+        },
+        {
+          "line": 462,
+          "name": "ValueError"
+        },
+        {
+          "line": 463,
+          "name": "path.is_file"
+        },
+        {
+          "line": 464,
+          "name": "path.read_bytes"
+        },
+        {
+          "line": 464,
+          "name": ".as_posix"
+        },
+        {
+          "line": 464,
+          "name": "path.relative_to"
+        },
+        {
+          "line": 466,
+          "name": "encoded"
+        },
+        {
+          "line": 468,
+          "name": "files.items"
+        },
+        {
+          "line": 469,
+          "name": ".hexdigest"
+        },
+        {
+          "line": 469,
+          "name": "hashlib.sha1"
+        },
+        {
+          "line": 469,
+          "name": ".encode"
+        },
+        {
+          "line": 469,
+          "name": "str"
+        },
+        {
+          "line": 469,
+          "name": "len"
+        },
+        {
+          "line": 470,
+          "name": ".get"
+        },
+        {
+          "line": 470,
+          "name": "tree.get"
+        },
+        {
+          "line": 474,
+          "name": "_write_api"
+        },
+        {
+          "line": 475,
+          "name": "_commit_files"
+        }
+      ],
+      "github": "https://github.com/t-hajongkim/Medical-ML-SDLC/blob/c488e29d91b676b6b079967186d819f1e85a3bfe/app/dashboard.py#L414-L479"
+    },
+    {
+      "file": "app/inference.py",
+      "function": "predict",
+      "start": 78,
+      "end": 117,
+      "calls": [
+        {
+          "line": 79,
+          "name": "validate_data_manifest"
+        },
+        {
+          "line": 81,
+          "name": "ValueError"
+        },
+        {
+          "line": 82,
+          "name": "validate_model_manifest"
+        },
+        {
+          "line": 83,
+          "name": "validate_registered_model"
+        },
+        {
+          "line": 84,
+          "name": "read_split"
+        },
+        {
+          "line": 91,
+          "name": "warnings.catch_warnings"
+        },
+        {
+          "line": 92,
+          "name": "warnings.simplefilter"
+        },
+        {
+          "line": 93,
+          "name": "joblib.load"
+        },
+        {
+          "line": 94,
+          "name": "type"
+        },
+        {
+          "line": 95,
+          "name": "np.array_equal"
+        },
+        {
+          "line": 96,
+          "name": "ValueError"
+        },
+        {
+          "line": 98,
+          "name": "hasattr"
+        },
+        {
+          "line": 99,
+          "name": "np.array_equal"
+        },
+        {
+          "line": 100,
+          "name": "ValueError"
+        },
+        {
+          "line": 101,
+          "name": "pd.DataFrame"
+        },
+        {
+          "line": 102,
+          "name": "np.asarray"
+        },
+        {
+          "line": 102,
+          "name": "model.predict_proba"
+        },
+        {
+          "line": 103,
+          "name": ".all"
+        },
+        {
+          "line": 103,
+          "name": "len"
+        },
+        {
+          "line": 103,
+          "name": "np.isfinite"
+        },
+        {
+          "line": 104,
+          "name": ".any"
+        },
+        {
+          "line": 104,
+          "name": ".any"
+        },
+        {
+          "line": 105,
+          "name": "np.allclose"
+        },
+        {
+          "line": 105,
+          "name": "probabilities.sum"
+        },
+        {
+          "line": 106,
+          "name": "ValueError"
+        },
+        {
+          "line": 111,
+          "name": "len"
+        }
+      ],
+      "github": "https://github.com/t-hajongkim/Medical-ML-SDLC/blob/c488e29d91b676b6b079967186d819f1e85a3bfe/app/inference.py#L78-L117"
+    },
+    {
+      "file": "app/prepared.py",
+      "function": "smoke_database",
+      "start": 530,
+      "end": 583,
+      "calls": [
+        {
+          "line": 532,
+          "name": "validate_data_manifest"
+        },
+        {
+          "line": 533,
+          "name": "uuid.uuid4"
+        },
+        {
+          "line": 534,
+          "name": "secrets.token_urlsafe"
+        },
+        {
+          "line": 537,
+          "name": "docker"
+        },
+        {
+          "line": 542,
+          "name": "time.monotonic"
+        },
+        {
+          "line": 543,
+          "name": "time.monotonic"
+        },
+        {
+          "line": 544,
+          "name": "json.loads"
+        },
+        {
+          "line": 544,
+          "name": "docker"
+        },
+        {
+          "line": 545,
+          "name": ".get"
+        },
+        {
+          "line": 545,
+          "name": "state.get"
+        },
+        {
+          "line": 548,
+          "name": "state.get"
+        },
+        {
+          "line": 549,
+          "name": "RuntimeError"
+        },
+        {
+          "line": 550,
+          "name": "time.sleep"
+        },
+        {
+          "line": 552,
+          "name": "TimeoutError"
+        },
+        {
+          "line": 560,
+          "name": ".join"
+        },
+        {
+          "line": 563,
+          "name": ".join"
+        },
+        {
+          "line": 566,
+          "name": "query.replace"
+        },
+        {
+          "line": 569,
+          "name": "docker"
+        },
+        {
+          "line": 574,
+          "name": "compare_database_csv"
+        },
+        {
+          "line": 575,
+          "name": "sum"
+        },
+        {
+          "line": 575,
+          "name": ".values"
+        },
+        {
+          "line": 576,
+          "name": "sum"
+        },
+        {
+          "line": 576,
+          "name": ".values"
+        },
+        {
+          "line": 577,
+          "name": "ValueError"
+        },
+        {
+          "line": 579,
+          "name": "write_json"
+        },
+        {
+          "line": 583,
+          "name": "docker"
+        }
+      ],
+      "github": "https://github.com/t-hajongkim/Medical-ML-SDLC/blob/c488e29d91b676b6b079967186d819f1e85a3bfe/app/prepared.py#L530-L583"
+    }
+  ]
+}
